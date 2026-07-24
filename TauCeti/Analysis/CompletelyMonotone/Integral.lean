@@ -28,6 +28,8 @@ for the first derivative within `[0, ∞)`.
 * `TauCeti.IsCompletelyMonotone.neg_iteratedDerivWithin_one_integrableOn`,
   `TauCeti.IsCompletelyMonotone.integral_Ioi_neg_iteratedDerivWithin_one`: integrability and the
   improper integral of `-f'` on `(0, ∞)`, represented as `iteratedDerivWithin 1`.
+* `TauCeti.IsCompletelyMonotone.integral_Ioi_neg_iteratedDerivWithin_one_of_nonneg`: the same
+  improper integral from an arbitrary nonnegative endpoint, `∫ₓ^∞ (-f') = f x - L`.
 
 ## References
 
@@ -142,22 +144,27 @@ lemma IsCompletelyMonotone.neg_iteratedDerivWithin_one_integrableOn
     fun t ht => hcm.iteratedDerivWithin_one_nonpos ht.le
   exact (integrableOn_Ioi_deriv_of_nonpos hcont hderiv hneg hL).neg
 
-/-- The improper integral `∫₀^∞ (-f') dt = f(0) - L` for completely monotone functions. -/
-lemma IsCompletelyMonotone.integral_Ioi_neg_iteratedDerivWithin_one
-    (hcm : IsCompletelyMonotone f) {L : ℝ} (hL : Tendsto f atTop (nhds L)) :
-    ∫ t in Ioi 0, -iteratedDerivWithin 1 f (Ici 0) t = f 0 - L := by
-  have hcont : ContinuousWithinAt f (Ici 0) 0 :=
-    hcm.contDiffOn.continuousOn.continuousWithinAt self_mem_Ici
-  have hderiv : ∀ t ∈ Ioi 0,
-      HasDerivAt f (iteratedDerivWithin 1 f (Ici 0) t) t := by
-    intro t ht
-    exact hcm.hasDerivAt_iteratedDerivWithin_succ 0 ht
-  have hneg : ∀ t ∈ Ioi 0, iteratedDerivWithin 1 f (Ici 0) t ≤ 0 :=
-    fun t ht => hcm.iteratedDerivWithin_one_nonpos ht.le
-  have hFTC :
-      ∫ t in Ioi 0, iteratedDerivWithin 1 f (Ici 0) t = L - f 0 :=
+/-- The improper integral `∫ₓ^∞ (-f') dt = f x - L` from an arbitrary nonnegative endpoint `x`,
+for a completely monotone function with limit `L` at infinity. -/
+lemma IsCompletelyMonotone.integral_Ioi_neg_iteratedDerivWithin_one_of_nonneg
+    (hcm : IsCompletelyMonotone f) {x : ℝ} (hx : 0 ≤ x) {L : ℝ}
+    (hL : Tendsto f atTop (nhds L)) :
+    ∫ t in Ioi x, -iteratedDerivWithin 1 f (Ici 0) t = f x - L := by
+  have hcont : ContinuousWithinAt f (Ici x) x :=
+    (hcm.contDiffOn.continuousOn.continuousWithinAt hx).mono (Ici_subset_Ici.mpr hx)
+  have hderiv : ∀ t ∈ Ioi x, HasDerivAt f (iteratedDerivWithin 1 f (Ici 0) t) t :=
+    fun t ht => hcm.hasDerivAt_iteratedDerivWithin_succ 0 (hx.trans_lt ht)
+  have hneg : ∀ t ∈ Ioi x, iteratedDerivWithin 1 f (Ici 0) t ≤ 0 :=
+    fun t ht => hcm.iteratedDerivWithin_one_nonpos (hx.trans ht.le)
+  have hFTC : ∫ t in Ioi x, iteratedDerivWithin 1 f (Ici 0) t = L - f x :=
     integral_Ioi_of_hasDerivAt_of_nonpos hcont hderiv hneg hL
   rw [MeasureTheory.integral_neg, hFTC]
   ring
+
+/-- The improper integral `∫₀^∞ (-f') dt = f(0) - L` for completely monotone functions. -/
+lemma IsCompletelyMonotone.integral_Ioi_neg_iteratedDerivWithin_one
+    (hcm : IsCompletelyMonotone f) {L : ℝ} (hL : Tendsto f atTop (nhds L)) :
+    ∫ t in Ioi 0, -iteratedDerivWithin 1 f (Ici 0) t = f 0 - L :=
+  hcm.integral_Ioi_neg_iteratedDerivWithin_one_of_nonneg le_rfl hL
 
 end TauCeti
