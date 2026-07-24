@@ -150,6 +150,36 @@ private theorem cellCount_le {c ε : ℝ} (hε : 0 < ε) (hεc : ε ≤ c) :
   rw [le_div_iff₀ hε]
   nlinarith [hme, hεc, hc, hs]
 
+/-- The cell-index map of scale `ε` for the box `box r c`: a point maps to the tuple of its
+per-coordinate integer cell indices (of the real and imaginary parts), with cell side
+`ε·rᵢ/√2`. -/
+private noncomputable def cellIndexMap (r : ι → ℝ) (c ε : ℝ) : (ι → ℂ) → (ι → ℤ × ℤ) :=
+  fun x i => (⌊((x i).re + c * r i) / (ε * r i / Real.sqrt 2)⌋,
+    ⌊((x i).im + c * r i) / (ε * r i / Real.sqrt 2)⌋)
+
+omit [Fintype ι] in
+/-- The cell-index map is injective on a set whose distinct points are `ε`-separated in some
+coordinate: two points sharing every cell index would differ by less than the cell diameter
+`ε·rᵢ` in that coordinate, contradicting the separation. -/
+private theorem injOn_cellIndexMap_of_separated (r : ι → ℝ) (hr : ∀ i, 0 < r i) {c ε : ℝ}
+    (hε : 0 < ε) {S : Set (ι → ℂ)}
+    (hsep : ∀ x ∈ S, ∀ y ∈ S, x ≠ y → ∃ i, ε * r i < ‖x i - y i‖) :
+    Set.InjOn (cellIndexMap r c ε) S := by
+  intro x hx y hy hxy
+  by_contra hne
+  obtain ⟨i, hi⟩ := hsep x hx y hy hne
+  simp only [cellIndexMap, funext_iff, Prod.ext_iff] at hxy
+  have hdnn : (0 : ℝ) ≤ ε * r i / Real.sqrt 2 :=
+    div_nonneg (mul_nonneg hε.le (hr i).le) (Real.sqrt_nonneg 2)
+  have hre : |(x i).re - (y i).re| < ε * r i / Real.sqrt 2 :=
+    cell_index_diff hε (hr i) (hxy i).1
+  have him : |(x i).im - (y i).im| < ε * r i / Real.sqrt 2 :=
+    cell_index_diff hε (hr i) (hxy i).2
+  have hlt : ‖x i - y i‖ < (ε * r i / Real.sqrt 2) * Real.sqrt 2 :=
+    norm_lt_of_re_im_bound hdnn (by rwa [Complex.sub_re]) (by rwa [Complex.sub_im])
+  rw [div_mul_cancel₀ _ (by positivity : Real.sqrt 2 ≠ 0)] at hlt
+  linarith
+
 /-- **Grid pigeonhole / packing.** A subset of the polydisc `box r c` whose distinct points
 are `ε`-separated in some coordinate (relative to `r`) is finite, of cardinality at most
 `(4·c/ε) ^ (2·#ι)`. -/
@@ -165,9 +195,7 @@ theorem finite_and_ncard_le_of_subset_box_of_separated (r : ι → ℝ) (hr : �
   set T : Finset (ι → ℤ × ℤ) :=
     Fintype.piFinset (fun _ : ι => Finset.Icc (0 : ℤ) K ×ˢ Finset.Icc (0 : ℤ) K) with hT
   -- The cell map, of cell side `ε·r i/√2` per coordinate.
-  set g : (ι → ℂ) → (ι → ℤ × ℤ) :=
-    fun x i => (⌊((x i).re + c * r i) / (ε * r i / Real.sqrt 2)⌋,
-      ⌊((x i).im + c * r i) / (ε * r i / Real.sqrt 2)⌋)
+  set g : (ι → ℂ) → (ι → ℤ × ℤ) := cellIndexMap r c ε with hg_def
   have key : ∀ x ∈ S, ∀ i, |(x i).re| ≤ c * r i ∧ |(x i).im| ≤ c * r i := fun x hx i =>
     ⟨(Complex.abs_re_le_norm _).trans (hS hx i), (Complex.abs_im_le_norm _).trans (hS hx i)⟩
   have hg : ∀ x ∈ S, g x ∈ T := by
@@ -177,21 +205,7 @@ theorem finite_and_ncard_le_of_subset_box_of_separated (r : ι → ℝ) (hr : �
     rw [Finset.mem_product]
     exact ⟨cell_index_mem hε (hr i) (key x hx i).1, cell_index_mem hε (hr i) (key x hx i).2⟩
   -- The cell map is injective on `S`.
-  have hg_inj : Set.InjOn g S := by
-    intro x hx y hy hxy
-    by_contra hne
-    obtain ⟨i, hi⟩ := hsep x hx y hy hne
-    have hdnn : (0 : ℝ) ≤ ε * r i / Real.sqrt 2 :=
-      div_nonneg (mul_nonneg hε.le (hr i).le) (Real.sqrt_nonneg 2)
-    have hre : |(x i).re - (y i).re| < ε * r i / Real.sqrt 2 :=
-      cell_index_diff hε (hr i) (congr_arg Prod.fst (congr_fun hxy i))
-    have him : |(x i).im - (y i).im| < ε * r i / Real.sqrt 2 :=
-      cell_index_diff hε (hr i) (congr_arg Prod.snd (congr_fun hxy i))
-    have hlt : ‖x i - y i‖ < (ε * r i / Real.sqrt 2) * Real.sqrt 2 :=
-      norm_lt_of_re_im_bound hdnn
-        (by rwa [Complex.sub_re]) (by rwa [Complex.sub_im])
-    rw [div_mul_cancel₀ _ (by positivity : Real.sqrt 2 ≠ 0)] at hlt
-    linarith
+  have hg_inj : Set.InjOn g S := injOn_cellIndexMap_of_separated r hr hε hsep
   -- Finiteness and the cardinal bound follow from injectivity into the finite `T`.
   have hgsub : g '' S ⊆ (↑T : Set (ι → ℤ × ℤ)) := by
     rintro _ ⟨x, hx, rfl⟩
