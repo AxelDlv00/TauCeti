@@ -847,6 +847,15 @@ private lemma chafai_kernel_density_eq (f : ℝ → ℝ)
           iteratedDerivWithin n f (Ici 0) t := by ring
     _ = _ := by rw [key]
 
+/-- For `k ≠ 0`, dividing by `k!` and multiplying by `k` is dividing by `(k - 1)!`. This is the
+coefficient bookkeeping produced by differentiating the order-`k` kernel. -/
+private lemma div_factorial_mul_natCast {k : ℕ} (hk : k ≠ 0) (c z : ℝ) :
+    c / ↑k.factorial * ((k : ℝ) * z) = c / ↑(k - 1).factorial * z := by
+  have hfact : k.factorial = k * (k - 1).factorial := (Nat.mul_factorial_pred hk).symm
+  rw [hfact]
+  push_cast
+  field_simp
+
 private lemma ibp_finite_interval (f : ℝ → ℝ) (hcm : IsCompletelyMonotone f)
     (k : ℕ) (hk : k ≠ 0) (x T : ℝ) (hx : 0 ≤ x) (hxT : x < T) :
     ∫ t in x..T, (-1 : ℝ) ^ (k + 1) / ↑k.factorial * (t - x) ^ k *
@@ -861,23 +870,13 @@ private lemma ibp_finite_interval (f : ℝ → ℝ) (hcm : IsCompletelyMonotone 
   set u := fun t : ℝ => c * (t - x) ^ k
   set u' := fun t : ℝ => c * (↑k * (t - x) ^ (k - 1))
   have hu'_eq : ∀ t, u' t =
-      (-1 : ℝ) ^ (k + 1) / ↑(k - 1).factorial * (t - x) ^ (k - 1) := by
-    intro t
+      (-1 : ℝ) ^ (k + 1) / ↑(k - 1).factorial * (t - x) ^ (k - 1) := fun t => by
     simp only [u', c]
-    have hfact : k.factorial = k * (k - 1).factorial := by
-      cases k with
-      | zero => contradiction
-      | succ n => simp [Nat.factorial_succ]
-    rw [hfact]
-    push_cast
-    field_simp
+    exact div_factorial_mul_natCast hk _ _
   have hu_cont : ContinuousOn u (uIcc x T) :=
     continuousOn_const.mul ((continuousOn_id.sub continuousOn_const).pow _)
-  have hg_cont : ContinuousOn g (uIcc x T) := by
-    rw [uIcc_of_le hxT.le]
-    exact (hcm.contDiffOn.continuousOn_iteratedDerivWithin (nat_le_top k)
-      (uniqueDiffOn_Ici 0)).mono
-        (Icc_subset_Ici_self.trans (Ici_subset_Ici.mpr hx))
+  have hg_cont : ContinuousOn g (uIcc x T) :=
+    hcm.continuousOn_iteratedDerivWithin_uIcc k hx (hx.trans hxT.le)
   have hu_deriv : ∀ t ∈ Ioo (min x T) (max x T),
       HasDerivWithinAt u (u' t) (Ioi t) t := by
     intro t _ht
@@ -893,12 +892,8 @@ private lemma ibp_finite_interval (f : ℝ → ℝ) (hcm : IsCompletelyMonotone 
   have hu'_int : IntervalIntegrable u' volume x T :=
     (continuousOn_const.mul (continuousOn_const.mul
       ((continuousOn_id.sub continuousOn_const).pow _))).intervalIntegrable
-  have hg'_int : IntervalIntegrable g' volume x T := by
-    apply ContinuousOn.intervalIntegrable
-    rw [uIcc_of_le hxT.le]
-    exact (hcm.contDiffOn.continuousOn_iteratedDerivWithin (nat_le_top (k + 1))
-      (uniqueDiffOn_Ici 0)).mono
-        (Icc_subset_Ici_self.trans (Ici_subset_Ici.mpr hx))
+  have hg'_int : IntervalIntegrable g' volume x T :=
+    (hcm.continuousOn_iteratedDerivWithin_uIcc (k + 1) hx (hx.trans hxT.le)).intervalIntegrable
   have hibp := integral_mul_deriv_eq_deriv_mul_of_hasDeriv_right
     hu_cont hg_cont hu_deriv hg_deriv hu'_int hg'_int
   have hu0 : u x = 0 := by simp [u, sub_self, zero_pow hk]
