@@ -5,20 +5,22 @@ This is an EMERGENCY channel, not a "ask the humans for help" queue. Every alert
 here means a piece of Tau Ceti's own automation was supposed to make progress and
 could not unstick itself: a bump that will not cross a breaking change, a green PR
 the merge machinery never merged, a scheduled job that stopped firing, main gone
-red. The expected response to any alert is to FIX THE INFRASTRUCTURE (a script, a
-workflow, a pin, a guard) so the situation cannot recur -- not to hand-hold one PR
-and move on. If an alert can only ever be resolved by a human doing a one-off
-favour, it does not belong here; see the "deliberately NOT alerted" list below.
+red. The expected response to any alert is to FIX THE INFRASTRUCTURE, e.g. a
+script, a workflow, a pin, or a guard, so that the situation cannot recur. Do not
+hand-hold one PR and move on. If an alert can only ever be resolved by a human
+doing a one-off favour, it does not belong here; see the "deliberately NOT
+alerted" list below.
 
 Detectors (each names the infra failure it implies):
 
   1. stuck-bump      The last-known-good bump PR (branch hopscotch/lkg-bump) has a
                      RED `build` check that has stayed red past a grace window. The
                      daily bump cannot cross a mathlib breaking change on its own;
-                     something (a proof, scripts/lint-env.sh, a guard) needs a fix.
+                     something needs a fix, e.g. a proof, scripts/lint-env.sh, or a
+                     guard.
   2. stale-pin       main's mathlib pin has not moved in several days. The bump has
-                     stopped advancing (a wedged PR, an unresolved first-known-bad
-                     freeze, or update.yml silently broken).
+                     stopped advancing, e.g. a wedged PR, an unresolved
+                     first-known-bad freeze, or update.yml silently broken.
   3. stranded-pr     A PR that is in-scope (TauCeti/ + allowed roots, bump-guard
                      green for any pin change), `build` green, every blocking
                      rubric green at HEAD, not draft/hold, mergeable, and quiet for
@@ -54,9 +56,10 @@ Each run reconciles the topic against live GitHub state:
     rather than editing the buried one, so a re-fired incident is actually seen.
 There are no @-mentions (the topic is watched, not pinged).
 
-FAIL CLOSED, never fail open. A detector that raises (GitHub outage, rate limit,
-bug) does NOT clear its alerts: its key-prefix is marked "unknown" for the run and
-existing messages under that prefix are left exactly as they are. The alternative
+FAIL CLOSED, never fail open. A detector may raise, e.g. on a GitHub outage, a rate
+limit, or a bug. When it does, its alerts are NOT cleared: its key-prefix is marked
+"unknown" for the run and existing messages under that prefix are left exactly as
+they are. The alternative
 -- treating "the check failed" as "the emergency is over" -- is the worst possible
 behaviour for a watchdog. Only a genuinely-absent alert from a detector that ran
 cleanly is resolved.
@@ -215,9 +218,9 @@ def detect_stuck_bump():
                     f"https://github.com/{REPO}/pull/{pr['number']} has had a red "
                     f"`build` check and has been open over {BUMP_STUCK_HOURS}h. The daily bump cannot "
                     f"cross a mathlib breaking change on its own.\n\n"
-                    f"**Fix:** open the failing build, land the fix it needs (a proof, "
-                    f"`scripts/lint-env.sh`, a guard) together with the pin move in one "
-                    f"human-owned PR, so the bump can resume."),
+                    f"**Fix:** open the failing build, and land whatever fix it needs "
+                    f"together with the pin move in one human-owned PR, so the bump "
+                    f"can resume."),
             })
     return out
 
