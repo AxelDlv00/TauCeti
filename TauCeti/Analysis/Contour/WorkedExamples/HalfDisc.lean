@@ -5,6 +5,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Analysis.Contour.PwC1ImmersionOn
+public import TauCeti.Analysis.Contour.RegularityConditions
+import TauCeti.Analysis.Contour.Crossing.Finiteness
 public import TauCeti.Analysis.Contour.Winding.Number.Circle
 public import TauCeti.Analysis.Contour.Winding.Number.Concat
 public import TauCeti.Analysis.Contour.Winding.Number.Reparam
@@ -42,6 +44,12 @@ residue theorem does not apply because the pole lies *on* the contour.
   the single breakpoint `R`; this is the regularity hypothesis of the Hungerbühler–Wasem theorems.
 * `TauCeti.Contour.windingNumber_halfDiscBoundary` — its generalized winding number about the
   origin is `½`.
+* `TauCeti.Contour.halfDiscBoundary_eq_zero_iff` — the contour meets the origin exactly once,
+  at `t = 0`.
+* `TauCeti.Contour.flatOfOrder_halfDiscBoundary` — both one-sided branches at the origin lie on
+  the real line, so the contour is flat there to every order.
+* `TauCeti.Contour.conditionAprime_halfDiscBoundary` — Hungerbühler–Wasem condition (A′) at the
+  origin, for any integrand.
 
 ## References
 
@@ -229,6 +237,68 @@ theorem windingNumber_halfDiscBoundary (hR : 0 < R) :
       ((eqOn_halfDiscBoundary_arc R).mono uIoo_subset_uIcc_self)]
     exact windingNumber_arc hR
   rw [windingNumber_concat hpv_seg hpv_arc, hseg, harc, zero_add]
+
+/-- **The half-disc boundary meets the origin exactly once**, at `t = 0`: on the diameter
+`γ t = t` vanishes only there, and the arc stays at distance `|R|` from the origin. -/
+@[simp]
+theorem halfDiscBoundary_eq_zero_iff (hR : 0 < R) {t : ℝ} :
+    halfDiscBoundary R t = 0 ↔ t = 0 := by
+  constructor
+  · intro h
+    by_cases hle : t ≤ R
+    · rw [halfDiscBoundary_of_le hle] at h
+      exact_mod_cast h
+    · rw [halfDiscBoundary_of_lt (not_le.mp hle)] at h
+      exact absurd h (circleMap_ne_center hR.ne')
+  · rintro rfl
+    simpa using halfDiscBoundary_of_le hR.le
+
+/-- **The half-disc boundary is flat to every order at the origin.** With tangent direction
+`v = 1` the perpendicular deviation `|Im (γ t - γ 0)|` vanishes *identically* near `t = 0`, which
+is `o` of anything. For `R > 0` that is because the contour is locally the real diameter; for the
+degenerate radius `R = 0` the arc collapses to the origin, so both one-sided branches still lie on
+the real line. -/
+theorem flatOfOrder_halfDiscBoundary (hR : 0 ≤ R) (n : ℕ) :
+    FlatOfOrder (halfDiscBoundary R) 0 n := by
+  have hzero : ∀ t : ℝ, t ≤ R →
+      ((halfDiscBoundary R t - halfDiscBoundary R 0) * star (1 : ℂ)).im = 0 := by
+    intro t ht
+    rw [halfDiscBoundary_of_le ht, halfDiscBoundary_of_le hR]
+    simp
+  rcases eq_or_lt_of_le hR with rfl | hR'
+  · -- Degenerate radius: the arc collapses to the origin, so the deviation vanishes everywhere.
+    have hall : ∀ t : ℝ, ((halfDiscBoundary 0 t - halfDiscBoundary 0 0) * star (1 : ℂ)).im = 0 := by
+      intro t
+      rcases le_or_gt t 0 with h | h
+      · exact hzero t h
+      · rw [halfDiscBoundary_of_lt h, halfDiscBoundary_of_le le_rfl]
+        simp [circleMap]
+    exact flatOfOrder_of_eventually_collinear one_ne_zero one_ne_zero n
+      (Filter.Eventually.of_forall hall) (Filter.Eventually.of_forall hall)
+  · refine flatOfOrder_of_eventually_collinear one_ne_zero one_ne_zero n ?_ ?_
+    · filter_upwards [Ioo_mem_nhdsGT hR'] with t ht
+      exact hzero t (mem_Ioo.mp ht).2.le
+    · filter_upwards [self_mem_nhdsWithin] with t ht
+      exact hzero t (le_trans (le_of_lt ht) hR)
+
+/-- **Condition (A′) holds for the half-disc boundary at the origin**, for any integrand. The
+origin is met exactly once, the contour is flat there to every order (it is locally the real
+diameter), and the basepoint `γ(-R) = -R` is not the origin, so that clause is vacuous. -/
+theorem conditionAprime_halfDiscBoundary (hR : 0 < R) (f : ℂ → ℂ) :
+    ConditionAprime (halfDiscBoundary R) (-R) (R + Real.pi) f {0} := by
+  have hpi := Real.pi_pos
+  have hmin : min (-R) (R + Real.pi) = -R := min_eq_left (by linarith)
+  refine ⟨fun s hs => ?_, fun t₀ _ hmem n _ _ => ?_, fun hbase => ?_⟩
+  · rw [Finset.mem_singleton.mp hs]
+    exact (isPwC1ImmersionOn_halfDiscBoundary hR).finite_crossings
+  · have ht₀ : t₀ = 0 := (halfDiscBoundary_eq_zero_iff hR).mp (by simpa using hmem)
+    subst ht₀
+    exact flatOfOrder_halfDiscBoundary hR.le n
+  · exfalso
+    rw [hmin, halfDiscBoundary_of_le (by linarith : (-R : ℝ) ≤ R)] at hbase
+    have : (-R : ℝ) = 0 := by
+      exact_mod_cast Complex.ofReal_eq_zero.mp (by simpa using hbase)
+    linarith
 
 end TauCeti.Contour
 
