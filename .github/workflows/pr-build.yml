@@ -161,6 +161,9 @@ jobs:
             echo "BUMP=1" >> "$GITHUB_ENV"
             echo "::notice::trusted review-bot Mathlib lakefile pin detected — validating the exact config and manifest relationship"
           elif echo "$files" | grep -vqE '^TauCeti/|^TauCeti\.lean$|^lake-manifest\.json$|^lean-toolchain$'; then
+            if echo "$files" | grep -qE '^lakefile\.toml$'; then
+              echo "HUMAN_LAKEFILE=1" >> "$GITHUB_ENV"
+            fi
             echo "OUT_OF_SCOPE=1" >> "$GITHUB_ENV"
             echo "::warning::PR changes paths outside TauCeti/ + Lake pins — its TauCeti/ is still sandbox-built against the trusted base (so the build result is visible), but merging needs human review"
           elif echo "$files" | grep -qE '^lake-manifest\.json$|^lean-toolchain$'; then
@@ -272,6 +275,16 @@ jobs:
           fi
           if bash base/scripts/check-bump.sh "${args[@]}"; then
             echo "Lake-pin bump validated — building with the PR's pins."
+          elif [ "${{ github.event_name }}" = "merge_group" ] \
+              && [ "${BOT_LAKEFILE:-}" = "1" ]; then
+            # A human-reviewed arbitrary lakefile change can enter the queue too. It is not eligible
+            # for the bot exception, so preserve the pre-exception behavior: build with trusted base
+            # config, keep scope red, and let the human decision (not automation) authorize landing.
+            echo "BOT_LAKEFILE=" >> "$GITHUB_ENV"
+            echo "BUMP=" >> "$GITHUB_ENV"
+            echo "HUMAN_LAKEFILE=1" >> "$GITHUB_ENV"
+            echo "OUT_OF_SCOPE=1" >> "$GITHUB_ENV"
+            echo "::warning::merge-group lakefile is not the exact bot pin — building trusted base config for the human merge path"
           else
             echo "BUMP_BAD=1" >> "$GITHUB_ENV"
             echo "INFRA=1" >> "$GITHUB_ENV"
@@ -458,6 +471,8 @@ jobs:
           # both required statuses land together, before the auto-merge workflow_run fires.
           if [ "${{ env.BUMP_BAD }}" = "1" ]; then
             bg_state=failure; bg_desc="Lake pin/config change is not a validated forward bump — needs human review"
+          elif [ "${{ env.HUMAN_LAKEFILE }}" = "1" ]; then
+            bg_state=success; bg_desc="lakefile not auto-validated; trusted base config built — human merge required"
           else
             bg_state=success; bg_desc="validated forward Lake pin/config bump (or no pin change)"
           fi

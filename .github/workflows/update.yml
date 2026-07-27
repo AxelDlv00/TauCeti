@@ -42,14 +42,14 @@ jobs:
       # should be the fix one pinned at the first-known-bad commit.
       - name: Check whether an incompatibility is reported
         id: fkb
-        uses: leanprover-community/downstream-reports/.github/actions/query-latest@main
+        uses: leanprover-community/downstream-reports/.github/actions/query-latest@43df0aa23fd0d157988f154b9e636c2d0efe2822
         with:
           query-type: first-known-bad
 
       - name: Bump to latest mathlib
         id: bump
         if: steps.fkb.outputs.commit == ''
-        uses: leanprover-community/downstream-reports/.github/actions/bump-to-latest@main
+        uses: leanprover-community/downstream-reports/.github/actions/bump-to-latest@43df0aa23fd0d157988f154b9e636c2d0efe2822
 
       # TauCeti tracks mathlib `master` and lets bump-guard (scripts/check-bump.sh) validate
       # each bump as a forward move and auto-merge it. bump-to-latest pins the lakefile `rev`
@@ -92,7 +92,7 @@ jobs:
 
       - name: Open or update PR
         if: steps.fkb.outputs.commit == '' && steps.bump.outputs.updated == 'true'
-        uses: leanprover-community/downstream-reports/.github/actions/open-bump-pr@main
+        uses: leanprover-community/downstream-reports/.github/actions/open-bump-pr@43df0aa23fd0d157988f154b9e636c2d0efe2822
         with:
           branch: ${{ env.LKG_BRANCH }}
           title: "chore: ${{ steps.bump.outputs.pr-title }}"
@@ -121,7 +121,7 @@ jobs:
 
       - name: Open or update incompatibility issue and fix PR
         id: track
-        uses: leanprover-community/downstream-reports/.github/actions/track-incompatibility@main
+        uses: leanprover-community/downstream-reports/.github/actions/track-incompatibility@43df0aa23fd0d157988f154b9e636c2d0efe2822
         with:
           open-pr: true
           token: ${{ steps.app-token.outputs.token }}
