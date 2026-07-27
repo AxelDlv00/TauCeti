@@ -6,8 +6,9 @@ the trusted base.  The incompatibility tracker is the one exception: its PR
 replaces Mathlib's nominated branch with the immutable first-known-bad SHA so the
 PR builds against the commit it is meant to repair.  Once compatible again, the
 same bot changes that line back to ``master`` while advancing the manifest pin.
-This helper proves that the single lakefile line and the corresponding manifest
-input are the only configuration changes before the trusted workflow overlays them.
+This helper proves that the sole lakefile change is Mathlib's revision and that
+Mathlib's manifest ``rev``/``inputRev`` fields agree with it.  ``check-bump.sh``
+validates the rest of the manifest and the direction of the pin transition.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ REV_LINE_RE = re.compile(r'^(\s*rev\s*=\s*)"([^"]*)"(\s*(?:#.*)?(?:\n)?)$')
 
 
 class ValidationError(ValueError):
+    """Raised when a proposed review-bot lakefile pin has an invalid shape."""
+
     pass
 
 
@@ -55,6 +58,16 @@ def _single_changed_line(base_text: str, pr_text: str) -> tuple[str, str]:
 
 def validate(base_lakefile: pathlib.Path, pr_lakefile: pathlib.Path,
              pr_manifest: pathlib.Path) -> str:
+    """Validate the lakefile/Mathlib-manifest relationship for a bot pin or de-pin.
+
+    The PR must change only Mathlib's ``rev`` line, to either a 40-hex commit or
+    ``master``.  An exact pin must equal the manifest's Mathlib ``rev``, and the
+    manifest's Mathlib ``inputRev`` must always equal the proposed lakefile value.
+    Return that proposed value.  Raise ``ValidationError`` for invalid contents
+    and ``OSError`` when an input cannot be read; ``check-bump.sh`` performs the
+    remaining manifest and forward-transition validation.
+    """
+
     base_text = base_lakefile.read_text()
     pr_text = pr_lakefile.read_text()
     before, after = _single_changed_line(base_text, pr_text)
