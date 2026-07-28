@@ -17,7 +17,7 @@ from the left.
 
 The sign is the substance. Approaching from the left `t - t₀ < 0`, so the chord is a *negative*
 multiple of the slope and points opposite to it. This is why the interior angle swept at a
-crossing is measured from the reversed incoming tangent to the outgoing one, as
+crossing is measured from the outgoing tangent to the reversed incoming one, as
 `TauCeti.Contour.crossingAngle` does, and hence why a smooth crossing has angle `π` and
 contributes `½` rather than `0`.
 
