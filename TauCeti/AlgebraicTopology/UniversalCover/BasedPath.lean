@@ -697,6 +697,42 @@ private def joinedInSLSC_uFn : I × I → I := fun ts ↦
 private def joinedInSLSC_vFn : I × I → I := fun ts ↦
   ⟨joinedInSLSC_vReal ((ts.1 : ℝ), (ts.2 : ℝ)), joinedInSLSC_vReal_mem ts.1 ts.2⟩
 
+private theorem continuous_joinedInSLSC_uFn : Continuous joinedInSLSC_uFn := by
+  have hu_cont : Continuous joinedInSLSC_uReal :=
+    (continuous_fst).add <|
+      (Continuous.max continuous_const (by fun_prop)).mul (by fun_prop)
+  exact Continuous.subtype_mk (hu_cont.comp (by fun_prop)) _
+
+private theorem continuous_joinedInSLSC_vFn : Continuous joinedInSLSC_vFn := by
+  have hv_cont : Continuous joinedInSLSC_vReal :=
+    Continuous.min (by fun_prop) continuous_const
+  exact Continuous.subtype_mk (hv_cont.comp (by fun_prop)) _
+
+/-- The uncurried evaluation of a path of based paths is continuous in both arguments. -/
+private theorem continuous_uncurry_basedPath {α β : BasedPath x₀} (F : Path α β) :
+    Continuous fun ts : I × I ↦ (F ts.1).1 ts.2 := by
+  have h1 : Continuous (fun t : I ↦ ((F t).1 : C(I, X))) :=
+    continuous_subtype_val.comp F.continuous
+  exact ContinuousMap.continuous_uncurry_of_continuous ⟨_, h1⟩
+
+/-- **A square with prescribed edges is a path homotopy.** A continuous map on `I × I` that
+restricts to `p` at `t = 0` and to `q` at `t = 1`, and is constant along each of the edges `s = 0`
+and `s = 1`, exhibits `p` and `q` as homotopic paths. -/
+private theorem homotopic_of_continuous_square {a b : X} {p q : Path a b} (K : I × I → X)
+    (hK_cont : Continuous K) (hK_zero : ∀ s, K (0, s) = p s) (hK_one : ∀ s, K (1, s) = q s)
+    (hK_left : ∀ t, K (t, 0) = a) (hK_right : ∀ t, K (t, 1) = b) : p.Homotopic q :=
+  ⟨{ toFun := K
+     continuous_toFun := hK_cont
+     map_zero_left := hK_zero
+     map_one_left := hK_one
+     prop' := by
+       intro t s hs
+       rcases hs with rfl | hs
+       · exact (hK_left t).trans p.source.symm
+       · rw [Set.mem_singleton_iff] at hs
+         subst hs
+         exact (hK_right t).trans p.target.symm }⟩
+
 private theorem joinedInSLSC_uFn_zero_left (s : I) :
     (joinedInSLSC_uFn (0, s) : ℝ) = max 0 (2 * (s : ℝ) - 1) := by
   simp [joinedInSLSC_uFn, joinedInSLSC_uReal]
@@ -759,16 +795,11 @@ public theorem toPath_homotopic_of_joinedIn_pathHomotopyTrivial
     Path.Homotopic (α.toPath.cast rfl heq.symm) β.toPath := by
   obtain ⟨F, hF_U⟩ := hAB
   set v : X := endpoint β with hv_def
-  -- Uncurry F to get a continuous map (t, s) ↦ (F t).1 s.
-  have hFv_cont : Continuous (fun ts : I × I ↦ (F ts.1).1 ts.2) := by
-    have h1 : Continuous (fun t : I ↦ ((F t).1 : C(I, X))) :=
-      continuous_subtype_val.comp F.continuous
-    exact ContinuousMap.continuous_uncurry_of_continuous ⟨_, h1⟩
+  have hFv_cont := continuous_uncurry_basedPath F
   -- The endpoint-trace loop `L : Path v v`.
   have hF0_eq : (F (0 : I)).1 = α.1 := congrArg Subtype.val F.source
   have hF1_eq : (F (1 : I)).1 = β.1 := congrArg Subtype.val F.target
-  have hv : v ∈ U := by
-    simpa [v, hv_def, endpoint_def, hF1_eq] using hF_U 1
+  have hv : v ∈ U := by simpa [v, hv_def, endpoint_def, hF1_eq] using hF_U 1
   let L : Path v v :=
     { toFun := fun t ↦ (F t).1 1
       continuous_toFun := by
@@ -780,69 +811,36 @@ public theorem toPath_homotopic_of_joinedIn_pathHomotopyTrivial
       rintro _ ⟨_, rfl⟩; simpa using! hv)
   -- Cast α.toPath to target `v`.
   let α' : Path x₀ v := α.toPath.cast rfl heq.symm
-  have hu_cont : Continuous joinedInSLSC_uReal :=
-    (continuous_fst).add <|
-      (Continuous.max continuous_const (by fun_prop)).mul (by fun_prop)
-  have hv_cont_real : Continuous joinedInSLSC_vReal :=
-    Continuous.min (by fun_prop) continuous_const
-  have hu_fn_cont : Continuous joinedInSLSC_uFn :=
-    Continuous.subtype_mk (hu_cont.comp (by fun_prop)) _
-  have hv_fn_cont : Continuous joinedInSLSC_vFn :=
-    Continuous.subtype_mk (hv_cont_real.comp (by fun_prop)) _
   -- The rectangle homotopy.
   let K_fn : I × I → X := fun ts ↦ (F (joinedInSLSC_uFn ts)).1 (joinedInSLSC_vFn ts)
   have K_fn_apply : ∀ ts : I × I, K_fn ts = (F (joinedInSLSC_uFn ts)).1 (joinedInSLSC_vFn ts) :=
     fun _ ↦ rfl
   have hK_cont : Continuous K_fn :=
-    hFv_cont.comp (hu_fn_cont.prodMk hv_fn_cont)
+    hFv_cont.comp (continuous_joinedInSLSC_uFn.prodMk continuous_joinedInSLSC_vFn)
   -- Auxiliary identities evaluating K at corners/edges.
-  have hK_zero : ∀ s : I, K_fn (0, s) = (α'.trans L) s := by
-    intro s
+  have hK_zero : ∀ s : I, K_fn (0, s) = (α'.trans L) s := fun s ↦ by
     rw [K_fn_apply, Path.trans_apply]
     by_cases hs : (s : ℝ) ≤ 1 / 2
-    · rw [dif_pos hs,
-        joinedInSLSC_uFn_zero_left_eq_zero_of_le_half hs,
+    · rw [dif_pos hs, joinedInSLSC_uFn_zero_left_eq_zero_of_le_half hs,
         joinedInSLSC_vFn_eq_two_mul_of_le_half hs, hF0_eq]; rfl
     · rw [dif_neg hs,
         joinedInSLSC_uFn_zero_left_eq_two_mul_sub_one_of_half_le (not_le.mp hs).le,
         joinedInSLSC_vFn_eq_one_of_half_le (not_le.mp hs).le]; rfl
-  have hK_one : ∀ s : I, K_fn (1, s) = (β.toPath.trans (Path.refl v)) s := by
-    intro s
+  have hK_one : ∀ s : I, K_fn (1, s) = (β.toPath.trans (Path.refl v)) s := fun s ↦ by
     rw [K_fn_apply, Path.trans_apply, joinedInSLSC_uFn_one_left]
     by_cases hs : (s : ℝ) ≤ 1 / 2
     · rw [dif_pos hs, joinedInSLSC_vFn_eq_two_mul_of_le_half hs, hF1_eq]; rfl
-    · rw [dif_neg hs,
-        joinedInSLSC_vFn_eq_one_of_half_le (not_le.mp hs).le, hF1_eq]; rfl
+    · rw [dif_neg hs, joinedInSLSC_vFn_eq_one_of_half_le (not_le.mp hs).le, hF1_eq]; rfl
   have hK_at_zero : ∀ t : I, K_fn (t, 0) = x₀ := fun t ↦ by
     rw [K_fn_apply, joinedInSLSC_vFn_zero_right]
     exact (F (joinedInSLSC_uFn (t, 0))).2
   have hK_at_one : ∀ t : I, K_fn (t, 1) = v := fun t ↦ by
-    rw [K_fn_apply, joinedInSLSC_uFn_one_right, joinedInSLSC_vFn_one_right, hF1_eq]
-    rfl
-  let K : Path.Homotopy (α'.trans L) (β.toPath.trans (Path.refl v)) :=
-    { toFun := K_fn
-      continuous_toFun := hK_cont
-      map_zero_left := hK_zero
-      map_one_left := hK_one
-      prop' := by
-        intro t s hs
-        rcases hs with rfl | hs
-        -- `prop'` only exposes an edge evaluation goal; name the let-bound `K_fn` form.
-        · change K_fn (t, (0 : I)) = (α'.trans L) 0
-          rw [hK_at_zero, (α'.trans L).source]
-        · rw [Set.mem_singleton_iff] at hs
-          subst hs
-          -- `prop'` only exposes an edge evaluation goal; name the let-bound `K_fn` form.
-          change K_fn (t, (1 : I)) = (α'.trans L) 1
-          rw [hK_at_one, (α'.trans L).target] }
-  have h_rect : (α'.trans L).Homotopic (β.toPath.trans (Path.refl v)) := ⟨K⟩
-  -- Combine: α' ≃ α'.trans (refl v) ≃ α'.trans L ≃ β.trans (refl v) ≃ β.
-  have h_α_trans_refl : (α'.trans (Path.refl v)).Homotopic α' := Path.Homotopic.trans_refl α'
-  have h_α_L_refl : (α'.trans (Path.refl v)).Homotopic (α'.trans L) :=
-    Path.Homotopic.hcomp (Path.Homotopic.refl α') hL_refl.symm
-  have h_β_trans_refl : (β.toPath.trans (Path.refl v)).Homotopic β.toPath :=
-    Path.Homotopic.trans_refl β.toPath
-  exact h_α_trans_refl.symm.trans <| h_α_L_refl.trans <| h_rect.trans h_β_trans_refl
+    rw [K_fn_apply, joinedInSLSC_uFn_one_right, joinedInSLSC_vFn_one_right, hF1_eq]; rfl
+  -- The square deforms `α' ⬝ L` into `β ⬝ const`, and `L` is null-homotopic, so it collapses.
+  exact (Path.Homotopic.trans_right_of_nullhomotopic hL_refl).symm.trans
+    ((homotopic_of_continuous_square K_fn hK_cont hK_zero hK_one hK_at_zero hK_at_one).trans
+      (Path.Homotopic.trans_refl β.toPath))
+
 
 /-- Path components of `endpoint ⁻¹' U` are invariant under endpoint-preserving homotopy:
 if `p ≃ q` are homotopic paths from `x₀` to `y ∈ U`, then the based paths `ofPath p` and
