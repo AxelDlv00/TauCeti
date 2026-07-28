@@ -77,6 +77,32 @@ theorem memLp_two_bareNormalized {ν : Measure ℝ}
     MemLp (fun x : ℝ => (algebraMap ℝ 𝕜) ((p n).eval x / Real.sqrt (c n))) 2 ν :=
   memLp_two_algebraMap_eval_div (𝕜 := 𝕜) hexp (p n) _
 
+/-- **Spanning transfers a vanishing integral from a family to every polynomial.** If every
+pairing `q ↦ ∫ q(x)·G(x)` is integrable, each pairing against a member `p n` vanishes, and the
+`p n` span `ℝ[X]`, then the pairing against every polynomial vanishes.
+
+Stated for an arbitrary measure and integrand: those three are the only inputs. -/
+private theorem integral_algebraMap_eval_mul_eq_zero_of_span_eq_top {ν : Measure ℝ}
+    {G : ℝ → 𝕜} {p : ℕ → Polynomial ℝ} (hspan : Submodule.span ℝ (Set.range p) = ⊤)
+    (hint : ∀ q : Polynomial ℝ, Integrable (fun x : ℝ => (algebraMap ℝ 𝕜) (q.eval x) * G x) ν)
+    (hfam : ∀ n : ℕ, ∫ x, (algebraMap ℝ 𝕜) ((p n).eval x) * G x ∂ν = 0) (q : Polynomial ℝ) :
+    ∫ x, (algebraMap ℝ 𝕜) (q.eval x) * G x ∂ν = 0 := by
+  -- The pairing is `ℝ`-linear, so Mathlib's spanning criterion applies to it directly.
+  let F : Polynomial ℝ →ₗ[ℝ] 𝕜 :=
+    { toFun := fun q => ∫ x, (algebraMap ℝ 𝕜) (q.eval x) * G x ∂ν
+      map_add' := fun a b => by
+        rw [← integral_add (hint a) (hint b)]
+        refine integral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
+        simp [map_add, add_mul]
+      map_smul' := fun r a => by
+        rw [RingHom.id_apply, ← integral_smul]
+        refine integral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
+        simp [map_mul, Algebra.smul_def, mul_assoc] }
+  have hF : F = 0 := (Submodule.linearMap_eq_zero_iff_of_span_eq_top F hspan).2 <| by
+    rintro ⟨_, n, rfl⟩
+    exact hfam n
+  simpa [F] using LinearMap.congr_fun hF q
+
 /-- **Roadmap B1 → B2 bridge: completeness of a spanning polynomial family.**
 
 If the weighted measure `w·μ` carries one finite exponential moment and `p` spans `ℝ[X]`, then the
@@ -132,30 +158,8 @@ theorem orthogonal_span_range_bareNormalizedLp_eq_bot_of_span_eq_top {μ : Measu
       field_simp
     simp_rw [h2]
     rw [integral_const_mul, h1, mul_zero]
-  -- Transfer to every polynomial through the degree filtration.
-  have hpoly : ∀ q : Polynomial ℝ, ∫ x, (algebraMap ℝ 𝕜) (q.eval x) * G x ∂ν = 0 := by
-    intro q
-    have hq : q ∈ Submodule.span ℝ (Set.range p) := hspan ▸ Submodule.mem_top
-    induction hq using Submodule.span_induction with
-    | mem q hq =>
-      obtain ⟨n, rfl⟩ := hq
-      exact hfam n
-    | zero => simp
-    | add a b _ _ ha hb =>
-      have hadd : ∫ x, (algebraMap ℝ 𝕜) ((a + b).eval x) * G x ∂ν
-          = (∫ x, (algebraMap ℝ 𝕜) (a.eval x) * G x ∂ν)
-            + ∫ x, (algebraMap ℝ 𝕜) (b.eval x) * G x ∂ν := by
-        rw [← integral_add (hint a) (hint b)]
-        refine integral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
-        simp [map_add, add_mul]
-      rw [hadd, ha, hb, add_zero]
-    | smul r a _ ha =>
-      have hsmul : ∫ x, (algebraMap ℝ 𝕜) ((r • a).eval x) * G x ∂ν
-          = (algebraMap ℝ 𝕜 r) * ∫ x, (algebraMap ℝ 𝕜) (a.eval x) * G x ∂ν := by
-        rw [← integral_const_mul]
-        refine integral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
-        simp [Polynomial.eval_smul, smul_eq_mul, map_mul, mul_assoc]
-      rw [hsmul, ha, mul_zero]
+  -- Transfer to every polynomial through the spanning hypothesis.
+  have hpoly := integral_algebraMap_eval_mul_eq_zero_of_span_eq_top hspan hint hfam
   -- In particular every monomial moment vanishes, so moment determinacy applies.
   have hmom : ∀ n : ℕ, ∫ x, (algebraMap ℝ 𝕜 x) ^ n * G x ∂ν = 0 := by
     intro n
