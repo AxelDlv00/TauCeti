@@ -94,6 +94,49 @@ private theorem integrable_exp_withDensity_ofReal
       abs_of_pos hE]
     nlinarith [hle x, abs_nonneg (g x), hE.le]
 
+/-- An exponentially-weighted product bounds the function itself: since `e^{a|x|} ≥ 1` for
+`a ≥ 0`, integrability of `e^{a|x|} · g` already gives integrability of `g`. -/
+private theorem integrable_of_integrable_exp_mul_abs_mul (ha : 0 ≤ a)
+    (hexp : Integrable (fun x : ℝ => Real.exp (a * |x|) * g x) ν) : Integrable g ν := by
+  have hgm : AEStronglyMeasurable g ν := by
+    have hrw : g = fun x => Real.exp (-(a * |x|)) * (Real.exp (a * |x|) * g x) := by
+      funext x
+      rw [← mul_assoc, ← Real.exp_add, neg_add_cancel, Real.exp_zero, one_mul]
+    rw [hrw]
+    exact (Real.continuous_exp.comp (by fun_prop)).aestronglyMeasurable.mul
+      hexp.aestronglyMeasurable
+  refine hexp.mono hgm ?_
+  filter_upwards with x
+  have h1 : (1 : ℝ) ≤ Real.exp (a * |x|) := Real.one_le_exp (mul_nonneg ha (abs_nonneg x))
+  rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_mul, abs_of_pos (Real.exp_pos _)]
+  nlinarith [abs_nonneg (g x)]
+
+/-- If `∫ xⁿ g` vanishes then the two truncations `g⁺` and `g⁻`, taken as densities against `ν`,
+have the same `n`-th moment: their difference is `g` pointwise. -/
+private theorem integral_pow_withDensity_ofReal_eq {n : ℕ}
+    (hmeasp : AEMeasurable (fun x : ℝ => ENNReal.ofReal (g x)) ν)
+    (hmeasn : AEMeasurable (fun x : ℝ => ENNReal.ofReal (-g x)) ν)
+    (hintp : Integrable (fun x : ℝ => (ENNReal.ofReal (g x)).toReal • x ^ n) ν)
+    (hintn : Integrable (fun x : ℝ => (ENNReal.ofReal (-g x)).toReal • x ^ n) ν)
+    (hmom : ∫ x : ℝ, x ^ n * g x ∂ν = 0) :
+    ∫ x, x ^ n ∂(ν.withDensity fun x => ENNReal.ofReal (g x))
+      = ∫ x, x ^ n ∂(ν.withDensity fun x => ENNReal.ofReal (-g x)) := by
+  rw [integral_withDensity_eq_integral_toReal_smul₀ hmeasp (ae_of_all _ fun _ =>
+      ENNReal.ofReal_lt_top),
+    integral_withDensity_eq_integral_toReal_smul₀ hmeasn (ae_of_all _ fun _ =>
+      ENNReal.ofReal_lt_top)]
+  have hsplit : (fun x : ℝ => (ENNReal.ofReal (g x)).toReal • x ^ n
+      - (ENNReal.ofReal (-g x)).toReal • x ^ n) = fun x : ℝ => x ^ n * g x := by
+    funext x
+    rw [smul_eq_mul, smul_eq_mul, ENNReal.toReal_ofReal', ENNReal.toReal_ofReal',
+      ← sub_mul, max_zero_sub_max_neg_zero_eq_self]
+    ring
+  have hz : ∫ x : ℝ, ((ENNReal.ofReal (g x)).toReal • x ^ n
+      - (ENNReal.ofReal (-g x)).toReal • x ^ n) ∂ν = 0 := by
+    rw [hsplit]; exact hmom
+  rw [integral_sub hintp hintn] at hz
+  linarith
+
 end Densities
 
 /-- **Roadmap B1 (function level).** A real function on `ℝ` whose exponentially-weighted product
@@ -121,31 +164,14 @@ theorem ae_eq_zero_of_forall_moment_eq_zero (g : ℝ → ℝ)
     (hmom : ∀ n : ℕ, ∫ x : ℝ, x ^ n * g x ∂ν = 0) :
     g =ᵐ[ν] 0 := by
   obtain ⟨a, ha, hexpa⟩ := hexp
-  -- `g` is measurable: it is `e^{-a|x|}` times the weighted product.
-  have hgm0 : AEStronglyMeasurable g ν := by
-    have hrw : g = fun x => Real.exp (-(a * |x|)) * (Real.exp (a * |x|) * g x) := by
-      funext x
-      rw [← mul_assoc, ← Real.exp_add]
-      simp
-    rw [hrw]
-    exact (Real.continuous_exp.comp (by fun_prop)).aestronglyMeasurable.mul
-      hexpa.aestronglyMeasurable
-  -- `e^{a|x|} ≥ 1`, so the weighted integrability already gives `g ∈ L¹`.
-  have hg : Integrable g ν := by
-    refine hexpa.mono hgm0 ?_
-    filter_upwards with x
-    have h1 : (1 : ℝ) ≤ Real.exp (a * |x|) := Real.one_le_exp (by positivity)
-    rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_mul, abs_of_pos (Real.exp_pos _)]
-    nlinarith [abs_nonneg (g x)]
+  have hg : Integrable g ν := integrable_of_integrable_exp_mul_abs_mul ha.le hexpa
   have hgm : AEMeasurable g ν := hg.aestronglyMeasurable.aemeasurable
   have hmeasp : AEMeasurable (fun x => ENNReal.ofReal (g x)) ν :=
     ENNReal.measurable_ofReal.comp_aemeasurable hgm
   have hmeasn : AEMeasurable (fun x => ENNReal.ofReal (-g x)) ν :=
     ENNReal.measurable_ofReal.comp_aemeasurable hgm.neg
-  have hltp : ∀ᵐ x ∂ν, ENNReal.ofReal (g x) < ⊤ := by
-    filter_upwards with x using ENNReal.ofReal_lt_top
-  have hltn : ∀ᵐ x ∂ν, ENNReal.ofReal (-g x) < ⊤ := by
-    filter_upwards with x using ENNReal.ofReal_lt_top
+  have hltp : ∀ᵐ x ∂ν, ENNReal.ofReal (g x) < ⊤ := ae_of_all _ fun _ => ENNReal.ofReal_lt_top
+  have hltn : ∀ᵐ x ∂ν, ENNReal.ofReal (-g x) < ⊤ := ae_of_all _ fun _ => ENNReal.ofReal_lt_top
   -- `ENNReal.ofReal` already truncates at zero, so these densities are exactly `g⁺` and `g⁻`.
   -- `|max t 0| ≤ |t|` is Mathlib's `abs_max_sub_max_le_abs` at `b = c = 0`.
   have hlep : ∀ x, |max (g x) 0| ≤ |g x| := fun x => by
@@ -159,22 +185,8 @@ theorem ae_eq_zero_of_forall_moment_eq_zero (g : ℝ → ℝ)
   have hintp := fun n => integrable_toReal_ofReal_smul_pow ha hexpa hmeasp hlep n
   have hintn := fun n => integrable_toReal_ofReal_smul_pow ha hexpa hmeasn hlen n
   -- `g⁺ - g⁻ = g` pointwise, so the two moment sequences differ by `∫ xⁿ g = 0`.
-  have hmoments : ∀ n : ℕ, ∫ x, x ^ n ∂(ν.withDensity fun x => ENNReal.ofReal (g x))
-      = ∫ x, x ^ n ∂(ν.withDensity fun x => ENNReal.ofReal (-g x)) := by
-    intro n
-    rw [integral_withDensity_eq_integral_toReal_smul₀ hmeasp hltp,
-      integral_withDensity_eq_integral_toReal_smul₀ hmeasn hltn]
-    have hsplit : (fun x : ℝ => (ENNReal.ofReal (g x)).toReal • x ^ n
-        - (ENNReal.ofReal (-g x)).toReal • x ^ n) = fun x : ℝ => x ^ n * g x := by
-      funext x
-      rw [smul_eq_mul, smul_eq_mul, ENNReal.toReal_ofReal', ENNReal.toReal_ofReal',
-        ← sub_mul, max_zero_sub_max_neg_zero_eq_self]
-      ring
-    have hz : ∫ x : ℝ, ((ENNReal.ofReal (g x)).toReal • x ^ n
-        - (ENNReal.ofReal (-g x)).toReal • x ^ n) ∂ν = 0 := by
-      rw [hsplit]; exact hmom n
-    rw [integral_sub (hintp n) (hintn n)] at hz
-    linarith
+  have hmoments := fun n => integral_pow_withDensity_ofReal_eq hmeasp hmeasn (hintp n) (hintn n)
+    (hmom n)
   -- Determinacy forces the two parts to be the same measure ...
   have hEq : (ν.withDensity fun x => ENNReal.ofReal (g x))
       = ν.withDensity fun x => ENNReal.ofReal (-g x) :=
