@@ -91,6 +91,19 @@ private lemma le_count {g : ℂ → ℂ} (hg : AnalyticOnNhd ℂ g (closedBall c
     · exact absurd (by simp [hzb]) hz
   simpa [hz₀] using single_le_finsum z₀ hfin (fun _ => Nat.zero_le _)
 
+/-- **A circle on which `g` does not vanish.** If `g` is zero-free on some punctured
+neighbourhood of `z₀ ∈ Ω` with `Ω` open — `z₀` itself may be a zero, or not — there is a radius
+whose *closed* ball lies in `Ω` and on whose bounding circle `g` does not vanish. That circle is
+what Rouché's theorem is applied to. -/
+private lemma exists_radius_sphere_ne_zero {Ω : Set ℂ} (hΩ : IsOpen Ω) {g : ℂ → ℂ} {z₀ : ℂ}
+    (hz₀Ω : z₀ ∈ Ω) (hpunct : ∀ᶠ z in 𝓝[≠] z₀, g z ≠ 0) :
+    ∃ r > 0, closedBall z₀ r ⊆ Ω ∧ ∀ z ∈ sphere z₀ r, g z ≠ 0 := by
+  have hev : ∀ᶠ z in 𝓝 z₀, z ∈ Ω ∧ (z ≠ z₀ → g z ≠ 0) :=
+    (hΩ.eventually_mem hz₀Ω).and (eventually_nhdsWithin_iff.mp hpunct)
+  obtain ⟨r, hr, hball⟩ := Metric.nhds_basis_closedBall.eventually_iff.1 hev
+  exact ⟨r, hr, fun z hz => (hball hz).1, fun z hz =>
+    (hball (sphere_subset_closedBall hz)).2 (Metric.ne_of_mem_sphere hz hr.ne')⟩
+
 /-- **Hurwitz's theorem.** On a connected open set, a locally uniform limit of holomorphic
 functions that are nowhere zero is itself either nowhere zero or identically zero.
 
@@ -119,24 +132,8 @@ theorem hurwitz {ι : Type*} {l : Filter ι} [l.NeBot] {Ω : Set ℂ} (hΩ : IsO
     rcases (hgA z₀ hz₀Ω).eventually_eq_zero_or_eventually_ne_zero with h | h
     · exact absurd (analyticOrderAt_eq_top.mpr h) htop
     · exact h
-  obtain ⟨ε₁, hε₁, hne₁⟩ := Metric.eventually_nhds_iff.mp (eventually_nhdsWithin_iff.mp hpunct)
-  obtain ⟨ε₂, hε₂, hball₂⟩ := Metric.isOpen_iff.mp hΩ z₀ hz₀Ω
-  set r := min (ε₁ / 2) (ε₂ / 2) with hr_def
-  have hr : 0 < r := lt_min (by linarith) (by linarith)
-  have hcb : closedBall z₀ r ⊆ Ω := fun z hz =>
-    hball₂ (mem_ball.mpr (lt_of_le_of_lt (mem_closedBall.mp hz)
-      (lt_of_le_of_lt (min_le_right _ _) (by linarith))))
+  obtain ⟨r, hr, hcb, hgne⟩ := exists_radius_sphere_ne_zero hΩ hz₀Ω hpunct
   have hsph : sphere z₀ r ⊆ closedBall z₀ r := sphere_subset_closedBall
-  have hgne : ∀ z ∈ sphere z₀ r, g z ≠ 0 := by
-    intro z hz
-    have hdz : dist z z₀ = r := mem_sphere.mp hz
-    refine hne₁ ?_ ?_
-    · rw [hdz]; exact lt_of_le_of_lt (min_le_left _ _) (by linarith)
-    · simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-      intro h
-      rw [h] at hdz
-      simp only [dist_self] at hdz
-      linarith
   -- `‖g‖` attains a positive minimum on the circle
   have hcpt : IsCompact (sphere z₀ r) := isCompact_sphere _ _
   have hsne : (sphere z₀ r).Nonempty := NormedSpace.sphere_nonempty.mpr hr.le
