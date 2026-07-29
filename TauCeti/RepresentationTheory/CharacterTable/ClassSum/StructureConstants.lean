@@ -99,4 +99,29 @@ theorem classSum_mul (k : Type*) [Semiring k] (Cᵢ Cⱼ : ConjClasses G) :
     rw [if_neg hCₖ.symm, mul_zero]
   · simp
 
+/-- The coefficient of `g` in a product of two class sums is the structure constant at the
+conjugacy class of `g`. This is the pointwise form of `TauCeti.classSum_mul`. -/
+theorem coeff_classSum_mul (k : Type*) [Semiring k] (Cᵢ Cⱼ : ConjClasses G) (g : G) :
+    (classSum k Cᵢ * classSum k Cⱼ).coeff g =
+      (structureConstant Cᵢ Cⱼ (ConjClasses.mk g) : k) := by
+  rw [classSum_mul]
+  simp only [MonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply, MonoidAlgebra.coeff_smul_apply,
+    smul_eq_mul, classSum_coeff]
+  rw [Finset.sum_eq_single (ConjClasses.mk g)]
+  · rw [if_pos rfl, mul_one]
+  · intro Cₖ _ hCₖ
+    rw [if_neg hCₖ.symm, mul_zero]
+  · simp
+
+/-- **The structure constants are symmetric in their two class arguments**, because the two class
+sums commute in the group algebra. -/
+theorem structureConstant_comm (Cᵢ Cⱼ Cₖ : ConjClasses G) :
+    structureConstant Cᵢ Cⱼ Cₖ = structureConstant Cⱼ Cᵢ Cₖ := by
+  obtain ⟨g, rfl⟩ := ConjClasses.exists_rep Cₖ
+  have hcomm : classSum ℤ Cᵢ * classSum ℤ Cⱼ = classSum ℤ Cⱼ * classSum ℤ Cᵢ :=
+    Subalgebra.mem_center_iff.mp (classSum_mem_center ℤ Cⱼ) _
+  have h := congrArg (fun a : MonoidAlgebra ℤ G => a.coeff g) hcomm
+  simp only [coeff_classSum_mul] at h
+  exact_mod_cast h
+
 end TauCeti
