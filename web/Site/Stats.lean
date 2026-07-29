@@ -36,7 +36,7 @@ def roadmapGraph : Html := {{
 /-- A current snapshot of human participation across the four project repositories.
 Regenerated daily by the `pages` workflow (`scripts/participant_graph.py`) from
 GitHub PR/issue participant connections and default-branch commit contributors. -/
-def participationGraph : Html := {{
+private def participationGraph : Html := {{
   <figure class="loc-figure loc-figure-wide">
     <img class="loc-graph" src="static/participation.svg"
          alt="Human participation across the four Tau Ceti repositories"/>
