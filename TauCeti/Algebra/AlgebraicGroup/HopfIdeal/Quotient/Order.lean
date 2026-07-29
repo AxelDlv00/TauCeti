@@ -44,6 +44,7 @@ namespace CommHopfAlgCat
 
 variable {R : Type u} [CommRing R]
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- On points, precomposition with `quotientMapOfLe` is compatible with the ambient
 quotient-points inclusions.
 

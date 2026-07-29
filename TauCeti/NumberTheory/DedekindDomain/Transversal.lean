@@ -88,7 +88,8 @@ private lemma asIdeal_equivOfRingEquiv (σ : R ≃+* R)
     (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p).asIdeal =
       Ideal.map σ p.asIdeal := by
   ext x
-  simp [IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv]
+  change σ.symm x ∈ p.asIdeal ↔ x ∈ Ideal.map σ p.asIdeal
+  exact Ideal.symm_apply_mem_of_equiv_iff
 
 /-- For a distinct prime `q ≠ p` and a family `G'` no member of which is divisible by `p.asIdeal`,
 multiplying `G'` by `p.asIdeal` and by `q.asIdeal` gives disjoint images. -/

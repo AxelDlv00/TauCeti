@@ -249,7 +249,7 @@ lemma subgroupFiberOrbitQuotientEquiv_refl (H : Subgroup (Deck p))
     cast (congrArg (fun H' => SubgroupFiberOrbitQuotient H' b)
         (subgroup_map_conj_refl (p := p) H))
       (subgroupFiberOrbitQuotientEquiv (Homeomorph.refl E) (p := p) (q := p)
-        (fun e => by rfl) H b x) =
+        (fun e => by change p e = p e; rfl) H b x) =
       x := by
   rw [← Equiv.cast_apply]
   refine Quotient.inductionOn' x ?_
@@ -260,7 +260,7 @@ lemma subgroupFiberOrbitQuotientEquiv_refl (H : Subgroup (Deck p))
     Equiv.cast (congrArg (fun H' => SubgroupFiberOrbitQuotient H' b)
         (subgroup_map_conj_refl (p := p) H))
       (subgroupFiberOrbitQuotientEquiv (Homeomorph.refl E) (p := p) (q := p)
-        (fun e => by rfl) H b (subgroupFiberOrbitClass H e)) =
+        (fun e => by change p e = p e; rfl) H b (subgroupFiberOrbitClass H e)) =
       subgroupFiberOrbitClass H e
   rw [subgroupFiberOrbitQuotientEquiv_apply, fiberMap_refl]
   exact cast_subgroupFiberOrbitClass (subgroup_map_conj_refl (p := p) H) e

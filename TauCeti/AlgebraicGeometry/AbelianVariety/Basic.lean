@@ -159,21 +159,20 @@ lemma ofGeometricallyIntegral_one (G : Over (Spec (.of K))) [GrpObj G]
 @[simp]
 lemma ofGeometricallyIntegral_mul (G : Over (Spec (.of K))) [GrpObj G]
     [IsProper G.hom] [GeometricallyIntegral G.hom] :
-    μ[(ofGeometricallyIntegral G).toOver] ≫
-        eqToHom (ofGeometricallyIntegral_toOver G) =
-      (eqToHom (ofGeometricallyIntegral_toOver G) ⊗ₘ
-          eqToHom (ofGeometricallyIntegral_toOver G)) ≫ μ[G] := by
+    μ[(ofGeometricallyIntegral G).toOver] ≫ eqToHom (by rfl) =
+      (eqToHom (by rfl) ⊗ₘ eqToHom (by rfl)) ≫ μ[G] := by
   unfold ofGeometricallyIntegral
+  change μ[G] = (𝟙 G ⊗ₘ 𝟙 G) ≫ μ[G]
   simp
 
 /-- The inverse of `ofGeometricallyIntegral G` is the inverse of `G`. -/
 @[simp]
 lemma ofGeometricallyIntegral_inv (G : Over (Spec (.of K))) [GrpObj G]
     [IsProper G.hom] [GeometricallyIntegral G.hom] :
-    ι[(ofGeometricallyIntegral G).toOver] ≫
-        eqToHom (ofGeometricallyIntegral_toOver G) =
-      eqToHom (ofGeometricallyIntegral_toOver G) ≫ ι[G] := by
+    ι[(ofGeometricallyIntegral G).toOver] ≫ eqToHom (by rfl) =
+      eqToHom (by rfl) ≫ ι[G] := by
   unfold ofGeometricallyIntegral
+  change ι[G] = 𝟙 G ≫ ι[G]
   simp
 
 /-! ### Base change along a field extension -/
@@ -226,23 +225,25 @@ lemma baseChange_one (A : AbelianVariety K) (L : Type u) [Field L] [Algebra K L]
 multiplication, with the monoidal comparison for `Over.pullback`. -/
 @[simp]
 lemma baseChange_mul (A : AbelianVariety K) (L : Type u) [Field L] [Algebra K L] :
-    μ[(A.baseChange L).toOver] ≫ eqToHom (baseChange_toOver A L) =
-      (eqToHom (baseChange_toOver A L) ⊗ₘ eqToHom (baseChange_toOver A L)) ≫
+    μ[(A.baseChange L).toOver] ≫ eqToHom (by rfl) =
+      (eqToHom (by rfl) ⊗ₘ eqToHom (by rfl)) ≫
         Functor.LaxMonoidal.μ
         (Over.pullback (Spec.map (CommRingCat.ofHom (algebraMap K L)))) A.toOver A.toOver ≫
         (Over.pullback (Spec.map (CommRingCat.ofHom (algebraMap K L)))).map μ[A.toOver] :=
   by
     unfold baseChange
+    change _ = (𝟙 _ ⊗ₘ 𝟙 _) ≫ _
     simp
 
 /-- The inverse of a base-changed abelian variety is the pullback of the original inverse. -/
 @[simp]
 lemma baseChange_inv (A : AbelianVariety K) (L : Type u) [Field L] [Algebra K L] :
-    ι[(A.baseChange L).toOver] ≫ eqToHom (baseChange_toOver A L) =
-      eqToHom (baseChange_toOver A L) ≫
+    ι[(A.baseChange L).toOver] ≫ eqToHom (by rfl) =
+      eqToHom (by rfl) ≫
       (Over.pullback (Spec.map (CommRingCat.ofHom (algebraMap K L)))).map ι[A.toOver] :=
   by
     unfold baseChange
+    change _ = 𝟙 _ ≫ _
     simp
 
 /-- The underlying scheme of a base change is the fibre product of the abelian variety with

@@ -43,6 +43,7 @@ variable [Finite ι] (p : ι → ℕ) (hp : ∀ i, (p i).Prime) (hinj : Function
 
 include hp hinj
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- The subspace attached by the public prime-radicand dictionary is extensionally the same as
 the generic dictionary fed the prime-family square-class independence proof. This lets consumers
 use the degree theorems from `SubfieldDegree` with

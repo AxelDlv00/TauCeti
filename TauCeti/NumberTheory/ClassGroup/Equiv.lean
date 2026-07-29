@@ -44,6 +44,7 @@ namespace ClassGroup
 variable {R S T : Type*} [CommRing R] [CommRing S] [CommRing T]
   [IsDomain R] [IsDomain S] [IsDomain T]
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- `ClassGroup.mulEquiv f` sends the class of a unit fractional ideal `I` to the class of its
 image under `FractionalIdeal.ringEquivOfRingEquiv f`. This is the characteristic computation of the
 induced map on ideal classes; the functorial laws below are corollaries. Its fully-determined
@@ -62,6 +63,7 @@ arbitrary fraction fields. -/
   apply Units.ext
   simp [FractionalIdeal.canonicalEquiv_self]
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- The canonical equivalence between the fractional ideals of two fraction fields of `R` is
 transport along the identity ring equivalence. This lets a change of fraction field and a transport
 along a ring equivalence be composed by `FractionalIdeal.ringEquivOfRingEquiv_trans_apply`. -/

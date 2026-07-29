@@ -89,7 +89,8 @@ theorem deFinettiMeasure_toMeasure {μ : Measure Ω} [IsProbabilityMeasure μ] {
     (hTail : tailProcess X ≤ (inferInstance : MeasurableSpace Ω)) :
     (deFinettiMeasure μ X hTail : Measure (ProbabilityMeasure α))
       = μ.map (directingProbabilityMeasure μ X) := by
-  simp only [deFinettiMeasure, ProbabilityMeasure.toMeasure_map, ProbabilityMeasure.coe_mk]
+  unfold deFinettiMeasure
+  rfl
 
 /-- **The mixture representation against the de Finetti measure.** When the canonical directing
 measure is a mixing representative for `X`, the path law of `X` is the `deFinettiMeasure`-mixture of

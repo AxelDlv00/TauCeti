@@ -60,6 +60,7 @@ theorem coe_conjSubgroupEquiv_apply (s : G) (H : Subgroup G)
     (x : (MulAut.conj s • H : Subgroup G)) :
     (conjSubgroupEquiv s H x : G) = s⁻¹ * (x : G) * s := by
   simp [conjSubgroupEquiv]
+  rfl
 
 @[simp]
 theorem coe_conjSubgroupEquiv_symm_apply (s : G) (H : Subgroup G) (x : H) :

@@ -90,7 +90,9 @@ lemma trivializationIso_hom {q : SheafOfModules.LocalGeneratorsData M}
         (@Equiv.punitOfNonemptyOfSubsingleton (q.generators i).I
           (hq.basisNonempty i) (hq.basisSubsingleton i)).symm.toIso.hom ≫
         (q.generators i).π :=
-  by simp only [trivializationIso, Iso.trans_hom, Functor.mapIso_hom, asIso_hom]
+  by
+    simp only [trivializationIso, Iso.trans_hom, Functor.mapIso_hom]
+    rfl
 
 end LocalGeneratorsData.IsInvertible
 

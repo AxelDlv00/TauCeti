@@ -128,6 +128,7 @@ right: post-composition by a homomorphism is multiplicative. -/
     (f * g) ≫ h = f ≫ h * g ≫ h := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_mul, MonObj.mul_comp]
+  rfl
 
 /-- Composition of homomorphisms of abelian varieties distributes over the pointwise product on the
 left: pre-composition by a homomorphism is multiplicative. -/
@@ -135,42 +136,49 @@ left: pre-composition by a homomorphism is multiplicative. -/
     f ≫ (g * h) = f ≫ g * f ≫ h := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_mul, MonObj.comp_mul]
+  rfl
 
 /-- Post-composition sends the identity element of a homomorphism group to the identity element. -/
 @[simp] lemma one_comp {A B C : AbelianVariety K} (h : B ⟶ C) :
     (1 : A ⟶ B) ≫ h = 1 := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_one, MonObj.one_comp]
+  rfl
 
 /-- Pre-composition sends the identity element of a homomorphism group to the identity element. -/
 @[simp] lemma comp_one {A B C : AbelianVariety K} (f : A ⟶ B) :
     f ≫ (1 : B ⟶ C) = 1 := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_one, MonObj.comp_one]
+  rfl
 
 /-- Post-composition preserves pointwise inverses of homomorphisms. -/
 @[simp] lemma inv_comp {A B C : AbelianVariety K} (f : A ⟶ B) (h : B ⟶ C) :
     f⁻¹ ≫ h = (f ≫ h)⁻¹ := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_inv, GrpObj.inv_comp]
+  rfl
 
 /-- Post-composition preserves pointwise quotients of homomorphisms. -/
 @[simp] lemma div_comp {A B C : AbelianVariety K} (f g : A ⟶ B) (h : B ⟶ C) :
     (f / g) ≫ h = (f ≫ h) / (g ≫ h) := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_div, GrpObj.div_comp]
+  rfl
 
 /-- Pre-composition preserves pointwise inverses of homomorphisms. -/
 @[simp] lemma comp_inv {A B C : AbelianVariety K} (f : A ⟶ B) (g : B ⟶ C) :
     f ≫ g⁻¹ = (f ≫ g)⁻¹ := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_inv, GrpObj.comp_inv]
+  rfl
 
 /-- Pre-composition preserves pointwise quotients of homomorphisms. -/
 @[simp] lemma comp_div {A B C : AbelianVariety K} (f : A ⟶ B) (g h : B ⟶ C) :
     f ≫ (g / h) = (f ≫ g) / (f ≫ h) := by
   apply Hom.toOverFunctor.map_injective
   simp only [Hom.toOverHom_comp, Hom.toOverHom_div, GrpObj.comp_div]
+  rfl
 
 end Hom
 

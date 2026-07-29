@@ -53,12 +53,14 @@ def isoToScheme {A B : AbelianVariety K} (e : A ≅ B) : A.toScheme ≅ B.toSche
 lemma isoToOver_hom {A B : AbelianVariety K} (e : A ≅ B) :
     (isoToOver e).hom = Hom.toOverHom e.hom := by
   simp [isoToOver]
+  rfl
 
 /-- The inverse map of the underlying `Over` isomorphism is the underlying homomorphism. -/
 @[simp]
 lemma isoToOver_inv {A B : AbelianVariety K} (e : A ≅ B) :
     (isoToOver e).inv = Hom.toOverHom e.inv := by
   simp [isoToOver]
+  rfl
 
 /-- The forward map of the underlying scheme isomorphism is the underlying scheme morphism. -/
 @[simp]

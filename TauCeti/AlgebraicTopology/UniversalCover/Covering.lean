@@ -87,8 +87,20 @@ theorem joined_basepoint_ofBasedPath (α : BasedPath x₀) :
           apply Continuous.subtype_mk
           exact ContinuousMap.continuous_of_continuous_uncurry _
             (Path.continuous_initialSegmentFamily_uncurry α.toPath)
-      source' := by simp
-      target' := by simp }⟩
+      source' := by
+        rw [Path.initialSegmentFamily_zero, ofBasedPath_ofPath]
+        simp only [ofBasedPath_def]
+        apply UniversalCover.ext α.2
+        apply Path.Homotopic.hpath_hext
+        intro t
+        rfl
+      target' := by
+        rw [Path.initialSegmentFamily_one, ofBasedPath_def]
+        simp only [ofBasedPath_def]
+        apply UniversalCover.ext rfl
+        apply Path.Homotopic.hpath_hext
+        intro t
+        rfl }⟩
 
 /-- The universal cover is path-connected. -/
 instance pathConnectedSpace (x₀ : X) :

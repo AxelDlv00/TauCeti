@@ -91,6 +91,7 @@ theorem continuous_initialSegmentFamily_uncurry {a b : X} (γ : Path a b) :
     initialSegmentFamily γ 0 = (Path.refl a).cast rfl (by simp) := by
   ext s
   simp [initialSegmentFamily_apply, γ.extend_zero, Path.refl, min_eq_right s.2.1]
+  rfl
 
 @[simp] theorem initialSegmentFamily_one {a b : X} (γ : Path a b) :
     initialSegmentFamily γ 1 = γ.cast rfl (by simp) := by

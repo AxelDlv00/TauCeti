@@ -49,7 +49,7 @@ namespace TauCeti
 variable {E X : Type*} [TopologicalSpace E] [TopologicalSpace X] {p : E → X} {x : X}
 variable {A : Type*} [TopologicalSpace A]
 
-open FundamentalGroup
+open _root_.FundamentalGroup
 
 /-- The lifting criterion for a covering map, with the subgroup inclusion factored through an
 intermediate subgroup `H ≤ π₁(X, f a₀)`.
@@ -77,6 +77,7 @@ theorem IsCoveringMap.existsUnique_continuousMap_lifts_of_subsingleton_fundament
     rw [FundamentalGroup.map_range_eq_bot_of_subsingleton f]
     exact bot_le
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- Choosing a basepoint lift `e` in the fibre over `x` identifies the fundamental group of
 the base with that fibre, via `γ ↦ monodromy γ e`. -/
 @[expose] noncomputable def IsCoveringMap.fundamentalGroupEquivFiber [SimplyConnectedSpace E]
@@ -96,7 +97,8 @@ the base with that fibre, via `γ ↦ monodromy γ e`. -/
         Subsingleton.elim _ _
       dsimp only
       rw [hpath, hp.map_liftPathQuotient]
-      simp [Path.Homotopic.Quotient.cast_cast]
+      rw [Path.Homotopic.Quotient.cast_cast]
+      exact eq_of_heq (Path.Homotopic.Quotient.cast_heq _ _)
     right_inv e' := by
       obtain ⟨e₀, he₀⟩ := e
       obtain ⟨e₁, he₁⟩ := e'
@@ -105,7 +107,8 @@ the base with that fibre, via `γ ↦ monodromy γ e`. -/
         Path.Homotopic.Quotient.mk (PathConnectedSpace.somePath e₀ e₁)
       dsimp only
       simpa [Γ] using
-        hp.monodromy_eq_of_map_eq Γ (by simp [Γ, Path.Homotopic.Quotient.cast_cast]) }
+        hp.monodromy_eq_of_map_eq Γ (by
+          simp [Γ]) }
 
 /-- The general fibre equivalence sends a loop class to the monodromy translate of the chosen
 lift, as an equality in the total space `E`. -/

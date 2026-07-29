@@ -158,6 +158,7 @@ lemma conjMulEquivRefl :
       MulEquiv.refl (Deck p) := by
   ext φ e
   simp
+  rfl
 
 /-- Conjugating along a composite over-base homeomorphism is the composite of the two
 conjugation equivalences. -/

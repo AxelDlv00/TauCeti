@@ -109,6 +109,10 @@ open TauCeti.Multiquadratic
 
 variable {L : Type*} [Field L] [NumberField L] {root : ι → L} {d : ι → ℤ}
 
+local instance :
+    Algebra ℚ ↥(IntermediateField.adjoin ℚ (Set.range root)) :=
+  (IntermediateField.adjoin ℚ (Set.range root)).algebra'
+
 /-- The integer defining equation `root i ² = d i` recast with base field `ℚ`. Only characteristic
 zero is needed (for the `ℤ → ℚ → L` scalar tower). -/
 private theorem root_sq_algebraMap_rat {L : Type*} [Field L] [CharZero L] {root : ι → L}

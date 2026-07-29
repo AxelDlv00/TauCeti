@@ -116,6 +116,7 @@ theorem mapValue_inclusion (χ : A →ₐ[R] B) :
     AdditiveGroup.gaPointsMulEquiv_mapValue, gaPointsMulEquiv_inclusion]
   apply Multiplicative.toAdd.injective
   simp
+  rfl
 
 /-- **The Frobenius endomorphism annihilates `αₚ`.** Composing the Frobenius endomorphism of `𝔾ₐ`
 after the inclusion `αₚ ↪ 𝔾ₐ` is the trivial homomorphism of group functors: every `αₚ`-point maps

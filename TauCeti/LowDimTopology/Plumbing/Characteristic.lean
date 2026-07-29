@@ -102,7 +102,14 @@ section Form
 variable [DecidableEq V] [Fintype V]
 
 private theorem zmod_two_sq (a : ZMod 2) : a ^ 2 = a := by
-  fin_cases a <;> decide
+  have ha : a.val = 0 ∨ a.val = 1 := by
+    have := a.val_lt
+    omega
+  rcases ha with ha | ha
+  · rw [(ZMod.val_eq_zero a).mp ha]
+    simp
+  · rw [(ZMod.val_eq_one (by decide) a).mp ha]
+    simp
 
 omit [DecidableEq V] in
 private theorem adjacency_sum_cast_zmod_two_eq_zero (x : V → ℤ) :

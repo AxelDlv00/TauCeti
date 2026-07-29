@@ -56,6 +56,14 @@ variable {H : Type v} {K : Type w} {L : Type x}
 variable [Ring H] [Ring K] [Ring L]
 variable [HopfAlgebra R H] [HopfAlgebra R K] [HopfAlgebra R L]
 
+private theorem quotient_comp_surjective (I : HopfIdeal R K) (f : H →ₐc[R] K)
+    (hf : Function.Surjective f) :
+    Function.Surjective ((Bialgebra.Quotient.mkBialgHom I.toIdeal).comp f) := by
+  intro q
+  obtain ⟨k, hk⟩ := Ideal.Quotient.mkₐ_surjective R I.toIdeal q
+  obtain ⟨h, rfl⟩ := hf k
+  exact ⟨h, hk⟩
+
 /-- The inverse image of a Hopf ideal along a surjective bialgebra morphism.
 
 It is defined as the kernel of the composite `H → K → K/I`; its underlying ideal is the
@@ -63,7 +71,7 @@ ordinary ideal comap of `I.toIdeal`. -/
 noncomputable def comap (I : HopfIdeal R K) (f : H →ₐc[R] K)
     (hf : Function.Surjective f) : HopfIdeal R H :=
   ker ((Bialgebra.Quotient.mkBialgHom I.toIdeal).comp f)
-    ((Ideal.Quotient.mkₐ_surjective R I.toIdeal).comp hf)
+    (quotient_comp_surjective I f hf)
 
 /-- The underlying ideal of `I.comap f hf` is the ordinary ideal-theoretic inverse image. -/
 @[simp]
@@ -71,9 +79,8 @@ theorem comap_toIdeal (I : HopfIdeal R K) (f : H →ₐc[R] K)
     (hf : Function.Surjective f) :
     (I.comap f hf).toIdeal = Ideal.comap (f : H →+* K) I.toIdeal := by
   ext h
-  rw [mem_toIdeal, comap, mem_ker, Ideal.mem_comap, BialgHom.coe_comp,
-    Function.comp_apply, Bialgebra.Quotient.mkBialgHom_apply, Ideal.Quotient.eq_zero_iff_mem]
-  exact mem_toIdeal.symm
+  change Ideal.Quotient.mk I.toIdeal (f h) = 0 ↔ f h ∈ I.toIdeal
+  exact Ideal.Quotient.eq_zero_iff_mem
 
 /-- Membership in the inverse-image Hopf ideal is membership after applying the morphism. -/
 @[simp]
@@ -209,7 +216,11 @@ theorem comap_sSup_of_surjective (S : Set (HopfIdeal R K)) (hS : S.Nonempty)
 /-- Pulling a Hopf ideal back along the identity morphism leaves it unchanged. -/
 @[simp]
 theorem comap_id (I : HopfIdeal R H) :
-    I.comap (BialgHom.id R H) (fun h => ⟨h, rfl⟩) = I := by
+    I.comap (BialgHom.id R H) (by
+      intro h
+      refine ⟨h, ?_⟩
+      change h = h
+      rfl) = I := by
   ext h
   rw [mem_comap, BialgHom.coe_id]
   rfl
@@ -218,7 +229,11 @@ theorem comap_id (I : HopfIdeal R H) :
 @[simp]
 theorem comap_comap (I : HopfIdeal R L) (g : K →ₐc[R] L) (hg : Function.Surjective g)
     (f : H →ₐc[R] K) (hf : Function.Surjective f) :
-    (I.comap g hg).comap f hf = I.comap (g.comp f) (hg.comp hf) := by
+    (I.comap g hg).comap f hf = I.comap (g.comp f) (by
+      intro l
+      obtain ⟨k, rfl⟩ := hg l
+      obtain ⟨h, rfl⟩ := hf k
+      exact ⟨h, rfl⟩) := by
   ext h
   rw [mem_comap, mem_comap, mem_comap, BialgHom.coe_comp]
   rfl

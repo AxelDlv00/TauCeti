@@ -84,6 +84,7 @@ noncomputable def classGroupAddEquiv :
 
 variable {R K}
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- The class group isomorphism sends the class of the Weil divisor of an invertible fractional
 ideal `I` to the ideal class of `I`. Together with the surjectivity of `fractionalIdealDivisor`
 and of `divisorClass` this pins down `classGroupAddEquiv` on every element. -/

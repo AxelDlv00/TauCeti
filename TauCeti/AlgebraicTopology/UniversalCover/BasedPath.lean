@@ -57,16 +57,9 @@ public theorem toPath_source (γ : BasedPath x₀) : toPath γ 0 = x₀ := γ.2
 public theorem toPath_target (γ : BasedPath x₀) : toPath γ 1 = endpoint γ := rfl
 
 @[ext] public theorem ext {γ γ' : BasedPath x₀} (h : ∀ t, γ.1 t = γ'.1 t) : γ = γ' := by
-  cases γ with
-  | mk γ hγ =>
-    cases γ' with
-    | mk γ' hγ' =>
-      simp only at h
-      have hfun : γ = γ' := by
-        ext t
-        exact h t
-      subst hfun
-      simp
+  apply Subtype.ext
+  ext t
+  exact h t
 
 /-- The canonical inclusion `Path x₀ y → BasedPath x₀`: package an ordinary path out of `x₀` as a
 based path, forgetting `y` at the type level. The endpoint is recovered as
@@ -119,6 +112,7 @@ based path within a path component of `endpoint ⁻¹' U`. -/
 @[simp] public theorem toPath_append {y : X} (γ : BasedPath x₀) (δ : Path (endpoint γ) y) :
     (append γ δ).toPath = (γ.toPath.trans δ).cast rfl (γ.toPath.trans δ).target := by
   simp [append, toPath_ofPath]
+  rfl
 
 @[simp] public theorem endpoint_append {y : X} (γ : BasedPath x₀) (δ : Path (endpoint γ) y) :
     endpoint (append γ δ) = y := endpoint_ofPath _
@@ -159,26 +153,45 @@ private noncomputable def deformTerminal {u v : X} (γ : BasedPath x₀)
   refine ⟨ContinuousMap.mk
     (fun t : I ↦ f t)
     (hf_cont.comp continuous_subtype_val), ?_⟩
-  simpa [f, ha, endpoint_def] using! γ.toPath.source
+  change (if _ : (0 : ℝ) ≤ a then γ.toPath.extend 0 else
+    if _ : (0 : ℝ) ≤ b then tail.extend ((0 - a) / (b - a))
+    else δ.extend ((0 - b) / (1 - b))) = x₀
+  rw [dif_pos ha, Path.extend_zero]
 
 private theorem deformTerminal_apply_of_le {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
     (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (ht : (t : ℝ) ≤ a) :
     (deformTerminal γ hu δ ha hab hb).1 t = γ.toPath.extend t := by
-  simp [deformTerminal, endpoint_def, ht]
+  unfold deformTerminal
+  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
+    if _ : (t : ℝ) ≤ b then
+      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
+    else δ.extend (((t : ℝ) - b) / (1 - b))) = γ.toPath.extend t
+  rw [dif_pos ht]
 
 private theorem deformTerminal_apply_of_lt_of_le {u v : X} (γ : BasedPath x₀)
     (hu : endpoint γ = u) (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (hta : a < (t : ℝ)) (htb : (t : ℝ) ≤ b) :
     (deformTerminal γ hu δ ha hab hb).1 t =
       (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a)) := by
-  simp [deformTerminal, endpoint_def, not_le_of_gt hta, htb]
+  unfold deformTerminal
+  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
+    if _ : (t : ℝ) ≤ b then
+      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
+    else δ.extend (((t : ℝ) - b) / (1 - b))) =
+      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
+  rw [dif_neg (not_le_of_gt hta), dif_pos htb]
 
 private theorem deformTerminal_apply_of_lt {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
     (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (ht : b < (t : ℝ)) :
     (deformTerminal γ hu δ ha hab hb).1 t = δ.extend (((t : ℝ) - b) / (1 - b)) := by
-  simp [deformTerminal, endpoint_def, not_le_of_gt (lt_trans hab ht), not_le_of_gt ht]
+  unfold deformTerminal
+  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
+    if _ : (t : ℝ) ≤ b then
+      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
+    else δ.extend (((t : ℝ) - b) / (1 - b))) = δ.extend (((t : ℝ) - b) / (1 - b))
+  rw [dif_neg (not_le_of_gt (lt_trans hab ht)), dif_neg (not_le_of_gt ht)]
 
 /-- The endpoint of `deformTerminal γ hu δ ha hab hb` is the endpoint of `δ`. -/
 private theorem endpoint_deformTerminal {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
