@@ -109,7 +109,8 @@ open TauCeti.Multiquadratic
 
 variable {L : Type*} [Field L] [NumberField L] {root : ι → L} {d : ι → ℤ}
 
-local instance :
+/-- The rational algebra structure on the multiquadratic intermediate field. -/
+local instance algebraRatAdjoinRange :
     Algebra ℚ ↥(IntermediateField.adjoin ℚ (Set.range root)) :=
   (IntermediateField.adjoin ℚ (Set.range root)).algebra'
 
