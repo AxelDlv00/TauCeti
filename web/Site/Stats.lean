@@ -73,9 +73,12 @@ Infrastructure and refactor PRs, which advance no roadmap, are left out.
 Who has taken part? The snapshot below counts GitHub accounts that have
 opened a pull request or issue, participated in those conversations (including
 reviews), or authored a commit on the default branch of TauCeti, TauCetiRoadmap,
-TauCetiWorker, or TauCetiReview. Automation accounts are excluded. The headline
-deduplicates people across all four repositories; the repository bars deliberately
-overlap.
+TauCetiWorker, or TauCetiReview. Accounts recognised as automation are dropped:
+logins carrying GitHub's `[bot]` suffix, together with the project's own automation
+aliases. Nothing verifies that the accounts left over belong to people, so any
+automation the filter does not recognise is still counted. The headline
+deduplicates accounts across all four repositories; the repository bars
+deliberately overlap.
 
 :::blob participationGraph
 :::
