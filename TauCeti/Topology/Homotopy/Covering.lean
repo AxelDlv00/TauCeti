@@ -77,7 +77,6 @@ theorem IsCoveringMap.existsUnique_continuousMap_lifts_of_subsingleton_fundament
     rw [FundamentalGroup.map_range_eq_bot_of_subsingleton f]
     exact bot_le
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- Choosing a basepoint lift `e` in the fibre over `x` identifies the fundamental group of
 the base with that fibre, via `γ ↦ monodromy γ e`. -/
 @[expose] noncomputable def IsCoveringMap.fundamentalGroupEquivFiber [SimplyConnectedSpace E]
@@ -87,7 +86,8 @@ the base with that fibre, via `γ ↦ monodromy γ e`. -/
     invFun e' :=
       FundamentalGroup.fromPath <|
         ((Path.Homotopic.Quotient.mk (PathConnectedSpace.somePath (e : E) (e' : E))).map
-          ⟨p, hp.continuous⟩).cast e.2.symm e'.2.symm
+          ⟨p, hp.continuous⟩).cast
+            (Set.mem_singleton_iff.mp e.2).symm (Set.mem_singleton_iff.mp e'.2).symm
     left_inv γ := by
       set Γ : Path.Homotopic.Quotient (e : E) (hp.monodromy γ e : E) :=
         hp.liftPathQuotient γ e
@@ -97,7 +97,7 @@ the base with that fibre, via `γ ↦ monodromy γ e`. -/
         Subsingleton.elim _ _
       dsimp only
       rw [hpath, hp.map_liftPathQuotient]
-      rw [Path.Homotopic.Quotient.cast_cast]
+      erw [Path.Homotopic.Quotient.cast_cast]
       exact eq_of_heq (Path.Homotopic.Quotient.cast_heq _ _)
     right_inv e' := by
       obtain ⟨e₀, he₀⟩ := e
@@ -108,7 +108,9 @@ the base with that fibre, via `γ ↦ monodromy γ e`. -/
       dsimp only
       simpa [Γ] using
         hp.monodromy_eq_of_map_eq Γ (by
-          simp [Γ]) }
+          dsimp only [Γ]
+          erw [Path.Homotopic.Quotient.cast_cast]
+          exact (eq_of_heq (Path.Homotopic.Quotient.cast_heq _ _)).symm) }
 
 /-- The general fibre equivalence sends a loop class to the monodromy translate of the chosen
 lift, as an equality in the total space `E`. -/

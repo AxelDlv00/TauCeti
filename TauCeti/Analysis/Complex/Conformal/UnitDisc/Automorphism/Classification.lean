@@ -35,7 +35,6 @@ open scoped ComplexConjugate
 
 variable {f g : ℂ → ℂ}
 
-set_option backward.isDefEq.respectTransparency false in
 /--
 **Classification of holomorphic disc automorphisms.** A holomorphic self-map `f` of the open
 unit disc with a holomorphic two-sided inverse `g` has the standard form. Its center is `g 0`,
@@ -95,7 +94,7 @@ theorem exists_forall_unitDisc_eq_unitDiscStandardAutomorphismEquiv
   -- Beta-reduce the two scalar Moebius formulas so the inverse equality rewrites `hF`.
   dsimp only at hInv
   rw [hInv] at hF
-  rw [coe_unitDiscStandardAutomorphismEquiv_apply]
+  erw [coe_unitDiscStandardAutomorphismEquiv_apply]
   simpa only [Complex.UnitDisc.coe_mk] using hF
 
 end TauCeti

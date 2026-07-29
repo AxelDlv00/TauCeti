@@ -84,7 +84,6 @@ noncomputable def classGroupAddEquiv :
 
 variable {R K}
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- The class group isomorphism sends the class of the Weil divisor of an invertible fractional
 ideal `I` to the ideal class of `I`. Together with the surjectivity of `fractionalIdealDivisor`
 and of `divisorClass` this pins down `classGroupAddEquiv` on every element. -/
@@ -94,7 +93,8 @@ lemma classGroupAddEquiv_divisorClass_fractionalIdealDivisor (I : (FractionalIde
         ((OrderSystem.ofDedekindDomain R K).divisorClass
           (fractionalIdealDivisor R K (Additive.ofMul I)))
       = Additive.ofMul (ClassGroup.mk K I) := by
-  rw [classGroupAddEquiv, AddEquiv.trans_apply, ← fractionalIdealDivisorAddEquiv_apply,
+  erw [classGroupAddEquiv, AddEquiv.trans_apply,
+    ← fractionalIdealDivisorAddEquiv_apply,
     OrderSystem.divisorClass_eq_mk']
   -- `QuotientAddGroup.congr` carries `mk' G' x` to `mk' H' (e x)` definitionally, but Mathlib's
   -- `QuotientGroup.congr_mk'` is not tagged `@[to_additive]`, so there is no additive lemma to

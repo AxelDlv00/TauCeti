@@ -44,7 +44,6 @@ namespace ClassGroup
 variable {R S T : Type*} [CommRing R] [CommRing S] [CommRing T]
   [IsDomain R] [IsDomain S] [IsDomain T]
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- `ClassGroup.mulEquiv f` sends the class of a unit fractional ideal `I` to the class of its
 image under `FractionalIdeal.ringEquivOfRingEquiv f`. This is the characteristic computation of the
 induced map on ideal classes; the functorial laws below are corollaries. Its fully-determined
@@ -57,13 +56,13 @@ arbitrary fraction fields. -/
         (Units.mapEquiv (FractionalIdeal.ringEquivOfRingEquiv
           (FractionRing R) (FractionRing S) f) I) := by
   apply (ClassGroup.equiv (FractionRing S)).injective
-  rw [ClassGroup.mulEquiv_apply, MulEquiv.apply_symm_apply, ClassGroup.equiv_mk,
-    ClassGroup.equiv_mk, QuotientGroup.congr_mk']
+  erw [ClassGroup.mulEquiv_apply]
+  rw [MulEquiv.apply_symm_apply, ClassGroup.equiv_mk, ClassGroup.equiv_mk]
+  erw [QuotientGroup.congr_mk']
   apply congrArg (QuotientGroup.mk' (toPrincipalIdeal S (FractionRing S)).range)
   apply Units.ext
   simp [FractionalIdeal.canonicalEquiv_self]
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- The canonical equivalence between the fractional ideals of two fraction fields of `R` is
 transport along the identity ring equivalence. This lets a change of fraction field and a transport
 along a ring equivalence be composed by `FractionalIdeal.ringEquivOfRingEquiv_trans_apply`. -/
@@ -71,10 +70,26 @@ private theorem canonicalEquiv_eq_ringEquivOfRingEquiv (K K' : Type*) [Field K] 
     [Algebra R K] [Algebra R K'] [IsFractionRing R K] [IsFractionRing R K'] :
     FractionalIdeal.canonicalEquiv R⁰ K K' =
       FractionalIdeal.ringEquivOfRingEquiv K K' (RingEquiv.refl R) := by
+  letI : RingHomInvPair (RingEquiv.refl R : R →+* R) (RingEquiv.refl R).symm :=
+    RingHomInvPair.of_ringEquiv (RingEquiv.refl R)
+  letI : RingHomInvPair ((RingEquiv.refl R).symm : R →+* R) (RingEquiv.refl R) :=
+    RingHomInvPair.of_ringEquiv (RingEquiv.refl R).symm
   ext I x
-  simp only [FractionalIdeal.ringEquivOfRingEquiv_apply, FractionalIdeal.val_eq_coe,
-    ← FractionalIdeal.mem_coe]
-  simp [IsFractionRing.semilinearEquivOfRingEquiv, IsFractionRing.ringEquivOfRingEquiv]
+  rw [FractionalIdeal.mem_canonicalEquiv_apply]
+  erw [FractionalIdeal.ringEquivOfRingEquiv_apply]
+  change _ ↔ x ∈ Submodule.map
+      (IsFractionRing.semilinearEquivOfRingEquiv K K' (RingEquiv.refl R)).toLinearMap I.val
+  rw [Submodule.mem_map]
+  constructor
+  · rintro ⟨y, hy, rfl⟩
+    refine ⟨y, hy, ?_⟩
+    erw [IsFractionRing.semilinearEquivOfRingEquiv_apply,
+      IsFractionRing.ringEquivOfRingEquiv_apply]
+  · rintro ⟨y, hy, rfl⟩
+    refine ⟨y, hy, ?_⟩
+    erw [IsFractionRing.semilinearEquivOfRingEquiv_apply,
+      IsFractionRing.ringEquivOfRingEquiv_apply]
+    rfl
 
 /-- `ClassGroup.mulEquiv f` sends the class of a unit fractional ideal `I` to the class of its
 image under `FractionalIdeal.ringEquivOfRingEquiv f`. This is independent of the chosen fraction

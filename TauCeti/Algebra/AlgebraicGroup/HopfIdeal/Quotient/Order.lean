@@ -44,7 +44,6 @@ namespace CommHopfAlgCat
 
 variable {R : Type u} [CommRing R]
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- On points, precomposition with `quotientMapOfLe` is compatible with the ambient
 quotient-points inclusions.
 
@@ -59,7 +58,7 @@ lemma quotientPointsHom_mapPointsFunctor_quotientMapOfLe_app
       quotientPointsHom H J A f := by
   apply WithConv.ofConv_injective
   ext h
-  rw [quotientPointsHom_apply_apply, mapPointsFunctor_app_apply_apply,
+  erw [quotientPointsHom_apply_apply, mapPointsFunctor_app_apply_apply,
     quotientMapOfLe_mk, quotientPointsHom_apply_apply]
 
 /-- The pointwise form of
