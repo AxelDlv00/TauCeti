@@ -36,15 +36,19 @@ def count_lines(repo, commit, pathspecs):
 
 
 def series(repo, pathspecs, ref):
-    # The latest commit on each day that touched the files, in date order;
-    # --reverse walks oldest-first, so the last write for a day wins.
+    # The latest commit on each day that touched the files. --reverse walks
+    # oldest-first so the last write for a day wins, but the ordering is by
+    # commit date while the key is the author date (%ad); a commit authored one
+    # day and landed the next (or across a timezone boundary) makes the days
+    # arrive out of order. Sort by date so the chart's x-axis never runs
+    # backwards — dates are ISO YYYY-MM-DD, so lexicographic order is chronological.
     day_commit = {}
     for line in git(repo, "log", "--reverse", "--date=short",
                     "--format=%ad %H", ref, "--", *pathspecs).splitlines():
         date, commit = line.split()
         day_commit[date] = commit
     return [(date, count_lines(repo, commit, pathspecs))
-            for date, commit in day_commit.items()]
+            for date, commit in sorted(day_commit.items())]
 
 
 def nice_ceil(x):
