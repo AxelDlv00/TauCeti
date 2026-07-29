@@ -62,6 +62,12 @@ pole — and that it meet each `s` only finitely often. Condition (B) governs po
 * `crossingAngle_eq_of_tendsto` / `basepointAngle_eq_of_tendsto` — the characteristic equations,
   evaluating each angle from one-sided `Tendsto` hypotheses on `deriv γ`. Downstream files cannot
   unfold the definitions (their bodies are not exposed), so these are the intended entry points.
+* `coe_crossingAngle_eq_arg_neg_div_add_arg_div_sub_arg_div` — the crossing angle, read in
+  `Real.Angle`, is exactly what the two boundary arguments of a crossing window carry beyond the
+  argument swept between the window endpoints. This is the geometric identification the per-window
+  principal value (`perWindow_truncated_integral_tendsto`) needs, and the `Real.Angle` form is the
+  exact one:
+  `Complex.arg` is additive only mod `2π`.
 
 Both conditions read the on-curve pole orders of `f` from `meromorphicOrderAt`. Condition (B) needs
 no explicit singular set — it fires **intrinsically** at the times `t₀` where
@@ -115,29 +121,22 @@ def basepointAngle (γ : ℝ → ℂ) (a b : ℝ) : ℝ :=
   toIcoMod Real.two_pi_pos 0
     (Complex.arg (-limUnder (𝓝[<] b) (deriv γ)) - Complex.arg (limUnder (𝓝[>] a) (deriv γ)))
 
-/-- For a nonzero `L : ℂ`, the normalized angle from `L` to `−L` is `π`: `(-L).arg - L.arg`
-is `±π`, and both representatives land on `π` in `[0, 2π)`. This is the engine behind the
-smooth-crossing values of `crossingAngle` and `basepointAngle`. -/
+/-- For a nonzero `L : ℂ`, the normalized angle from `L` to `−L` is `π`. This is the engine behind
+the smooth-crossing values of `crossingAngle` and `basepointAngle`. -/
 private theorem toIcoMod_arg_neg_sub_arg {L : ℂ} (hL : L ≠ 0) :
     toIcoMod Real.two_pi_pos 0 (Complex.arg (-L) - Complex.arg L) = Real.pi := by
-  have hmem : Real.pi ∈ Set.Ico (0 : ℝ) (0 + 2 * Real.pi) :=
-    Set.mem_Ico.mpr ⟨Real.pi_nonneg, by rw [zero_add]; linarith [Real.pi_pos]⟩
-  -- `arg (-L) - arg L` is `π` or `-π`, according to the sign of the tangent `L ≠ 0`.
-  have key : Complex.arg (-L) - Complex.arg L = Real.pi ∨
-      Complex.arg (-L) - Complex.arg L = -Real.pi := by
-    rcases lt_trichotomy L.im 0 with him | him | him
-    · exact Or.inl (by rw [Complex.arg_neg_eq_arg_add_pi_of_im_neg him]; ring)
-    · have hre : L.re ≠ 0 := fun h => hL (by simp [Complex.ext_iff, h, him])
-      rcases lt_or_gt_of_ne hre with hre' | hre'
-      · exact Or.inr (by rw [Complex.arg_neg_eq_arg_sub_pi_iff.mpr (Or.inr ⟨him, hre'⟩)]; ring)
-      · exact Or.inl (by rw [Complex.arg_neg_eq_arg_add_pi_iff.mpr (Or.inr ⟨him, hre'⟩)]; ring)
-    · exact Or.inr (by rw [Complex.arg_neg_eq_arg_sub_pi_of_im_pos him]; ring)
-  rcases key with h | h <;> rw [h]
-  · exact (toIcoMod_eq_self Real.two_pi_pos).mpr hmem
-  · -- `toIcoMod` is `2π`-periodic, so the representative of `-π` in `[0, 2π)` is `-π + 2π = π`.
-    have hshift : -Real.pi + 2 * Real.pi = Real.pi := by ring
-    rw [← toIcoMod_add_right Real.two_pi_pos 0 (-Real.pi), hshift]
-    exact (toIcoMod_eq_self Real.two_pi_pos).mpr hmem
+  -- `arg (-L) = arg L + π` holds in `Real.Angle`; transporting back to `ℝ` leaves `π` up to a
+  -- multiple of `2π`, which the `[0, 2π)` normalization discards.
+  have hangle : ((Complex.arg (-L) - Complex.arg L : ℝ) : Real.Angle) = (Real.pi : ℝ) := by
+    rw [Real.Angle.coe_sub, Complex.arg_neg_coe_angle hL]
+    abel
+  obtain ⟨k, hk⟩ := Real.Angle.angle_eq_iff_two_pi_dvd_sub.mp hangle
+  have hshift : Complex.arg (-L) - Complex.arg L = Real.pi + k • (2 * Real.pi) := by
+    rw [zsmul_eq_mul]
+    linarith
+  rw [hshift, toIcoMod_add_zsmul]
+  exact (toIcoMod_eq_self Real.two_pi_pos).mpr
+    (Set.mem_Ico.mpr ⟨Real.pi_nonneg, by rw [zero_add]; linarith [Real.pi_pos]⟩)
 
 /-- **Characteristic equation for `crossingAngle`.** When `deriv γ` tends to `L_L` from the left
 and to `L_R` from the right at `t₀`, the crossing angle is the normalized angle from the exit
@@ -186,6 +185,33 @@ theorem crossingAngle_eq_pi {γ : ℝ → ℂ} {t₀ : ℝ}
     crossingAngle γ t₀ = Real.pi := by
   rw [crossingAngle, h]
   exact toIcoMod_arg_neg_sub_arg hL
+
+/-- **The crossing angle is what the boundary arguments carry beyond the endpoint sweep.** Fix
+non-zero one-sided tangent limits `L_L`, `L_R` at `t₀` and non-zero `w_L`, `w_R`. Then the two
+sum `arg (−L_L / w_L) + arg (w_R / L_R)` is the argument `arg (w_R / w_L)` swept from `w_L` to
+`w_R`, plus exactly the crossing angle.
+
+The intended reading takes `w_L = γ (t₀ − r) − s` and `w_R = γ (t₀ + r) − s` at the ends of a
+crossing window, where the first two
+arguments on the right are precisely the boundary arguments of the per-window principal value
+(`perWindow_truncated_integral_tendsto`): the identity says that limit sees the crossing angle plus
+a term depending only on the window endpoints. Nothing in the proof uses that reading, so `w_L` and
+`w_R` are left free.
+
+The equation is between `Real.Angle`s. That is not a weakening for convenience but the exact
+statement: `Complex.arg` is additive only mod `2π`, and `crossingAngle` is itself a `toIcoMod`
+normalization, so no `ℝ`-valued form is available without pinning a branch. -/
+theorem coe_crossingAngle_eq_arg_neg_div_add_arg_div_sub_arg_div {γ : ℝ → ℂ} {t₀ : ℝ}
+    {L_R L_L w_L w_R : ℂ} (hL_L : L_L ≠ 0) (hL_R : L_R ≠ 0) (hw_L : w_L ≠ 0) (hw_R : w_R ≠ 0)
+    (h_R : Filter.Tendsto (deriv γ) (𝓝[>] t₀) (𝓝 L_R))
+    (h_L : Filter.Tendsto (deriv γ) (𝓝[<] t₀) (𝓝 L_L)) :
+    (crossingAngle γ t₀ : Real.Angle)
+      = ((((-L_L) / w_L).arg : ℝ) : Real.Angle) + (((w_R / L_R).arg : ℝ) : Real.Angle)
+        - (((w_R / w_L).arg : ℝ) : Real.Angle) := by
+  rw [crossingAngle_eq_of_tendsto h_R h_L, Real.Angle.coe_toIcoMod,
+    Complex.arg_div_coe_angle (neg_ne_zero.mpr hL_L) hw_L, Complex.arg_div_coe_angle hw_R hL_R,
+    Complex.arg_div_coe_angle hw_R hw_L, Real.Angle.coe_sub]
+  abel
 
 /-- `basepointAngle γ a b` lies in `[0, 2π)`, the range of the model-sector normalization. Its two
 projections `basepointAngle_nonneg`/`basepointAngle_lt_two_pi` are the `@[simp]` normal forms. -/
