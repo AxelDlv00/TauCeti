@@ -36,15 +36,19 @@ def count_lines(repo, commit, pathspecs):
 
 
 def series(repo, pathspecs, ref):
-    # The latest commit on each day that touched the files, in date order;
-    # --reverse walks oldest-first, so the last write for a day wins.
+    # Use the committer timestamp: that records when the commit landed, whereas
+    # author dates can predate their parents. Convert the timestamp to a UTC day
+    # explicitly; Git's short date otherwise uses each commit's recorded timezone,
+    # which can make consecutive calendar dates decrease across timezone offsets.
+    # --reverse walks oldest-first, so the last write for a UTC day wins.
     day_commit = {}
-    for line in git(repo, "log", "--reverse", "--date=short",
-                    "--format=%ad %H", ref, "--", *pathspecs).splitlines():
-        date, commit = line.split()
-        day_commit[date] = commit
+    for line in git(repo, "log", "--reverse",
+                    "--format=%ct %H", ref, "--", *pathspecs).splitlines():
+        timestamp, commit = line.split()
+        day = dt.datetime.fromtimestamp(int(timestamp), dt.timezone.utc).date().isoformat()
+        day_commit[day] = commit
     return [(date, count_lines(repo, commit, pathspecs))
-            for date, commit in day_commit.items()]
+            for date, commit in sorted(day_commit.items())]
 
 
 def nice_ceil(x):
