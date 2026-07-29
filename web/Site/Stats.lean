@@ -33,6 +33,17 @@ def roadmapGraph : Html := {{
   </figure>
 }}
 
+/-- A current snapshot of human participation across the four project repositories.
+Regenerated daily by the `pages` workflow (`scripts/participant_graph.py`) from
+GitHub PR/issue participant connections and default-branch commit contributors. -/
+def participationGraph : Html := {{
+  <figure class="loc-figure loc-figure-wide">
+    <img class="loc-graph" src="static/participation.svg"
+         alt="Human participation across the four Tau Ceti repositories"/>
+    <figcaption>"Unique human participants by repository; people active in several repositories appear in several bars."</figcaption>
+  </figure>
+}}
+
 #doc (Page) "Statistics" =>
 
 How much mathematics has Tau Ceti formalized, and how fast is the roadmap that
@@ -57,4 +68,14 @@ both PRs, so this measures work landed per roadmap, not a snapshot line count.
 Infrastructure and refactor PRs, which advance no roadmap, are left out.
 
 :::blob roadmapGraph
+:::
+
+Who has taken part? The snapshot below counts GitHub accounts that have
+opened a pull request or issue, participated in those conversations (including
+reviews), or authored a commit on the default branch of TauCeti, TauCetiRoadmap,
+TauCetiWorker, or TauCetiReview. Automation accounts are excluded. The headline
+deduplicates people across all four repositories; the repository bars deliberately
+overlap.
+
+:::blob participationGraph
 :::
