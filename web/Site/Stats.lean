@@ -33,14 +33,16 @@ def roadmapGraph : Html := {{
   </figure>
 }}
 
-/-- A current snapshot of human participation across the four project repositories.
-Regenerated daily by the `pages` workflow (`scripts/participant_graph.py`) from
-GitHub PR/issue participant connections and default-branch commit contributors. -/
+/-- A current snapshot of participation across the four project repositories: the GitHub
+accounts that remain once recognised automation is excluded, which is not the same as a
+verified count of people. Regenerated daily by the `pages` workflow
+(`scripts/participant_graph.py`) from GitHub PR/issue participant connections and
+default-branch commit contributors. -/
 private def participationGraph : Html := {{
   <figure class="loc-figure loc-figure-wide">
     <img class="loc-graph" src="static/participation.svg"
-         alt="Human participation across the four Tau Ceti repositories"/>
-    <figcaption>"Unique human participants by repository; people active in several repositories appear in several bars."</figcaption>
+         alt="Participation across the four Tau Ceti repositories, by repository"/>
+    <figcaption>"Participating accounts by repository, once recognised automation is excluded; an account active in several repositories appears in several bars."</figcaption>
   </figure>
 }}
 
