@@ -2,9 +2,11 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Algebra.BigOperators.Associated
-import Mathlib.RingTheory.DedekindDomain.Ideal.Lemmas
-import Mathlib.RingTheory.Ideal.Maps
+module
+
+public import Mathlib.Algebra.BigOperators.Associated
+public import Mathlib.RingTheory.DedekindDomain.Ideal.Lemmas
+public import Mathlib.RingTheory.Ideal.Maps
 import Mathlib.Tactic
 
 /-!
@@ -32,6 +34,8 @@ of L. Alpöge's disproof of the uniform-constant Erdős unit-distance conjecture
 the conjugate-product ideals over primes `p ≡ 1 (mod 4)` in a concrete CM field.
 -/
 
+public section
+
 attribute [local instance] Classical.propDecidable
 
 namespace TauCeti.DedekindDomain
@@ -51,6 +55,123 @@ private theorem isPrime_not_dvd_prod (p : IsDedekindDomain.HeightOneSpectrum R)
   rintro ⟨q, hqT, hpq⟩
   have heq : q.asIdeal = p.asIdeal := q.isMaximal.eq_of_le p.isMaximal.ne_top (Ideal.le_of_dvd hpq)
   exact hpT (IsDedekindDomain.HeightOneSpectrum.ext heq ▸ hqT)
+
+omit R [CommRing R] [IsDedekindDomain R] in
+/-- Under an involutive `f` with `q = f p`, the image `f x` of an element outside the pair
+`{p, q}` again lies outside `{p, q}`. -/
+private theorem notMem_pair_of_apply_involutive {α : Type*} [DecidableEq α] {f : α → α}
+    {p q x : α} (hqdef : q = f p) (hinvolx : f (f x) = x) (hinvolp : f (f p) = p)
+    (hxnotpair : x ∉ ({p, q} : Finset α)) : f x ∉ ({p, q} : Finset α) := by
+  rw [Finset.mem_insert, Finset.mem_singleton]
+  rintro (h | h)
+  · -- `f x = p` forces `x = f p = q`, but `x ∉ {p, q}`.
+    refine hxnotpair ?_
+    rw [Finset.mem_insert, Finset.mem_singleton]
+    exact Or.inr <| calc
+      x = f (f x) := hinvolx.symm
+      _ = f p := by rw [h]
+      _ = q := hqdef.symm
+  · -- `f x = q = f p` forces `x = p`, but `x ∉ {p, q}`.
+    refine hxnotpair ?_
+    rw [Finset.mem_insert, Finset.mem_singleton]
+    exact Or.inl <| calc
+      x = f (f x) := hinvolx.symm
+      _ = f q := by rw [h]
+      _ = f (f p) := by rw [hqdef]
+      _ = p := hinvolp
+
+omit [IsDedekindDomain R] in
+/-- Transporting a height-one prime along a ring equivalence `σ` maps its ideal to the image
+ideal: `(equivOfRingEquiv σ p).asIdeal = Ideal.map σ p.asIdeal`. -/
+private lemma asIdeal_equivOfRingEquiv (σ : R ≃+* R)
+    (p : IsDedekindDomain.HeightOneSpectrum R) :
+    (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p).asIdeal =
+      Ideal.map σ p.asIdeal := by
+  ext x
+  simp [IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv]
+
+/-- For a distinct prime `q ≠ p` and a family `G'` no member of which is divisible by `p.asIdeal`,
+multiplying `G'` by `p.asIdeal` and by `q.asIdeal` gives disjoint images. -/
+private theorem disjoint_image_mul_asIdeal {p q : IsDedekindDomain.HeightOneSpectrum R}
+    {G' : Finset (Ideal R)} (hpq : q ≠ p) (hpFree : ∀ A ∈ G', ¬ p.asIdeal ∣ A) :
+    Disjoint (G'.image (· * p.asIdeal)) (G'.image (· * q.asIdeal)) := by
+  rw [Finset.disjoint_left]
+  rintro A hAp hAq
+  obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hAp
+  obtain ⟨b, hb, hab⟩ := Finset.mem_image.mp hAq
+  -- `a * p = b * q` forces `p ∣ b`, but no member of `G'` is divisible by `p`.
+  have hpdvd : p.asIdeal ∣ b := by
+    have hpdvd' : p.asIdeal ∣ b * q.asIdeal := hab.symm ▸ dvd_mul_left p.asIdeal a
+    rcases ((Ideal.prime_iff_isPrime p.ne_bot).mpr p.isPrime).dvd_or_dvd hpdvd' with h | h
+    · exact h
+    · exact absurd (q.isMaximal.eq_of_le p.isMaximal.ne_top (Ideal.le_of_dvd h))
+        (fun hpqIdeal => hpq (IsDedekindDomain.HeightOneSpectrum.ext hpqIdeal))
+  exact hpFree b hb hpdvd
+
+omit R [CommRing R] [IsDedekindDomain R] in
+/-- If `n ≤ m + 2` then `2 ^ (n / 2) ≤ 2 * 2 ^ (m / 2)`. -/
+private lemma two_pow_div_two_le_two_mul_two_pow_div_two_of_le_add_two {m n : ℕ} (hmn : n ≤ m + 2) :
+    2 ^ (n / 2) ≤ 2 * 2 ^ (m / 2) := by
+  rw [← pow_succ']
+  exact Nat.pow_le_pow_right (by norm_num) (by omega)
+
+omit R [CommRing R] [IsDedekindDomain R] in
+/-- Every ideal in the union `G'.image (· * P) ∪ G'.image (· * Q)` has conjugate product `prodS`,
+given the conjugate-pair relations `Q = Ideal.map σ P` and `Ideal.map σ Q = P`, the factorisation
+`prodS = prodS' * P * Q` of the product through the pair, and the product property
+`a * Ideal.map σ a = prodS'` of every `a ∈ G'`. This is a pure identity about ideals under a ring
+homomorphism `σ`, valid over any commutative semiring (no Dedekind structure needed). -/
+private theorem mul_map_eq_prod_of_mem_image_union {R : Type*} [CommSemiring R] {σ : R →+* R}
+    {prodS prodS' P Q : Ideal R} {G' : Finset (Ideal R)}
+    (hqIdeal : Q = Ideal.map σ P) (hmapq : Ideal.map σ Q = P)
+    (hprodS : prodS = prodS' * P * Q)
+    (hprod' : ∀ a ∈ G', a * Ideal.map σ a = prodS') {A : Ideal R}
+    (hA : A ∈ G'.image (· * P) ∪ G'.image (· * Q)) :
+    A * Ideal.map σ A = prodS := by
+  rw [Finset.mem_union] at hA
+  rcases hA with hA | hA
+  · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hA
+    rw [Ideal.map_mul, ← hqIdeal, hprodS, ← hprod' a ha]; ring
+  · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hA
+    rw [Ideal.map_mul, hmapq, hprodS, ← hprod' a ha]; ring
+
+/-- **Two shifted copies double the family.** Multiplying a family of ideals by each of two
+height-one primes gives images of the same size, and if those images are disjoint the union has
+twice the cardinality. That is exactly enough to carry a bound `2 ^ (m / 2)` up to `2 ^ (n / 2)`
+whenever `n ≤ m + 2` — the two primes removed from the index set at each induction step. No
+relationship between the primes is assumed beyond disjointness of the images; the caller
+supplies a conjugate pair, but the estimate does not need that. -/
+private lemma two_pow_le_card_union_image_mul {G' : Finset (Ideal R)}
+    {p q : IsDedekindDomain.HeightOneSpectrum R}
+    (hdisj : Disjoint (G'.image (· * p.asIdeal)) (G'.image (· * q.asIdeal)))
+    {n m : ℕ} (hcard' : 2 ^ (m / 2) ≤ G'.card) (hnm : n ≤ m + 2) :
+    2 ^ (n / 2) ≤ ((G'.image (· * p.asIdeal)) ∪ (G'.image (· * q.asIdeal))).card := by
+  rw [Finset.card_union_of_disjoint hdisj,
+    Finset.card_image_of_injective _ (fun _ _ h => mul_right_cancel₀ p.ne_bot h),
+    Finset.card_image_of_injective _ (fun _ _ h => mul_right_cancel₀ q.ne_bot h)]
+  calc 2 ^ (n / 2) ≤ 2 * 2 ^ (m / 2) :=
+        two_pow_div_two_le_two_mul_two_pow_div_two_of_le_add_two hnm
+    _ ≤ G'.card + G'.card := by omega
+
+omit [IsDedekindDomain R] in
+/-- **The complement of a conjugate pair is still invariant.** Removing `p` and its image `q`
+from `S` leaves a set the involution still maps to itself: an element outside the pair cannot be
+sent into it, since applying the involution twice returns it. -/
+private lemma mem_sdiff_pair_of_invariant {σ : R ≃+* R}
+    {S : Finset (IsDedekindDomain.HeightOneSpectrum R)}
+    {p q : IsDedekindDomain.HeightOneSpectrum R}
+    (hqdef : q = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p)
+    (hinv : ∀ x ∈ S, IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ x ∈ S)
+    (hinvol : ∀ x ∈ S, IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ
+      (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ x) = x)
+    (hpS : p ∈ S) :
+    ∀ x ∈ S \ {p, q}, IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ x ∈ S \ {p, q} := by
+  intro x hx
+  have hxS := (Finset.mem_sdiff.mp hx).1
+  refine Finset.mem_sdiff.mpr ⟨hinv x hxS, ?_⟩
+  exact notMem_pair_of_apply_involutive
+    (f := IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ) hqdef (hinvol x hxS)
+    (hinvol p hpS) (Finset.mem_sdiff.mp hx).2
 
 /-- **Conjugate-transversal ideal family.** For a fixed-point-free involution `σ` of a finite set
 `S` of height-one primes of a Dedekind domain, there are at least `2 ^ (S.card / 2)` ideals `A`
@@ -74,11 +195,7 @@ theorem exists_transversal_family (σ : R ≃+* R)
   have hqS : q ∈ S := hinv p hpS
   have hpq : q ≠ p := hfree p hpS
   have hqIdeal : q.asIdeal = Ideal.map σ p.asIdeal := by
-    rw [hqdef]
-    ext x
-    simp [IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv]
-  have hp0 : p.asIdeal ≠ ⊥ := p.ne_bot
-  have hpprime : p.asIdeal.IsPrime := p.isPrime
+    rw [hqdef]; exact asIdeal_equivOfRingEquiv σ p
   have hpair : ({p, q} : Finset (IsDedekindDomain.HeightOneSpectrum R)) ⊆ S := by
     intro x hx; rcases Finset.mem_insert.mp hx with rfl | hx
     · exact hpS
@@ -90,34 +207,7 @@ theorem exists_transversal_family (σ : R ≃+* R)
   -- The subset `S'` still satisfies all the hypotheses.
   have hmem' : ∀ {x}, x ∈ S' → x ∈ S := fun hx => (Finset.mem_sdiff.mp hx).1
   obtain ⟨G', hcard', hprod'⟩ := ih S' hS'sub
-    (fun x hx => by
-      have hxS := hmem' hx
-      have hxnotpair :
-          x ∉ ({p, q} : Finset (IsDedekindDomain.HeightOneSpectrum R)) :=
-        (Finset.mem_sdiff.mp hx).2
-      refine Finset.mem_sdiff.mpr ⟨hinv x hxS, ?_⟩
-      rw [Finset.mem_insert, Finset.mem_singleton]
-      rintro (h | h)
-      · -- `σ x = p` forces `x = σ p = q`, but `x ∉ {p, q}`.
-        refine hxnotpair ?_
-        rw [Finset.mem_insert, Finset.mem_singleton]
-        exact Or.inr <| calc
-          x = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ
-              (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ x) :=
-            (hinvol x hxS).symm
-          _ = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p := by rw [h]
-          _ = q := hqdef.symm
-      · -- `σ x = q = σ p` forces `x = p`, but `x ∉ {p, q}`.
-        refine hxnotpair ?_
-        rw [Finset.mem_insert, Finset.mem_singleton]
-        exact Or.inl <| calc
-          x = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ
-              (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ x) :=
-            (hinvol x hxS).symm
-          _ = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ q := by rw [h]
-          _ = IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ
-              (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p) := by rw [hqdef]
-          _ = p := hinvol p hpS)
+    (mem_sdiff_pair_of_invariant hqdef hinv hinvol hpS)
     (fun x hx => hinvol x (hmem' hx)) (fun x hx => hfree x (hmem' hx))
   -- The product over `S` factors through the conjugate pair we removed.
   have hprodS :
@@ -129,49 +219,15 @@ theorem exists_transversal_family (σ : R ≃+* R)
     rw [hS'def]; omega
   have hpS' : p ∉ S' := fun h => (Finset.mem_sdiff.mp h).2 (Finset.mem_insert_self _ _)
   refine ⟨(G'.image (· * p.asIdeal)) ∪ (G'.image (· * q.asIdeal)), ?_, ?_⟩
-  · -- The two images are disjoint and each has the size of `G'`.
-    have hinjp : Function.Injective (· * p.asIdeal : Ideal R → Ideal R) :=
-      fun a b h => mul_right_cancel₀ hp0 h
-    have hinjq : Function.Injective (· * q.asIdeal : Ideal R → Ideal R) :=
-      fun a b h => mul_right_cancel₀ q.ne_bot h
-    have hdisj : Disjoint (G'.image (· * p.asIdeal)) (G'.image (· * q.asIdeal)) := by
-      rw [Finset.disjoint_left]
-      rintro A hAp hAq
-      obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hAp
-      obtain ⟨b, hb, hab⟩ := Finset.mem_image.mp hAq
-      -- `a * p = b * q` forces `p ∣ b`, hence `p ∣ ∏ S'`, a contradiction.
-      have hpdvd : p.asIdeal ∣ b := by
-        have hpdvd' : p.asIdeal ∣ b * q.asIdeal := hab.symm ▸ dvd_mul_left p.asIdeal a
-        rcases ((Ideal.prime_iff_isPrime hp0).mpr hpprime).dvd_or_dvd hpdvd' with h | h
-        · exact h
-        · exact absurd (q.isMaximal.eq_of_le p.isMaximal.ne_top (Ideal.le_of_dvd h))
-            (fun hpqIdeal => hpq (IsDedekindDomain.HeightOneSpectrum.ext hpqIdeal))
-      exact isPrime_not_dvd_prod p hpS'
-        (hprod' b hb ▸ dvd_mul_of_dvd_left hpdvd (Ideal.map σ b))
-    rw [Finset.card_union_of_disjoint hdisj, Finset.card_image_of_injective _ hinjp,
-      Finset.card_image_of_injective _ hinjq]
-    have h2 : 2 ≤ S.card := Finset.one_lt_card.mpr ⟨p, hpS, q, hqS, hpq.symm⟩
-    calc 2 ^ (S.card / 2) = 2 * 2 ^ (S.card / 2 - 1) := by
-            rw [← pow_succ', Nat.sub_add_cancel (Nat.one_le_div_iff (by norm_num) |>.mpr h2)]
-      _ ≤ 2 * 2 ^ (S'.card / 2) := by
-            gcongr
-            · norm_num
-            · rw [hcardS]; omega
-      _ ≤ G'.card + G'.card := by omega
-  · rintro A hA
-    rw [Finset.mem_union] at hA
-    rcases hA with hA | hA
-    · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hA
-      rw [Ideal.map_mul, ← hqIdeal, hprodS, ← hprod' a ha]; ring
-    · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hA
-      have hmapq : Ideal.map σ q.asIdeal = p.asIdeal := by
-        have hσq :
-            (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ q).asIdeal =
-              Ideal.map σ q.asIdeal := by
-          ext x
-          simp [IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv]
-        rw [← hσq]
-        exact congr_arg IsDedekindDomain.HeightOneSpectrum.asIdeal (hinvol p hpS)
-      rw [Ideal.map_mul, hmapq, hprodS, ← hprod' a ha]; ring
+  · -- The two images are disjoint, so the union doubles the family.
+    have hdisj : Disjoint (G'.image (· * p.asIdeal)) (G'.image (· * q.asIdeal)) :=
+      disjoint_image_mul_asIdeal hpq (fun A hA hpA =>
+        isPrime_not_dvd_prod p hpS' (hprod' A hA ▸ dvd_mul_of_dvd_left hpA (Ideal.map σ A)))
+    exact two_pow_le_card_union_image_mul hdisj hcard' (by omega)
+  · have hmapq : Ideal.map σ q.asIdeal = p.asIdeal := by
+      rw [← asIdeal_equivOfRingEquiv σ q]
+      exact congr_arg IsDedekindDomain.HeightOneSpectrum.asIdeal (hinvol p hpS)
+    exact fun A hA =>
+      mul_map_eq_prod_of_mem_image_union (σ := (σ : R →+* R)) hqIdeal hmapq hprodS hprod' hA
 
 end TauCeti.DedekindDomain

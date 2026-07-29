@@ -2,7 +2,9 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import TauCeti.Algebra.Coalgebra.ComoduleCat
+module
+
+public import TauCeti.Algebra.Coalgebra.Comodule.Cat
 
 /-!
 # The zero comodule
@@ -20,6 +22,7 @@ concrete carrier.
 ## Main declarations
 
 * `TauCeti.ComoduleCat.zero`: the bundled zero comodule.
+* `TauCeti.ComoduleCat.subsingleton_zero`: the bundled zero comodule has subsingleton carrier.
 * `TauCeti.ComoduleCat.isZero_zero`: `ComoduleCat.zero` is a zero object.
 * `HasZeroObject (ComoduleCat R C)`.
 
@@ -31,6 +34,8 @@ The construction is the standard zero object in the category of comodules; see S
 algebra". The proof that a subsingleton bundled comodule is zero follows Mathlib's
 `SemimoduleCat.isZero_of_subsingleton` / `ModuleCat.isZero_of_subsingleton` pattern.
 -/
+
+public section
 
 open CategoryTheory CategoryTheory.Limits
 open scoped TensorProduct
@@ -46,7 +51,7 @@ variable [CommSemiring R]
 variable [AddCommMonoid C] [Module R C] [Coalgebra R C]
 
 /-- The unique right-comodule structure on the zero module `PUnit`. -/
-private instance instPUnit : Comodule R C PUnit where
+instance instPUnit : Comodule R C PUnit where
   coact := 0
   coassoc := by
     ext x
@@ -64,8 +69,13 @@ variable [CommSemiring R]
 variable [AddCommMonoid C] [Module R C] [Coalgebra R C]
 
 /-- The bundled zero right comodule. -/
-def zero : ComoduleCat.{u, v, w} R C :=
+@[expose] def zero : ComoduleCat.{u, v, w} R C :=
   of R C PUnit.{w + 1}
+
+/-- The named zero comodule has subsingleton carrier. -/
+theorem subsingleton_zero : Subsingleton (zero R C : ComoduleCat.{u, v, w} R C) := by
+  rw [zero]
+  infer_instance
 
 /-- A comodule whose underlying type is subsingleton is a zero object. -/
 theorem isZero_of_subsingleton (M : ComoduleCat.{u, v, w} R C) [Subsingleton M] : IsZero M where
@@ -85,8 +95,8 @@ theorem isZero_of_subsingleton (M : ComoduleCat.{u, v, w} R C) [Subsingleton M] 
 
 /-- The named zero comodule is a zero object. -/
 theorem isZero_zero : IsZero (zero R C : ComoduleCat.{u, v, w} R C) := by
-  rw [zero]
-  exact isZero_of_subsingleton (R := R) (C := C) (of R C PUnit.{w + 1})
+  haveI := subsingleton_zero (R := R) (C := C)
+  exact isZero_of_subsingleton (R := R) (C := C) (zero R C)
 
 /-- Any morphism from the named zero comodule is zero. -/
 theorem zero_hom_eq_zero (M : ComoduleCat.{u, v, w} R C) (f : zero R C ⟶ M) : f = 0 :=

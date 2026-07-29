@@ -2,8 +2,10 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Analysis.InnerProductSpace.Defs
-import TauCeti.Geometry.Symplectic.AlmostComplex
+module
+
+public import Mathlib.Analysis.InnerProductSpace.Defs
+public import TauCeti.Geometry.Symplectic.AlmostComplex
 
 /-!
 # The metric of a compatible pair
@@ -32,6 +34,8 @@ against exactly this metric.
   `g(J v, J w) = g(v, w)`.
 * `TauCeti.SymplecticForm.Invariant.associatedBilinForm_skewAdjoint`: `J` is `g`-skew-adjoint,
   `g(J v, w) = -g(v, J w)`.
+* `TauCeti.SymplecticForm.Invariant.associatedBilinForm_add_apply_self`: the symmetric
+  polarization identity for `g(a + J b, a + J b)`.
 * `TauCeti.SymplecticForm.Compatible.associatedBilinForm_nondegenerate`: the metric is
   nondegenerate.
 * `TauCeti.SymplecticForm.Compatible.innerProductCore`: the metric of a compatible pair as an
@@ -40,6 +44,8 @@ against exactly this metric.
 The conventions follow McDuff--Salamon, *J-holomorphic Curves and Symplectic Topology*,
 Section 2.1: a compatible pair `(ω, J)` determines a metric `g(v, w) = ω(v, J w)`.
 -/
+
+public section
 
 namespace TauCeti
 
@@ -50,7 +56,6 @@ variable {ω : SymplecticForm V} {J : AlmostComplexStructure V}
 
 /-- Applying `J` to the right argument of the metric `g(v, w) = ω(v, J w)` negates the symplectic
 form: `g(v, J w) = -ω(v, w)`. This uses only `J² = -1`, not compatibility. -/
-@[simp]
 lemma associatedBilinForm_apply_right_apply (v w : V) :
     ω.associatedBilinForm J v (J w) = -ω v w := by
   rw [associatedBilinForm_apply, AlmostComplexStructure.apply_apply]
@@ -59,11 +64,11 @@ lemma associatedBilinForm_apply_right_apply (v w : V) :
 namespace Invariant
 
 /-- Pointwise form of invariance under applying `J` to both arguments. -/
+@[simp]
 lemma apply (hinv : ω.Invariant J) (v w : V) : ω (J v) (J w) = ω v w :=
   (ω.invariant_iff J).mp hinv v w
 
 /-- The metric recovers the symplectic form: `g(J v, w) = ω(v, w)`. -/
-@[simp]
 lemma associatedBilinForm_apply_left_apply (hinv : ω.Invariant J) (v w : V) :
     ω.associatedBilinForm J (J v) w = ω v w := by
   rw [associatedBilinForm_apply, hinv.apply]
@@ -83,6 +88,19 @@ lemma associatedBilinForm_invariant (hinv : ω.Invariant J) (v w : V) :
 lemma associatedBilinForm_skewAdjoint (hinv : ω.Invariant J) (v w : V) :
     ω.associatedBilinForm J (J v) w = -ω.associatedBilinForm J v (J w) := by
   rw [hinv.associatedBilinForm_apply_left_apply, associatedBilinForm_apply_right_apply, neg_neg]
+
+/-- The polarization identity for the associated metric of a `J`-invariant form:
+`g(a + J b, a + J b) = g(a, a) + g(b, b) - 2 ω(a, b)`, where
+`g = ω.associatedBilinForm J`. -/
+lemma associatedBilinForm_add_apply_self (hinv : ω.Invariant J) (a b : V) :
+    ω.associatedBilinForm J (a + J b) (a + J b) =
+      ω.associatedBilinForm J a a + ω.associatedBilinForm J b b - 2 * ω a b := by
+  have hpol := hinv.associatedBilinForm_isSymm.polarization a (J b)
+  have hcross : ω.associatedBilinForm J a (J b) = -ω a b :=
+    associatedBilinForm_apply_right_apply a b
+  have hself : ω.associatedBilinForm J (J b) (J b) = ω.associatedBilinForm J b b :=
+    ω.associatedBilinForm_apply_apply_self_eq J b
+  linarith
 
 end Invariant
 
@@ -109,7 +127,6 @@ lemma associatedBilinForm_self_eq_zero
 namespace Compatible
 
 /-- The metric recovers the symplectic form: `g(J v, w) = ω(v, w)`. -/
-@[simp]
 lemma associatedBilinForm_apply_left_apply (h : ω.Compatible J) (v w : V) :
     ω.associatedBilinForm J (J v) w = ω v w :=
   h.invariant.associatedBilinForm_apply_left_apply v w
@@ -157,7 +174,7 @@ lemma associatedBilinForm_nondegenerate (h : ω.Compatible J) :
 /-- The metric of a compatible pair, packaged as an `InnerProductSpace.Core ℝ V`.
 
 The inner product is the associated metric `⟪v, w⟫ = ω(v, J w)`. -/
-@[implicit_reducible]
+@[expose, implicit_reducible]
 noncomputable def innerProductCore (h : ω.Compatible J) : InnerProductSpace.Core ℝ V where
   inner v w := ω v (J w)
   conj_inner_symm v w := by

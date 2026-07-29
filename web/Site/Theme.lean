@@ -10,6 +10,10 @@ def theme : Theme := { Theme.default with
           <meta charset="utf-8"/>
           <meta name="viewport" content="width=device-width, initial-scale=1"/>
           <meta name="color-scheme" content="dark"/>
+          <link rel="icon" href="static/favicon.ico" sizes="any"/>
+          <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32x32.png"/>
+          <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16x16.png"/>
+          <link rel="apple-touch-icon" sizes="180x180" href="static/apple-touch-icon.png"/>
           <link rel="preconnect" href="https://fonts.googleapis.com"/>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap"/>
           <title>{{ (← param (α := String) "title") }} " — Tau Ceti"</title>
@@ -25,7 +29,7 @@ def theme : Theme := { Theme.default with
                 <a href=".">"Home"</a>
                 <a href="statistics">"Statistics"</a>
                 <a href="about">"About"</a>
-                <a href="https://github.com/FormalFrontier/TauCeti">"GitHub"</a>
+                <a href="https://github.com/TauCetiProject/TauCeti">"GitHub"</a>
               </nav>
             </div>
           </header>
@@ -36,9 +40,9 @@ def theme : Theme := { Theme.default with
             <div class="foot-inner">
               <p class="foot-tag">"Let’s do lots of maths."</p>
               <ul class="foot-links">
-                <li><a href="https://github.com/FormalFrontier/TauCeti">"TauCeti"</a></li>
-                <li><a href="https://github.com/FormalFrontier/TauCetiRoadmap">"TauCetiRoadmap"</a></li>
-                <li><a href="https://github.com/FormalFrontier/TauCetiReview">"TauCetiReview"</a></li>
+                <li><a href="https://github.com/TauCetiProject/TauCeti">"TauCeti"</a></li>
+                <li><a href="https://github.com/TauCetiProject/TauCetiRoadmap">"TauCetiRoadmap"</a></li>
+                <li><a href="https://github.com/TauCetiProject/TauCetiReview">"TauCetiReview"</a></li>
               </ul>
               <p class="foot-legal">"AI-authored Lean mathematics · Apache-2.0"</p>
             </div>
@@ -57,7 +61,10 @@ def theme : Theme := { Theme.default with
             <h1 class="hero-title">"Tau Ceti"</h1>
             <p class="hero-tag">"Let’s do lots of maths."</p>
             <p class="hero-sub">"AI-authored Lean mathematics, directed by a human-owned roadmap and gated by open, adversarial review."</p>
-            <a class="cta" href="https://github.com/FormalFrontier/TauCeti">"Explore the code →"</a>
+            <div class="cta-row">
+              <a class="cta" href="https://github.com/TauCetiProject/TauCeti">"Explore the code →"</a>
+              <a class="cta secondary" href="docs/">"Read the docs →"</a>
+            </div>
           </div>
         </section>
 
@@ -98,15 +105,15 @@ def theme : Theme := { Theme.default with
         <section class="band repos">
           <h2 class="section-title">"Three repositories"</h2>
           <div class="cards three">
-            <a class="card repo" href="https://github.com/FormalFrontier/TauCeti">
+            <a class="card repo" href="https://github.com/TauCetiProject/TauCeti">
               <h3>"TauCeti"</h3>
               <p>"The AI-authored Lean mathematics."</p>
             </a>
-            <a class="card repo" href="https://github.com/FormalFrontier/TauCetiRoadmap">
+            <a class="card repo" href="https://github.com/TauCetiProject/TauCetiRoadmap">
               <h3>"TauCetiRoadmap"</h3>
               <p>"The human-controlled roadmaps that direct the work."</p>
             </a>
-            <a class="card repo" href="https://github.com/FormalFrontier/TauCetiReview">
+            <a class="card repo" href="https://github.com/TauCetiProject/TauCetiReview">
               <h3>"TauCetiReview"</h3>
               <p>"The review rubrics and the machinery that runs review."</p>
             </a>

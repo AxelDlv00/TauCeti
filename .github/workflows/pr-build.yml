@@ -2,11 +2,22 @@ name: pr-build
 
 # Builds untrusted PR code in a TRUSTED, base-branch-defined workflow. A PR cannot change what
 # runs here (pull_request_target uses the base definition). The build/audit configuration
-# (lakefile, scripts/, manifest, toolchain) is always the TRUSTED base's: we overlay only the
-# PR's `TauCeti/` sources onto a base checkout and build that. Any PR touching anything outside
-# `TauCeti/` is routed to a human (it can't be validated with trusted config). PR `TauCeti/` code
+# (lakefile, scripts/, manifest, toolchain) is the TRUSTED base's: we overlay only the PR's
+# `TauCeti/` sources and validated Lake pins onto a base checkout. The sole config exception is a
+# PR opened by tauceti-review-bot[bot] that changes exactly Mathlib's lakefile rev to the matching
+# immutable manifest SHA, or restores it to `master`; the trusted bump validator proves and
+# overlays that exact change. Any other PR touching anything outside the allowed paths is routed
+# to a human. PR `TauCeti/` code
 # compiles only under landrun (offline; writes confined to base/.lake; no secrets or token in
 # reach). The `build` commit status on the PR head SHA is the required merge check.
+#
+# The job below is deliberately NOT named `build`: GitHub Actions auto-creates a check-run named
+# after the job, and a check-run named `build` would collide with the required `build` STATUS this
+# job posts. Branch protection matches the required context `build` against BOTH commit statuses and
+# check-runs by name, so two `build` results (a green status + a red job check-run) wedge the PR as
+# BLOCKED even though the authoritative build passed — e.g. when the job's final report step exits
+# nonzero on a transient "could not list files" (INFRA) hiccup while a healthy re-run posts the green
+# status. Keeping the job name distinct leaves exactly one `build` (the status) as the merge gate.
 #
 # Live on pull_request_target (fires for all PRs, incl. forks, from the trusted base definition).
 # workflow_dispatch is also kept for ad-hoc re-testing of a given PR number.
@@ -14,10 +25,12 @@ name: pr-build
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
-  # The merge queue tests each entry (PR + current main) before it lands: build the same way and
-  # post the `build` status on the merge-group commit so the queue's required check is satisfied.
-  # The queue is configured group-size 1, so "this PR overlaid on current main" — exactly what the
-  # job already builds — is the merge-group content.
+  # The merge queue tests a batch (one or more PRs combined onto current main) before it lands. We
+  # build the COMBINED merge-group commit and post the `build` status on it so the queue's required
+  # check is satisfied. The merge-group commit's TauCeti/ (all batched PRs) is overlaid onto a
+  # freshly-checked-out TRUSTED base — exactly as for a single PR — so the build config stays
+  # base-trusted and only TauCeti/ code is untrusted, regardless of batch size. A combined diff that
+  # reaches outside TauCeti/ fails the group (the queue then bisects it); see the scope guard.
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -33,11 +46,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # Name kept distinct from `build` on purpose — see the header note. The required merge check is the
+  # `build` commit STATUS posted in the final step, not this job's auto-created check-run.
+  sandboxed-build:
     runs-on: ubuntu-24.04
     env:
       LANDRUN_SHA256: 645178e3239cd33760560834e50efea0864183a2a8a82faf199760dffee6dd71
       LANDRUN_VER: v0.1.14
+      # Lake artifact-cache knobs, off by default. The "Configure the Lake artifact cache"
+      # step flips these on (and sets LAKE_CACHE_DIR) ONLY when the public cache endpoints
+      # are installed as repo variables; until then they stay empty and the build runs
+      # exactly as before (a full recompile of TauCeti/). Declared here so the landrun
+      # build's `--env` list always has a defined value to pass.
+      LAKE_ARTIFACT_CACHE: ""
+      LAKE_RESTORE_ARTIFACTS: ""
+      LAKE_CACHE_DIR: ""
     steps:
       # --- Trusted setup: no PR code runs until the landrun build phase ---
       - name: Resolve PR head
@@ -45,27 +68,35 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           if [ "${{ github.event_name }}" = "merge_group" ]; then
-            # The queue's temp ref encodes the PR: refs/heads/gh-readonly-queue/main/pr-183-<sha>.
-            HEAD_REF='${{ github.event.merge_group.head_ref }}'
-            NUM=$(printf '%s' "$HEAD_REF" | sed -n 's#.*/pr-\([0-9]\{1,\}\)-.*#\1#p')
-            [ -n "$NUM" ] || { echo "::error::could not parse PR number from $HEAD_REF"; exit 1; }
-            SHA=$(gh api "repos/${{ github.repository }}/pulls/$NUM"  --jq .head.sha)
-            REPO=$(gh api "repos/${{ github.repository }}/pulls/$NUM" --jq .head.repo.full_name)
-            BASE_REF='${{ github.event.merge_group.base_ref }}'; BASE_REF="${BASE_REF#refs/heads/}"
-            # The queue's required check must land on the merge-group commit, not the PR head.
+            # Build the COMBINED merge-group commit (current base + ALL batched PRs, squash-merged by
+            # GitHub onto the gh-readonly-queue ref), not any single PR — so a batch is tested as a
+            # whole. The combined commit lives in THIS repo; its TauCeti/ is overlaid onto the trusted
+            # base below, and the required `build` status lands on the merge-group commit.
+            REPO='${{ github.repository }}'
+            SHA='${{ github.event.merge_group.head_sha }}'
+            # Use the IMMUTABLE base SHA the queue synthesized this group on — NOT the mutable `main`
+            # tip, which may have advanced since the group was formed. Building the batch's TauCeti/
+            # over a different base would test (and green-light) the wrong trusted config/pins. This
+            # base_sha drives the trusted base checkout, the combined-diff scope compare, and the bump
+            # merge-base below.
+            BASE_REF='${{ github.event.merge_group.base_sha }}'
             STATUS_SHA='${{ github.event.merge_group.head_sha }}'
+            NUM="merge-group"   # not a single PR; scope/diff use the combined base..head diff below
+            AUTHOR=""           # author was checked before enqueue; strict config validation repeats below
           elif [ "${{ github.event_name }}" = "pull_request_target" ]; then
             NUM='${{ github.event.pull_request.number }}'
             SHA='${{ github.event.pull_request.head.sha }}'
             REPO='${{ github.event.pull_request.head.repo.full_name }}'
             BASE_REF='${{ github.event.pull_request.base.ref }}'
             STATUS_SHA="$SHA"
+            AUTHOR='${{ github.event.pull_request.user.login }}'
           else
             NUM='${{ inputs.pr }}'
             SHA=$(gh api "repos/${{ github.repository }}/pulls/$NUM"  --jq .head.sha)
             REPO=$(gh api "repos/${{ github.repository }}/pulls/$NUM" --jq .head.repo.full_name)
             BASE_REF=$(gh api "repos/${{ github.repository }}/pulls/$NUM" --jq .base.ref)
             STATUS_SHA="$SHA"
+            AUTHOR=$(gh api "repos/${{ github.repository }}/pulls/$NUM" --jq .user.login)
           fi
           # Merge-base with the target branch, for the Lake-pin bump validation below:
           # check-bump.sh uses it to scope the PR's own pin delta. owner:sha for forks;
@@ -75,40 +106,79 @@ jobs:
           MB=$(gh api "repos/${{ github.repository }}/compare/${BASE_REF}...${OWNER}:${SHA}" \
                  --jq '.merge_base_commit.sha' 2>/dev/null || true)
           [ -n "$MB" ] || { MB="$BASE_REF"; echo "::warning::merge-base unresolved; falling back to $BASE_REF tip"; }
-          echo "num=$NUM"             >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA"             >> "$GITHUB_OUTPUT"
-          echo "repo=$REPO"           >> "$GITHUB_OUTPUT"
-          echo "mergebase=$MB"        >> "$GITHUB_OUTPUT"
-          echo "status_sha=$STATUS_SHA" >> "$GITHUB_OUTPUT"
-          echo "Building PR #$NUM @ $SHA from $REPO (status -> $STATUS_SHA, bump delta vs merge-base $MB)"
+          {
+            echo "num=$NUM"
+            echo "sha=$SHA"
+            echo "repo=$REPO"
+            echo "base_ref=$BASE_REF"
+            echo "mergebase=$MB"
+            echo "status_sha=$STATUS_SHA"
+            echo "author=$AUTHOR"
+          } >> "$GITHUB_OUTPUT"
+          echo "Building PR #$NUM @ $SHA from $REPO (author=${AUTHOR:-merge-group}, status -> $STATUS_SHA, bump delta vs merge-base $MB)"
 
-      - name: Scope guard — PR must touch only TauCeti/ or the root TauCeti.lean (from the trusted GitHub file list)
-        env: { GH_TOKEN: "${{ github.token }}" }
+      - name: Scope guard — allow TauCeti sources, validated pins, and the review bot's exact lakefile pin
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          PR_AUTHOR: "${{ steps.pr.outputs.author }}"
+          EVENT_NAME: "${{ github.event_name }}"
         run: |
-          files=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.num }}/files" --jq '.[].filename')
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            # The whole batch's combined change set vs the trusted base (every batched PR).
+            files=$(gh api "repos/${{ github.repository }}/compare/${{ steps.pr.outputs.base_ref }}...${{ steps.pr.outputs.sha }}" --jq '.files[].filename')
+            # The compare endpoint caps `.files` at 300. If we hit that, the list may be truncated and
+            # could hide an out-of-scope path — fail closed (route to human); the queue then bisects the
+            # batch into smaller groups that fit under the cap. (Realistic batches are far under 300.)
+            if [ "$(printf '%s\n' "$files" | grep -c .)" -ge 300 ]; then
+              echo "INFRA=1" >> "$GITHUB_ENV"
+              echo "::warning::merge-group combined diff hit the compare 300-file cap — failing closed so the queue bisects"
+            fi
+          else
+            files=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.num }}/files" --jq '.[].filename')
+          fi
           echo "changed files:"; echo "$files"
           # The root TauCeti.lean is allowed alongside TauCeti/: it is the (intentionally
           # empty) library root, normally untouched, but a PR may edit it. It is overlaid
           # into the sandbox below and the import-boundary guard covers it. Everything else
-          # outside TauCeti/ (lakefile, scripts/, .github/) stays trusted-base-only and
-          # routes to a human.
+          # outside TauCeti/ (scripts/, .github/, arbitrary Lake config) stays trusted-base-only and
+          # routes to a human. lakefile.toml has one narrow exception: the review bot may pin Mathlib
+          # to the exact immutable SHA in the manifest, then restore `master` in the next compatible
+          # bump. The trusted bump validator proves the single-line relationship before that config
+          # is overlaid or built. A merge group has no
+          # single author, but it can contain this path only after the author-aware enqueue gate; the
+          # same strict content validation is repeated here.
           # lake-manifest.json and lean-toolchain are also permitted, but ONLY as a
           # machine-validated forward bump: the "Validate the Lake-pin bump" step below
           # runs the trusted base scripts/check-bump.sh and routes to a human if it is
           # anything other than a forward move (mathlib forward on its nominated branch,
-          # transitive pins derived from mathlib, toolchain monotonic). lakefile.* stays
-          # human-owned (and check-bump fails if it changed).
+          # transitive pins derived from mathlib, toolchain monotonic).
           if [ -z "$files" ]; then
-            echo "INFRA=1" >> "$GITHUB_ENV"; echo "::warning::no files / unable to list — routing to human"
+            echo "INFRA=1" >> "$GITHUB_ENV"; echo "::warning::no files / unable to list — cannot determine the overlay, routing to human"
+          elif echo "$files" | grep -qE '^lakefile\.toml$' \
+            && ! echo "$files" | grep -vqE '^TauCeti/|^TauCeti\.lean$|^lake-manifest\.json$|^lean-toolchain$|^lakefile\.toml$' \
+            && { [ "$PR_AUTHOR" = "tauceti-review-bot[bot]" ] || [ "$EVENT_NAME" = "merge_group" ]; }; then
+            echo "BOT_LAKEFILE=1" >> "$GITHUB_ENV"
+            echo "BUMP=1" >> "$GITHUB_ENV"
+            echo "::notice::trusted review-bot Mathlib lakefile pin detected — validating the exact config and manifest relationship"
           elif echo "$files" | grep -vqE '^TauCeti/|^TauCeti\.lean$|^lake-manifest\.json$|^lean-toolchain$'; then
-            echo "INFRA=1" >> "$GITHUB_ENV"
-            echo "::warning::PR changes paths outside TauCeti/ + Lake pins (infra) — not sandbox-built; needs human review"
+            if echo "$files" | grep -qE '^lakefile\.toml$'; then
+              echo "HUMAN_LAKEFILE=1" >> "$GITHUB_ENV"
+            fi
+            echo "OUT_OF_SCOPE=1" >> "$GITHUB_ENV"
+            echo "::warning::PR changes paths outside TauCeti/ + Lake pins — its TauCeti/ is still sandbox-built against the trusted base (so the build result is visible), but merging needs human review"
           elif echo "$files" | grep -qE '^lake-manifest\.json$|^lean-toolchain$'; then
             echo "BUMP=1" >> "$GITHUB_ENV"
             echo "::notice::PR changes Lake pins — validating as a forward bump before building"
           fi
+          # The report step runs under `if: always()`. Mark successful completion explicitly so an
+          # API or shell failure above cannot be misreported as a green scope decision.
+          echo "SCOPE_OK=1" >> "$GITHUB_ENV"
 
       - name: Diff size guard — additions, deletions, and changed files each ≤ 2000 (trusted GitHub PR totals)
+        # Per-PR cap, enforced when each PR is built on pull_request_target (its entry condition to the
+        # queue). A merge_group batch is the sum of already-capped PRs, so we don't re-cap the combined
+        # size here. (The scope guard's 300-file compare cap still bounds the batch's file count.)
+        if: ${{ github.event_name != 'merge_group' }}
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           # The file-count cap also backstops the scope guard above: the PR files API lists at
@@ -130,10 +200,39 @@ jobs:
             exit 1
           fi
 
+      - name: New-file length guard — newly added .lean files must be ≤ 1000 lines
+        # A brand-new file may be at most 1000 lines; an existing file may grow up to the
+        # in-build linter ceiling of 1500 (set in lakefile.toml). The split keeps new material
+        # small and reviewable while not blocking incremental growth of established files.
+        # PR-only, like the diff-size guard: new files enter the library through a PR, and a
+        # merge_group batch is the sum of already-guarded PRs. For an *added* file the GitHub
+        # diff lists every line as an addition, so `.additions` is its line count.
+        if: ${{ github.event_name != 'merge_group' }}
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          long=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.num }}/files" \
+            --jq '.[] | select(.status == "added" and (.filename | endswith(".lean")) and .additions > 1000)
+                      | "\(.filename) (\(.additions) lines)"')
+          if [ -n "$long" ]; then
+            echo "NEWFILE_TOO_LONG=1" >> "$GITHUB_ENV"
+            echo "::error::New .lean files must be at most 1000 lines; these exceed it. Split them, or grow an existing file (allowed up to 1500):"
+            echo "$long"
+          fi
+
       - name: Checkout base (trusted)
         if: ${{ env.INFRA != '1' }}
         uses: actions/checkout@v4
-        with: { path: base, persist-credentials: false }
+        # Pin to the trusted base branch explicitly. For merge_group the event default ref is the
+        # untrusted combined commit, so this is what keeps the build config (lakefile, scripts,
+        # manifest, toolchain) base-trusted; only TauCeti/ is overlaid from the merge-group commit.
+        with:
+          ref: "${{ steps.pr.outputs.base_ref }}"
+          path: base
+          persist-credentials: false
+          # Enough base history for `lake cache get` to backtrack to a recently-built
+          # ancestor commit (its `--max-revs`) when the exact base tip has no cache
+          # mapping yet. Harmless (just a slightly deeper fetch) when the cache is off.
+          fetch-depth: 100
 
       - name: Checkout merge-base config (trusted ancestor — only to scope the PR's pin delta)
         if: ${{ env.INFRA != '1' && env.BUMP == '1' }}
@@ -151,19 +250,41 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
           path: pr
           persist-credentials: false
+          # actions/checkout now refuses to fetch fork PR code under
+          # pull_request_target unless this opt-in is set. Fetching the fork's
+          # sources is exactly this workflow's job; it is safe here because the
+          # checkout carries no credentials (persist-credentials: false) and the
+          # fork's code is only ever executed under landrun below (offline, no
+          # token in reach), never in the trusted context this guard warns about.
+          allow-unsafe-pr-checkout: true
 
       # For a Lake-pin PR, validate it is a safe forward bump BEFORE overlaying its
       # pins or building. The validator and the BASE config it judges against are the
       # TRUSTED current target tip; mergebase/ only scopes the PR's own pin delta; pr/
       # is read as text — no PR code runs. An invalid/backward/forked bump sets INFRA=1
-      # → not built, routed to a human. (Run inline, not by reading the separate
-      # bump-guard status, to avoid a race with that concurrently-running workflow.)
+      # → not built, routed to a human. This same inline validation is what the
+      # required `bump-guard` status is posted from in the final step (this job owns
+      # both required statuses; there is no separate bump-guard workflow).
       - name: Validate the Lake-pin bump (trusted base validator) before building
         if: ${{ env.INFRA != '1' && env.BUMP == '1' }}
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          if bash base/scripts/check-bump.sh base mergebase pr; then
+          args=(base mergebase pr)
+          if [ "${BOT_LAKEFILE:-}" = "1" ]; then
+            args+=(--allow-bot-lakefile)
+          fi
+          if bash base/scripts/check-bump.sh "${args[@]}"; then
             echo "Lake-pin bump validated — building with the PR's pins."
+          elif [ "${{ github.event_name }}" = "merge_group" ] \
+              && [ "${BOT_LAKEFILE:-}" = "1" ]; then
+            # A human-reviewed arbitrary lakefile change can enter the queue too. It is not eligible
+            # for the bot exception, so preserve the pre-exception behavior: build with trusted base
+            # config, keep scope red, and let the human decision (not automation) authorize landing.
+            echo "BOT_LAKEFILE=" >> "$GITHUB_ENV"
+            echo "BUMP=" >> "$GITHUB_ENV"
+            echo "HUMAN_LAKEFILE=1" >> "$GITHUB_ENV"
+            echo "OUT_OF_SCOPE=1" >> "$GITHUB_ENV"
+            echo "::warning::merge-group lakefile is not the exact bot pin — building trusted base config for the human merge path"
           else
             echo "BUMP_BAD=1" >> "$GITHUB_ENV"
             echo "INFRA=1" >> "$GITHUB_ENV"
@@ -187,13 +308,19 @@ jobs:
             cp -a pr/TauCeti.lean base/TauCeti.lean
           fi
           # For a validated forward bump, overlay the PR's Lake pins too, so the build
-          # below actually exercises the new mathlib/toolchain (check-bump already
-          # verified these are a safe forward move; lakefile.* is unchanged).
+          # below actually exercises the new mathlib/toolchain.
           if [ "${BUMP:-}" = "1" ]; then
             for f in lake-manifest.json lean-toolchain; do
               if [ -L "pr/$f" ]; then echo "::error::$f must not be a symlink"; exit 1; fi
               [ -e "pr/$f" ] && cp -a "pr/$f" "base/$f"
             done
+          fi
+          # The trusted-bot exception is an exact, validator-proven Mathlib rev replacement.
+          # Overlay that lakefile only after check-bump accepted it; arbitrary Lake config remains
+          # base-trusted and can never reach the build through this path.
+          if [ "${BOT_LAKEFILE:-}" = "1" ]; then
+            test ! -L pr/lakefile.toml || { echo "::error::lakefile.toml must not be a symlink"; exit 1; }
+            cp -a pr/lakefile.toml base/lakefile.toml
           fi
 
       - name: Import-boundary guard (TauCeti/ and TauCeti.lean ⊬ roadmap/review)
@@ -201,6 +328,17 @@ jobs:
         run: |
           if grep -rIn -E '^[[:space:]]*import[[:space:]]+(TauCetiRoadmap|TauCetiReview)\b' base/TauCeti/ base/TauCeti.lean; then
             echo "::error::TauCeti/ must not import TauCetiRoadmap or TauCetiReview"; exit 1
+          fi
+
+      # No-set_option guard. `set_option` is an escape hatch (it can raise maxHeartbeats,
+      # silence linters, bump maxRecDepth, ...), so the overlaid TauCeti/ may not use it. Like
+      # the import guard it is a textual scan that needs no elaboration, so it runs trusted (on
+      # the overlaid base/TauCeti/) outside the landrun sandbox.
+      - name: No-set_option guard (TauCeti/ and TauCeti.lean use no set_option)
+        if: ${{ env.INFRA != '1' }}
+        run: |
+          if grep -rIn '^set_option ' base/TauCeti/ base/TauCeti.lean; then
+            echo "::error::TauCeti/ may not use set_option (it can weaken maxHeartbeats, linters, maxRecDepth, ...); remove it"; exit 1
           fi
 
       - name: Install elan (trusted)
@@ -243,41 +381,153 @@ jobs:
         if: ${{ env.INFRA != '1' }}
         run: ( cd base && lake exe cache get ) && mkdir -p base/.lake/tmp
 
+      # Enable Lake's built-in artifact cache for the build below ONLY when the public read
+      # endpoints are configured (repo variables). Until then this is a no-op: LAKE_*
+      # stay empty and the landrun build recompiles TauCeti/ from scratch exactly as before.
+      # The cache dir lives under base/.lake/ so the offline landrun build (which mounts
+      # base/.lake rw) can read what the network `lake cache get` step populates. We never
+      # pass the cache *endpoints* into landrun, so the sandboxed build stays offline and
+      # can only consult the locally-populated cache.
+      - name: Configure the Lake artifact cache (no-op unless the public endpoints are set)
+        if: ${{ env.INFRA != '1' }}
+        env:
+          PUBLIC_ARTIFACT_ENDPOINT: ${{ vars.LAKE_CACHE_ARTIFACT_ENDPOINT_PUBLIC }}
+          PUBLIC_REVISION_ENDPOINT: ${{ vars.LAKE_CACHE_REVISION_ENDPOINT_PUBLIC }}
+        run: |
+          if [ -n "$PUBLIC_ARTIFACT_ENDPOINT" ] && [ -n "$PUBLIC_REVISION_ENDPOINT" ]; then
+            {
+              echo "LAKE_CACHE_DIR=$PWD/base/.lake/cache"
+              echo "LAKE_ARTIFACT_CACHE=true"
+              echo "LAKE_RESTORE_ARTIFACTS=true"
+              echo "TAUCETI_CACHE_ENABLED=1"
+            } >> "$GITHUB_ENV"
+            echo "::notice::Lake artifact cache enabled — will fetch TauCeti's oleans and build incrementally"
+          else
+            echo "::notice::Lake artifact cache not configured — building TauCeti/ from scratch (set the LAKE_CACHE_*_PUBLIC repo variables to enable)"
+          fi
+
+      # Anonymous GETs from the PUBLIC read host (a different host than the S3 API endpoint
+      # the trusted main upload uses). Looks up TauCeti's OWN root-package oleans for the
+      # base-branch revision — backtracking up to --max-revs ancestors — and unpacks them
+      # into the local Lake cache ($LAKE_CACHE_DIR). This is trusted, main-built data: no
+      # token is in reach and no PR code runs (lakefile.toml is declarative + base-trusted).
+      # Mathlib's oleans are NOT here; they come from `lake exe cache get` above. A miss is
+      # non-fatal — the landrun build just recompiles from scratch, as when the cache is off.
+      - name: Fetch TauCeti's own oleans from the Lake cache (network, no token; no PR code)
+        if: ${{ env.INFRA != '1' && env.TAUCETI_CACHE_ENABLED == '1' }}
+        env:
+          # Passed under non-LAKE_ names so Lake never sees the deprecated endpoint
+          # environment variables; we hand it the endpoints through a `--service` config.
+          PUBLIC_ARTIFACT_ENDPOINT: ${{ vars.LAKE_CACHE_ARTIFACT_ENDPOINT_PUBLIC }}
+          PUBLIC_REVISION_ENDPOINT: ${{ vars.LAKE_CACHE_REVISION_ENDPOINT_PUBLIC }}
+        run: |
+          # Define the public read service in a Lake system config and select it with
+          # `--service` (the env-var form of endpoint config is deprecated). Anonymous
+          # GETs, so no key here.
+          CFG="$RUNNER_TEMP/lake-cache.toml"
+          cat > "$CFG" <<TOML
+          cache.defaultService = "tauceti-public"
+          [[cache.service]]
+          name = "tauceti-public"
+          kind = "s3"
+          artifactEndpoint = "$PUBLIC_ARTIFACT_ENDPOINT"
+          revisionEndpoint = "$PUBLIC_REVISION_ENDPOINT"
+          TOML
+          ( cd base && LAKE_CONFIG="$CFG" lake cache get --service tauceti-public --repo TauCetiProject/TauCeti ) \
+            || echo "::warning::lake cache get failed or missed; building TauCeti/ from scratch"
+
       - name: Build (trusted config + overlaid TauCeti/) under landrun, offline
         id: build
         if: ${{ env.INFRA != '1' }}
+        env:
+          # The sandboxed build is always offline: never let Lake reach out to a remote
+          # cache from inside landrun. When the artifact cache is enabled above, it restores
+          # TauCeti's oleans purely from the locally-populated $LAKE_CACHE_DIR; when it is
+          # not, this is a normal full build. Either way, no network from in here.
+          LAKE_NO_CACHE: "true"
         run: |
           export PATH="$HOME/.local/bin:$HOME/.elan/bin:$PATH"
+          # The sandboxed build/audit/lint body lives in the TRUSTED base script
+          # scripts/sandbox-build.sh (scripts/ routes to a human, so a PR cannot edit it
+          # here). Keeping the landrun `bash -c` payload a fixed, comment-free one-liner
+          # is deliberate: a comment's apostrophe once closed this single-quoted string
+          # early and reddened every PR build (#694). All prose now lives in the script.
           landrun --rox /usr --rox /etc \
             --rw /dev/null --rox /dev/zero --rox /dev/urandom --rox /dev/random \
             --rox "$HOME/.elan" --rox "$PWD/base" --rw "$PWD/base/.lake" \
             --env PATH --env HOME --env CI \
-            -- bash -euxo pipefail -c '
-              cd base
-              export TMPDIR="$PWD/.lake/tmp"
-              lake build
-              lake exe axioms
-            '
+            --env LAKE_NO_CACHE --env LAKE_ARTIFACT_CACHE --env LAKE_RESTORE_ARTIFACTS --env LAKE_CACHE_DIR \
+            -- bash -euxo pipefail -c 'cd base && exec bash scripts/sandbox-build.sh'
 
-      - name: Report build status to the PR head commit
+      - name: Report build and bump-guard statuses to the PR head commit
         if: always()
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
+          # bump-guard: this job already ran the trusted base scripts/check-bump.sh inline
+          # (the "Validate the Lake-pin bump" step), so we post the required `bump-guard`
+          # status from its result here rather than from a separate workflow. BUMP_BAD is set
+          # only when a manifest/toolchain/config change failed that validator; anything else (no pin
+          # change, or a validated forward bump) is a pass. Posting it from this job also means
+          # both required statuses land together, before the auto-merge workflow_run fires.
           if [ "${{ env.BUMP_BAD }}" = "1" ]; then
-            state=failure; desc="Lake-pin change is not a validated forward bump — human review + merge required"
-          elif [ "${{ env.INFRA }}" = "1" ]; then
-            state=failure; desc="changes outside TauCeti/ — human review + merge required"
-          elif [ "${{ env.TOO_LARGE }}" = "1" ]; then
-            state=failure; desc="diff exceeds 2000 added/removed lines or 2000 files — split into smaller PRs to keep review manageable"
-          elif [ "${{ env.DIFF_UNKNOWN }}" = "1" ]; then
-            state=failure; desc="could not read PR diff totals from the GitHub API — re-run pr-build"
-          elif [ "${{ steps.build.outcome }}" = "success" ]; then
-            state=success; desc="sandboxed build + axiom audit passed (trusted config)"
+            bg_state=failure; bg_desc="Lake pin/config change is not a validated forward bump — needs human review"
+          elif [ "${{ env.HUMAN_LAKEFILE }}" = "1" ]; then
+            bg_state=success; bg_desc="lakefile not auto-validated; trusted base config built — human merge required"
           else
-            state=failure; desc="sandboxed build or axiom audit failed"
+            bg_state=success; bg_desc="validated forward Lake pin/config bump (or no pin change)"
+          fi
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.status_sha }}" \
+            -f state="$bg_state" -f context="bump-guard" -f description="$bg_desc" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "posted bump-guard=$bg_state ($bg_desc) to ${{ steps.pr.outputs.status_sha }}"
+
+          # build: the real sandboxed-build result ONLY — never a policy verdict. The build now runs even
+          # for an out-of-scope PR (its TauCeti/ is overlaid onto the trusted base and built), so a red
+          # `build` always means the code did not compile or an audit/lint failed, and fix-ci can trust
+          # it. It is reported as not-run only when we genuinely could not build: an indeterminate file
+          # list (INFRA), an unvalidated pin bump (BUMP_BAD — the overlay would need the PR's pins), or a
+          # diff guard that failed closed (TOO_LARGE / DIFF_UNKNOWN both exit before the build). Those
+          # post a failure so this required check still blocks merge; the reason lives in `scope` below.
+          if [ "${{ env.BUMP_BAD }}" = "1" ] || [ "${{ env.INFRA }}" = "1" ] \
+             || [ "${{ env.TOO_LARGE }}" = "1" ] || [ "${{ env.DIFF_UNKNOWN }}" = "1" ]; then
+            state=failure; desc="build not run — see the scope check"
+          elif [ "${{ steps.build.outcome }}" = "success" ]; then
+            state=success; desc="sandboxed build, audits, and simp-NF lint passed (trusted config)"
+          else
+            state=failure; desc="sandboxed build, audit, or simp-NF lint failed"
           fi
           gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.status_sha }}" \
             -f state="$state" -f context="build" -f description="$desc" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "posted build=$state ($desc) to ${{ steps.pr.outputs.status_sha }}"
+
+          # scope: the merge-policy verdict, posted as its OWN status so a policy issue never hides the
+          # build result (the bug this split fixes — an out-of-scope PR used to post its "human review"
+          # verdict as a red `build`, so fix-ci churned on it and you could not see whether it compiled).
+          # Kept separate from the required GitHub checks so a human-owned infrastructure PR can be
+          # merged after review, but required green by TauCetiReview's automatic merge policy. This
+          # status is therefore a trusted, fail-closed input to every automatic merge decision.
+          if [ "${{ env.SCOPE_OK }}" != "1" ]; then
+            sc_state=failure; sc_desc="trusted scope guard did not complete — re-run pr-build"
+          elif [ "${{ env.OUT_OF_SCOPE }}" = "1" ]; then
+            sc_state=failure; sc_desc="changes outside TauCeti/ — human review + merge required"
+          elif [ "${{ env.BUMP_BAD }}" = "1" ]; then
+            sc_state=failure; sc_desc="Lake pin/config change failed the trusted bump validator"
+          elif [ "${{ env.INFRA }}" = "1" ]; then
+            sc_state=failure; sc_desc="could not determine the changed files — human review + merge required"
+          elif [ "${{ env.TOO_LARGE }}" = "1" ]; then
+            sc_state=failure; sc_desc="diff exceeds 2000 added/removed lines or 2000 files — split into smaller PRs to keep review manageable"
+          elif [ "${{ env.DIFF_UNKNOWN }}" = "1" ]; then
+            sc_state=failure; sc_desc="could not read PR diff totals from the GitHub API — re-run pr-build"
+          elif [ "${{ env.NEWFILE_TOO_LONG }}" = "1" ]; then
+            sc_state=failure; sc_desc="a newly added .lean file exceeds 1000 lines — split it (existing files may grow to 1500)"
+          elif [ "${{ env.BOT_LAKEFILE }}" = "1" ]; then
+            sc_state=success; sc_desc="trusted review-bot Mathlib lakefile pin validated and in scope"
+          else
+            sc_state=success; sc_desc="changes are in scope (TauCeti/ and the allowed root files only)"
+          fi
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.status_sha }}" \
+            -f state="$sc_state" -f context="scope" -f description="$sc_desc" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "posted scope=$sc_state ($sc_desc) to ${{ steps.pr.outputs.status_sha }}"
           [ "$state" = "success" ]

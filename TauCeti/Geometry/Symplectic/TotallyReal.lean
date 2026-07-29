@@ -2,13 +2,15 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import TauCeti.Geometry.Symplectic.AlmostComplex
-import TauCeti.LinearAlgebra.TotallyReal
+module
+
+public import TauCeti.Geometry.Symplectic.AlmostComplex
+public import TauCeti.LinearAlgebra.TotallyReal.Basic
 
 /-!
 # Totally real factors of the standard product almost complex structure
 
-The general doubled-module lemmas in `TauCeti.LinearAlgebra.TotallyReal` are phrased for the
+The general doubled-module lemmas in `TauCeti.LinearAlgebra.TotallyReal.Basic` are phrased for the
 Mathlib map `LinearEquiv.skewSwap`, which sends `(x, y)` to `(-y, x)`. The symplectic layer has
 its own bundled version of the same map, `TauCeti.AlmostComplexStructure.product`. This file
 bridges the two so the geometric standard structure reuses the algebraic results rather than
@@ -22,6 +24,8 @@ restating them.
   `TauCeti.Submodule.isMaximalTotallyReal_prod_bot_top_product`: the two coordinate factors of
   `V × V` are maximal totally real for the standard product almost complex structure.
 -/
+
+public section
 
 namespace TauCeti
 

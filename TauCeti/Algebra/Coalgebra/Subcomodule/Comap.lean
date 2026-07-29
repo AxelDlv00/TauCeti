@@ -2,9 +2,11 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.LinearAlgebra.TensorProduct.RightExactness
-import Mathlib.RingTheory.Flat.Basic
-import TauCeti.Algebra.Coalgebra.Subcomodule
+module
+
+public import Mathlib.LinearAlgebra.TensorProduct.RightExactness
+public import Mathlib.RingTheory.Flat.Basic
+public import TauCeti.Algebra.Coalgebra.Subcomodule.Basic
 
 /-!
 # Inverse images of subcomodules
@@ -24,9 +26,11 @@ comfortably.
 
 * `TauCeti.Subcomodule.comap`: inverse image of a subcomodule under a comodule morphism.
 * `TauCeti.Subcomodule.mem_comap`, `comap_toSubmodule`: characteristic API.
+* `TauCeti.Subcomodule.comap_finite`: inverse images into noetherian modules are finite.
 * `TauCeti.Subcomodule.map_le_iff_le_comap`, `gc_map_comap`: the usual image/preimage
   Galois connection.
 * `TauCeti.Subcomodule.comap_bot_toSubmodule`: the bottom inverse image as a kernel.
+* `TauCeti.Comodule.Hom.ker_finite`: kernels in noetherian modules are finite.
 
 ## References
 
@@ -34,6 +38,8 @@ The construction is the standard inverse image of a subcomodule; see Sweedler,
 *Hopf Algebras*, Chapter 2. The exactness step reuses Mathlib's
 `TensorProduct.rTensor_exact` and `LinearMap.exact_subtype_ker_map`.
 -/
+
+public section
 
 open scoped TensorProduct
 
@@ -105,23 +111,6 @@ private theorem tensor_mem_range_comap {M₁ : Type w} {N₁ : Type x}
   rw [LinearMap.rTensor_def] at ht'
   simpa using ht'
 
-omit [Coalgebra R C] [Comodule R C M] [Comodule R C N] [Module.Flat R C] in
-private theorem rTensor_mkQ_map_subtype {N₁ : Type x} [AddCommGroup N₁] [Module R N₁]
-    (B : Submodule R N₁) (t : B ⊗[R] C) :
-    LinearMap.rTensor C B.mkQ
-        (TensorProduct.map B.subtype (LinearMap.id : C →ₗ[R] C) t) = 0 := by
-  letI : AddCommGroup C := Module.addCommMonoidToAddCommGroup R (M := C)
-  induction t with
-  | zero => simp
-  | tmul b c =>
-      have hb : B.mkQ (b : N₁) = 0 := by
-        rw [Submodule.mkQ_apply]
-        exact (Submodule.Quotient.mk_eq_zero B).2 b.property
-      rw [LinearMap.rTensor_def]
-      simp [hb]
-  | add x y hx hy =>
-      simp [hx, hy]
-
 private theorem coact_mem_range_comap_toLinearMap
     (f : Comodule.Hom R C M N) (B : Subcomodule R C N)
     {m : M} (hm : m ∈ B.toSubmodule.comap f.toLinearMap) :
@@ -145,7 +134,11 @@ private theorem coact_mem_range_comap_toLinearMap
     (Comodule.coact (R := R) (C := C) (M := N) (f.toLinearMap m)) = 0
   rcases B.coact_mem hm with ⟨t, ht⟩
   rw [← ht]
-  exact rTensor_mkQ_map_subtype (R := R) (C := C) (N₁ := N) B.toSubmodule t
+  change LinearMap.rTensor C B.carrier.mkQ
+    (LinearMap.rTensor C B.carrier.subtype t) = 0
+  rw [← LinearMap.mem_ker, rTensor_mkQ]
+  exact
+    (LinearMap.mem_range_self (LinearMap.rTensor C B.carrier.subtype) t)
 
 private theorem comap_coact_mem (f : Comodule.Hom R C M N) (B : Subcomodule R C N)
     {m : M} (hm : m ∈ B.toSubmodule.comap f.toLinearMap) :
@@ -156,7 +149,7 @@ private theorem comap_coact_mem (f : Comodule.Hom R C M N) (B : Subcomodule R C 
   coact_mem_range_comap_toLinearMap f B hm
 
 /-- The inverse image of a subcomodule under a comodule morphism. -/
-def comap (B : Subcomodule R C N) (f : Comodule.Hom R C M N) : Subcomodule R C M where
+@[expose] def comap (B : Subcomodule R C N) (f : Comodule.Hom R C M N) : Subcomodule R C M where
   carrier := B.toSubmodule.comap f.toLinearMap
   coact_mem' := by
     intro m hm
@@ -168,6 +161,12 @@ underlying submodule. -/
 theorem comap_toSubmodule (B : Subcomodule R C N) (f : Comodule.Hom R C M N) :
     (B.comap f).toSubmodule = B.toSubmodule.comap f.toLinearMap :=
   rfl
+
+/-- The inverse image of a subcomodule into a noetherian module is finitely generated as an
+`R`-module. -/
+theorem comap_finite (B : Subcomodule R C N) (f : Comodule.Hom R C M N)
+    [IsNoetherian R M] : Module.Finite R (B.comap f).toSubmodule := by
+  exact (B.comap f).finite
 
 /-- Membership in an inverse-image subcomodule. -/
 @[simp]
@@ -255,6 +254,12 @@ def ker (f : Hom R C M N) : Subcomodule R C M :=
 theorem ker_toSubmodule (f : Hom R C M N) :
     (ker (R := R) (C := C) f).toSubmodule = LinearMap.ker f.toLinearMap :=
   Subcomodule.comap_bot_toSubmodule f
+
+/-- The kernel of a comodule morphism out of a noetherian module is finitely generated as an
+`R`-module. -/
+theorem ker_finite (f : Hom R C M N) [IsNoetherian R M] :
+    Module.Finite R (ker (R := R) (C := C) f).toSubmodule := by
+  exact (ker (R := R) (C := C) f).finite
 
 /-- Membership in the kernel subcomodule is vanishing under the morphism. -/
 @[simp]

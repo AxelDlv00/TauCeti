@@ -2,15 +2,17 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import TauCeti.AlgebraicGeometry.WeilDivisor
-import Mathlib.Algebra.Order.Group.PosPart
-import Mathlib.Order.Preorder.Finsupp
+module
+
+public import TauCeti.AlgebraicGeometry.WeilDivisor.Basic
+public import Mathlib.Algebra.Order.Group.PosPart
+public import Mathlib.Order.Preorder.Finsupp
 
 /-!
 # The order on Weil divisors and the positive/negative part decomposition
 
 This file continues the Jacobian roadmap's Layer A formal Weil divisor API
-(`TauCeti.AlgebraicGeometry.WeilDivisor`) by recording the lattice-ordered-group structure of
+(`TauCeti.AlgebraicGeometry.WeilDivisor.Basic`) by recording the lattice-ordered-group structure of
 formal divisors and the canonical decomposition of a divisor into its effective positive and
 negative parts.
 
@@ -31,6 +33,8 @@ external mathematics is vendored.
 This advances the Tau Ceti Jacobian roadmap, Layer A, "Divisors on a curve: Weil divisors
 `⊕_x ℤ`", "principal divisors", and "Degree".
 -/
+
+public section
 
 namespace TauCeti
 
@@ -101,6 +105,11 @@ lemma isEffective_inf_iff {D E : WeilDivisor X} :
   · rintro ⟨hD, hE⟩
     exact le_inf hD hE
 
+/-- Removing the infimum from each of two Weil divisors leaves disjoint residual divisors. -/
+lemma sub_inf_inf_sub_inf_eq_zero (D E : WeilDivisor X) :
+    ((D - D ⊓ E) ⊓ (E - D ⊓ E)) = 0 := by
+  rw [← inf_sub, sub_self]
+
 /-! ### Positive and negative parts -/
 
 /-- The coefficient of the positive part is the positive part of the coefficient. -/
@@ -137,12 +146,10 @@ lemma support_posPart_disjoint_negPart (D : WeilDivisor X) :
   · exact hxn (by rwa [inf_eq_right.mpr h] at hinf)
 
 /-- A divisor is effective exactly when its negative part vanishes. -/
-@[simp]
 lemma negPart_eq_zero_iff_isEffective {D : WeilDivisor X} : D⁻ = 0 ↔ IsEffective D := by
   rw [negPart_eq_zero, isEffective_iff_zero_le]
 
 /-- A divisor is effective exactly when it equals its own positive part. -/
-@[simp]
 lemma posPart_eq_self_iff_isEffective {D : WeilDivisor X} : D⁺ = D ↔ IsEffective D := by
   rw [posPart_eq_self, isEffective_iff_zero_le]
 

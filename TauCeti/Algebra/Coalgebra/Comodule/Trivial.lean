@@ -2,8 +2,10 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.RingTheory.Bialgebra.GroupLike
-import TauCeti.Algebra.Coalgebra.ComoduleCat
+module
+
+public import Mathlib.RingTheory.Bialgebra.GroupLike
+public import TauCeti.Algebra.Coalgebra.Comodule.Cat
 
 /-!
 # Trivial comodules
@@ -42,6 +44,8 @@ monoidal comodule category. It uses Mathlib's bialgebra API from
 `Mathlib.RingTheory.Bialgebra.GroupLike`.
 -/
 
+@[expose] public section
+
 open scoped TensorProduct
 
 namespace TauCeti
@@ -59,7 +63,10 @@ section GroupLikeDef
 
 variable [AddCommMonoid C] [Module R C] [Coalgebra R C]
 
-private def groupLikeCoact (g : GroupLike R C) : M →ₗ[R] M ⊗[R] C :=
+/-- The map `m ↦ m ⊗ g` attached to a group-like element `g : GroupLike R C`, as an
+`R`-linear map `M →ₗ[R] M ⊗[R] C`. It serves as the coaction of the comodule structure
+`Comodule.groupLike g`. -/
+def groupLikeCoact (g : GroupLike R C) : M →ₗ[R] M ⊗[R] C :=
   (TensorProduct.mk R M C).flip (g : C)
 
 /-- The right `C`-comodule structure on an `R`-module attached to a group-like element
@@ -284,7 +291,6 @@ theorem trivialEquiv_symm_apply (f : M →ₗ[R] N) :
   rfl
 
 /-- Pointwise form of `trivialEquiv_symm_apply`. -/
-@[simp]
 theorem trivialEquiv_symm_apply_apply (f : M →ₗ[R] N) (m : M) :
     (trivialEquiv (R := R) (C := C) (M := M) (N := N)).symm f m = f m :=
   rfl

@@ -5,6 +5,11 @@ Green PRs merge on their own (the merge queue, fed by auto-merge.yml). This cove
 jobs, in CI so the autonomous worker can stay focused on producing work, and so that EVERY PR ends up
 either merged or closed — never stranded:
 
+  empty    Close a roadmap PR (one carrying the `<!--tauceti-target:v1 ...-->` marker) whose diff
+           against main is empty — its changes already landed in main, typically because a sibling
+           worker attempt at the same target merged first. dedup only matches an OPEN twin, so once the
+           twin merges this is what reaps the loser, instead of leaving it for the 7-day stale timer.
+           Acts only on a PR quiet for EMPTY_QUIET_MINUTES, so an actively-pushing worker is never raced.
   budget   Close a PR that has been reviewed to the round cap (REVIEW_BUDGET) at its current head and
            is still blocking. CI is the single budget authority — the worker no longer caps itself — so
            a PR is reviewed and fixed until it merges or this closes it. The decision is read from the
@@ -25,7 +30,7 @@ PR author are frequently the same account (the worker reviews its own roadmap PR
 association, not by "not the author": an external author cannot forge a repo-associated comment.
 
 Env: GH_TOKEN (a token that can close PRs), REPO (owner/name), optional DRY_RUN=1, REVIEW_BUDGET,
-BUDGET_LABEL, STALE_DAYS.
+BUDGET_LABEL, STALE_DAYS, EMPTY_QUIET_MINUTES.
 """
 import datetime
 import json
@@ -35,6 +40,15 @@ import subprocess
 import sys
 
 REPO = os.environ["REPO"]
+
+# The trusted-scoreboard parse lives once, in the pr_status package; import it rather than keeping a
+# second copy here (the two had drifted on the meta regex). This script is parameterised by $REPO, so
+# point core's reads at the same repo.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "pr_status"))
+import core  # noqa: E402
+
+core.REPO = REPO
+
 DRY_RUN = os.environ.get("DRY_RUN") == "1"
 # Lifetime review rounds a PR may accumulate without going all-green before CI retires it. CI is the
 # single budget authority: the worker no longer caps itself, so a PR is reviewed/fixed until it merges
@@ -45,15 +59,15 @@ REVIEW_BUDGET = int(os.environ.get("REVIEW_BUDGET", "10"))
 BUDGET_LABEL = os.environ.get("BUDGET_LABEL", "review-budget-spent")
 # How long a blocked PR may sit untouched (under budget) before the stale job retires it.
 STALE_DAYS = int(os.environ.get("STALE_DAYS", "7"))
+# How long an empty-diff roadmap PR must be QUIET before the empty job closes it — long enough that an
+# actively-pushing worker (which would bump updatedAt) is never raced into a wrong close.
+EMPTY_QUIET_MINUTES = int(os.environ.get("EMPTY_QUIET_MINUTES", "30"))
 
 TARGET_MARKER_RE = re.compile(r"<!--tauceti-target:v1 \{[^}]*\}-->")
 TARGET_ID_RE = re.compile(r'"id"\s*:\s*"([^"]+)"')
 # The reviewer posts one scoreboard comment per PR carrying a machine-readable meta block: `full_rounds`
 # (lifetime review passes) and `states` (per-rubric verdict). A rubric `state` not in {green, stale} is
 # blocking ("stale" is a prior approval carried forward, not a block).
-SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
-SCOREBOARD_META_RE = re.compile(r"<!--tauceti-meta:v1\s+(\{.*?\})-->", re.S)
-TRUSTED_ASSOC = {"OWNER", "MEMBER", "COLLABORATOR"}
 NONBLOCKING_STATES = {"green", "stale"}
 KEEP_LABELS = {"keep", "hold", "wip", "human", "do-not-close"}
 BUDGET_COMMENT = (
@@ -70,6 +84,11 @@ STALE_COMMENT = (
     "has sat untouched for over {days} days, so the queue housekeeping is retiring it to keep things "
     "moving. The branch is kept, so nothing is lost. It is completely fine to open a fresh PR once the "
     "findings are addressed. Add the `keep` label if you would rather it stay open.")
+EMPTY_COMMENT = (
+    "Closing automatically: this PR's diff against `main` is empty — all of its changes are already in "
+    "`main` (typically a sibling attempt at the same roadmap target merged first), so there is nothing "
+    "left to merge. The branch is kept, so nothing is lost. Add the `keep` label if you want it to stay "
+    "open.")
 
 
 def gh_json(args):
@@ -101,28 +120,13 @@ def parse_ts(s: str) -> datetime.datetime:
 def latest_scoreboard_meta(pr: int):
     """The meta block of the newest TRUSTED review scoreboard comment, or None. Trust = the
     `tauceti-scoreboard` marker AND a repo-associated author (so an external author cannot forge a
-    verdict). Fails safe (None) on any API/parse error, so a hiccup never causes a wrong close."""
+    verdict). Delegates to the shared `core.scoreboard_meta` so that parse lives in one place; fails
+    safe (None) on any API/parse error, so a hiccup never causes a wrong close."""
     try:
-        comments = gh_json(["api", "--paginate", f"/repos/{REPO}/issues/{pr}/comments?per_page=100"])
-    except RuntimeError as e:
+        return core.scoreboard_meta(pr) or None
+    except Exception as e:
         print(f"#{pr}: scoreboard fetch failed ({e}); leaving it", file=sys.stderr)
         return None
-    best_ts, meta = "", None
-    for c in comments or []:
-        body = c.get("body") or ""
-        if SCOREBOARD_MARKER not in body or c.get("author_association") not in TRUSTED_ASSOC:
-            continue
-        m = SCOREBOARD_META_RE.search(body)
-        if not m:
-            continue
-        try:
-            parsed = json.loads(m.group(1))
-        except ValueError:
-            continue
-        ts = c.get("updated_at") or ""
-        if ts >= best_ts:
-            best_ts, meta = ts, parsed
-    return meta
 
 
 def blocking_rubrics(meta: dict) -> list:
@@ -147,6 +151,41 @@ def close(pr: int, comment: str) -> bool:
 def main() -> int:
     failures = 0
     suffix = " [dry-run]" if DRY_RUN else ""
+
+    # empty: a PR whose diff against main is empty has nothing left to merge — its changes are already in
+    # main (typically a sibling worker attempt at the same roadmap target merged first). dedup only
+    # matches an OPEN twin, so once the twin merges nothing reaps the loser; this closes it directly
+    # instead of waiting out the 7-day stale timer (and stops the worker thrashing on a done target).
+    # Two guards keep a destructive close safe: it is scoped to autonomous roadmap PRs (those carrying the
+    # tauceti-target marker), so an intentionally empty human PR is left alone; and it acts only on a PR
+    # QUIET for EMPTY_QUIET_MINUTES, so an actively-pushing worker (which bumps updatedAt) is never raced.
+    # The quiet window is also what guarantees the diff stats are settled: GitHub recomputes
+    # changedFiles/additions/deletions promptly on each push or base move, so a PR untouched for the whole
+    # window has accurate, stable stats. (The `mergeable` field is NOT a usable signal here — it is
+    # computed lazily and a cold query returns UNKNOWN even for a long-settled PR, which would make the
+    # close flaky.) Emptiness, draft, keep, and quiet are all re-confirmed from a fresh per-PR view right
+    # before the close, so a just-pushed PR (now active, or a now-non-empty diff) is never closed.
+    quiet_cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=EMPTY_QUIET_MINUTES)
+    open_empty = gh_json(["pr", "list", "--repo", REPO, "--state", "open", "--limit", "1000",
+                          "--json", "number,isDraft,labels,body,updatedAt"]) or []
+    cand = [p for p in open_empty if p.get("isDraft") is False and not has_keep_label(p)
+            and TARGET_MARKER_RE.search((p.get("body") or "").replace("\n", " "))
+            and parse_ts(p.get("updatedAt", "")) < quiet_cutoff]
+    print(f"empty: {len(cand)} quiet roadmap PR(s) to check for an empty diff{suffix}")
+    for p in cand:
+        n = p["number"]
+        v = gh_json(["pr", "view", str(n), "--repo", REPO,
+                     "--json", "isDraft,changedFiles,additions,deletions,labels,updatedAt"]) or {}
+        # Final eligibility read right before the close: skip on ANY change since the listing — a pushed
+        # commit or new activity (updatedAt back inside the quiet window), or a new draft/keep state.
+        if (v.get("isDraft") is not False or has_keep_label(v)
+                or parse_ts(v.get("updatedAt", "")) >= quiet_cutoff):
+            continue
+        # A PR quiet for the whole window has settled diff stats; an empty diff here is genuinely empty.
+        if v.get("changedFiles") != 0 or v.get("additions") != 0 or v.get("deletions") != 0:
+            continue
+        print(f"empty: #{n} (empty diff, quiet >{EMPTY_QUIET_MINUTES}m — content already in main)")
+        failures += not close(n, EMPTY_COMMENT)
 
     # budget: a PR reviewed to REVIEW_BUDGET rounds at its CURRENT head and still blocking is terminal —
     # close it. Read from the scoreboard ledger (full_rounds + states), so it holds even when the worker

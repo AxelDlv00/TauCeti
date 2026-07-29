@@ -2,11 +2,13 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Data.Real.Basic
-import Mathlib.LinearAlgebra.BilinearForm.Hom
-import Mathlib.LinearAlgebra.BilinearForm.Properties
-import Mathlib.LinearAlgebra.QuadraticForm.Basic
-import TauCeti.LinearAlgebra.ComplexLinearPart
+module
+
+public import Mathlib.Data.Real.Basic
+public import Mathlib.LinearAlgebra.BilinearForm.Hom
+public import Mathlib.LinearAlgebra.BilinearForm.Properties
+public import Mathlib.LinearAlgebra.QuadraticForm.Basic
+public import TauCeti.LinearAlgebra.Complex.LinearPart
 
 /-!
 # Almost complex structures and compatible symplectic forms
@@ -33,6 +35,8 @@ The definitions follow the standard conventions in McDuff--Salamon,
 *J-holomorphic Curves and Symplectic Topology*, Section 2.2, specialized here to the
 pointwise real-linear setting.
 -/
+
+public section
 
 namespace TauCeti
 
@@ -66,10 +70,6 @@ theorem toLinearMap_injective :
 instance : CoeFun (AlmostComplexStructure V) fun _ => V → V :=
   ⟨fun J => J.toLinearMap⟩
 
-@[simp]
-lemma coe_toLinearMap (J : AlmostComplexStructure V) :
-    ⇑J.toLinearMap = J := rfl
-
 /-- Applying `J` twice gives `-v`. -/
 @[simp]
 lemma apply_apply (J : AlmostComplexStructure V) (v : V) : J (J v) = -v := by
@@ -91,7 +91,7 @@ lemma surjective (J : AlmostComplexStructure V) : Function.Surjective J := by
 
 Its inverse is `-J`; this is often the convenient way to move bilinear-form statements across
 `J`. -/
-def linearEquiv (J : AlmostComplexStructure V) : V ≃ₗ[ℝ] V where
+@[expose] def linearEquiv (J : AlmostComplexStructure V) : V ≃ₗ[ℝ] V where
   toLinearMap := J.toLinearMap
   invFun v := -J v
   left_inv v := by simp
@@ -110,7 +110,6 @@ lemma map_eq_zero_iff (J : AlmostComplexStructure V) {v : V} :
     J v = 0 ↔ v = 0 :=
   J.injective.eq_iff' J.toLinearMap.map_zero
 
-@[simp]
 lemma map_ne_zero_iff (J : AlmostComplexStructure V) {v : V} :
     J v ≠ 0 ↔ v ≠ 0 :=
   not_congr J.map_eq_zero_iff
@@ -124,7 +123,7 @@ lemma ext {J K : AlmostComplexStructure V} (h : ∀ v, J v = K v) : J = K := by
   exact LinearMap.ext h
 
 /-- The negation of an almost complex structure is again an almost complex structure. -/
-def neg (J : AlmostComplexStructure V) : AlmostComplexStructure V where
+@[expose] def neg (J : AlmostComplexStructure V) : AlmostComplexStructure V where
   toLinearMap := -J.toLinearMap
   square_neg := by
     ext v
@@ -142,7 +141,7 @@ lemma neg_apply (J : AlmostComplexStructure V) (v : V) :
     (-J) v = -J v := rfl
 
 /-- The standard almost complex structure on `V × V`, sending `(x, y)` to `(-y, x)`. -/
-def product (V : Type*) [AddCommGroup V] [Module ℝ V] :
+@[expose] def product (V : Type*) [AddCommGroup V] [Module ℝ V] :
     AlmostComplexStructure (V × V) where
   toLinearMap :=
     { toFun := fun v => (-v.2, v.1)
@@ -165,7 +164,7 @@ variable [AddCommGroup X] [Module ℝ X]
 
 /-- A real-linear map is complex-linear with respect to two fixed pointwise
 almost complex structures if it intertwines them. -/
-def IsComplexLinearMap (J : AlmostComplexStructure V) (J' : AlmostComplexStructure W)
+@[expose] def IsComplexLinearMap (J : AlmostComplexStructure V) (J' : AlmostComplexStructure W)
     (F : V →ₗ[ℝ] W) : Prop :=
   F.comp J.toLinearMap = J'.toLinearMap.comp F
 
@@ -193,10 +192,8 @@ lemma isComplexLinearMap_iff_mem_complexLinearMaps (J : AlmostComplexStructure V
 /-- The zero map is complex-linear for any source and target almost complex structures. -/
 @[simp]
 lemma isComplexLinearMap_zero (J : AlmostComplexStructure V) (J' : AlmostComplexStructure W) :
-    IsComplexLinearMap J J' (0 : V →ₗ[ℝ] W) := by
-  rw [isComplexLinearMap_iff_apply]
-  intro v
-  simp
+    IsComplexLinearMap J J' (0 : V →ₗ[ℝ] W) :=
+  isComplexLinear_zero
 
 /-- Complex-linear maps are closed under addition. -/
 lemma IsComplexLinearMap.add {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W}
@@ -208,9 +205,39 @@ lemma IsComplexLinearMap.add {J : AlmostComplexStructure V} {J' : AlmostComplexS
 /-- Complex-linear maps are closed under negation. -/
 lemma IsComplexLinearMap.neg {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W}
     {F : V →ₗ[ℝ] W} (hF : IsComplexLinearMap J J' F) :
-    IsComplexLinearMap J J' (-F) := by
-  rw [isComplexLinearMap_iff_mem_complexLinearMaps] at hF ⊢
-  exact (complexLinearMaps J.toLinearMap J'.toLinearMap).neg_mem hF
+    IsComplexLinearMap J J' (-F) :=
+  IsComplexLinear.neg hF
+
+/-- Negating a map preserves and reflects complex-linearity. -/
+@[simp]
+lemma isComplexLinearMap_neg_iff {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W}
+    {F : V →ₗ[ℝ] W} :
+    IsComplexLinearMap J J' (-F) ↔ IsComplexLinearMap J J' F :=
+  ⟨fun hF => by simpa using hF.neg, fun hF => hF.neg⟩
+
+/-- Complex-linearity is unchanged after negating both the source and target almost complex
+structures. -/
+lemma IsComplexLinearMap.neg_neg {J : AlmostComplexStructure V}
+    {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W} (hF : IsComplexLinearMap J J' F) :
+    IsComplexLinearMap (-J) (-J') F := by
+  rw [isComplexLinearMap_iff_isComplexLinear] at hF ⊢
+  simpa [AlmostComplexStructure.neg_toLinearMap] using
+    (IsComplexLinear.neg_neg (J := J.toLinearMap) (J' := J'.toLinearMap) (F := F) hF)
+
+/-- If a map is complex-linear after negating both structures, then it was complex-linear before
+the sign change. -/
+lemma IsComplexLinearMap.of_neg_neg {J : AlmostComplexStructure V}
+    {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W}
+    (hF : IsComplexLinearMap (-J) (-J') F) : IsComplexLinearMap J J' F := by
+  rw [isComplexLinearMap_iff_isComplexLinear] at hF ⊢
+  exact IsComplexLinear.of_neg_neg (by simpa [AlmostComplexStructure.neg_toLinearMap] using hF)
+
+/-- Negating both almost complex structures leaves the complex-linearity condition unchanged. -/
+@[simp]
+lemma isComplexLinearMap_neg_neg_iff {J : AlmostComplexStructure V}
+    {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W} :
+    IsComplexLinearMap (-J) (-J') F ↔ IsComplexLinearMap J J' F :=
+  ⟨fun hF => hF.of_neg_neg, fun hF => hF.neg_neg⟩
 
 /-- Complex-linear maps are closed under subtraction. -/
 lemma IsComplexLinearMap.sub {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W}
@@ -229,23 +256,81 @@ lemma IsComplexLinearMap.smul {J : AlmostComplexStructure V} {J' : AlmostComplex
 /-- The identity map is complex-linear with respect to the same almost complex structure. -/
 @[simp]
 lemma isComplexLinearMap_id (J : AlmostComplexStructure V) :
-    IsComplexLinearMap J J (LinearMap.id : V →ₗ[ℝ] V) := by
-  rw [isComplexLinearMap_iff_apply]
-  intro v
-  simp [LinearMap.id_apply]
+    IsComplexLinearMap J J (LinearMap.id : V →ₗ[ℝ] V) :=
+  isComplexLinear_id
 
 /-- Complex-linear maps are closed under composition. -/
 lemma IsComplexLinearMap.comp {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W}
     {J'' : AlmostComplexStructure X} {F : V →ₗ[ℝ] W} {G : W →ₗ[ℝ] X}
     (hG : IsComplexLinearMap J' J'' G) (hF : IsComplexLinearMap J J' F) :
-    IsComplexLinearMap J J'' (G.comp F) := by
-  rw [isComplexLinearMap_iff_apply] at hF hG ⊢
+    IsComplexLinearMap J J'' (G.comp F) :=
+  IsComplexLinear.comp hG hF
+
+/-- An almost complex structure is complex-linear as a map from its module to itself. -/
+@[simp]
+lemma AlmostComplexStructure.isComplexLinearMap_toLinearMap (J : AlmostComplexStructure V) :
+    IsComplexLinearMap J J J.toLinearMap := by
+  rw [isComplexLinearMap_iff_apply]
   intro v
-  calc
-    G (F (J v)) = G (J' (F v)) := by rw [hF v]
-    _ = J'' (G (F v)) := hG (F v)
+  rfl
+
+/-- Precomposing a complex-linear map by the source almost complex structure again gives a
+complex-linear map. -/
+lemma IsComplexLinearMap.comp_almostComplexStructure_toLinearMap
+    {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W}
+    (hF : IsComplexLinearMap J J' F) :
+    IsComplexLinearMap J J' (F.comp J.toLinearMap) :=
+  hF.comp J.isComplexLinearMap_toLinearMap
+
+/-- If precomposition by the source almost complex structure is complex-linear, then the original
+map was complex-linear. -/
+lemma IsComplexLinearMap.of_comp_almostComplexStructure_toLinearMap
+    {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W}
+    (hF : IsComplexLinearMap J J' (F.comp J.toLinearMap)) :
+    IsComplexLinearMap J J' F := by
+  rw [isComplexLinearMap_iff_apply] at hF ⊢
+  intro v
+  have hrot : -F v = J' (F (J v)) := by
+    calc
+      -F v = F (-v) := (map_neg F v).symm
+      _ = F (J (J v)) := by rw [J.apply_apply]
+      _ = J' (F (J v)) := hF v
+  have hneg : -J' (F v) = -F (J v) := by
+    calc
+      -J' (F v) = J' (-F v) := (map_neg J'.toLinearMap (F v)).symm
+      _ = J' (J' (F (J v))) := congrArg J' hrot
+      _ = -F (J v) := J'.apply_apply (F (J v))
+  exact neg_injective hneg.symm
+
+/-- Precomposition by the source almost complex structure preserves and reflects
+complex-linearity. -/
+@[simp]
+lemma isComplexLinearMap_comp_almostComplexStructure_toLinearMap_iff
+    {J : AlmostComplexStructure V} {J' : AlmostComplexStructure W} {F : V →ₗ[ℝ] W} :
+    IsComplexLinearMap J J' (F.comp J.toLinearMap) ↔ IsComplexLinearMap J J' F :=
+  ⟨fun hF => hF.of_comp_almostComplexStructure_toLinearMap,
+    fun hF => hF.comp_almostComplexStructure_toLinearMap⟩
 
 end ComplexLinearMap
+
+/-- The ordered pairing `B (F v) (F (J₀ v))` of an alternating bilinear form `B` is unchanged when
+both arguments are precomposed by a source almost complex structure `J₀`: rotating the source by
+`J₀` sends the pair `(v, J₀ v)` to `(J₀ v, -v)`, and alternation leaves the pairing unchanged.
+
+Only alternation of `B` is used, so the statement lives at the `LinearMap.BilinForm` level; the
+`SymplecticForm` corollary is `SymplecticForm.symplecticForm_comp_almostComplexStructure`. -/
+lemma bilinForm_comp_almostComplexStructure {U V : Type*} [AddCommGroup U] [Module ℝ U]
+    [AddCommGroup V] [Module ℝ V] {B : LinearMap.BilinForm ℝ V} (hB : B.IsAlt)
+    (J₀ : AlmostComplexStructure U) (F : U →ₗ[ℝ] V) (v : U) :
+    B ((F.comp J₀.toLinearMap) v) ((F.comp J₀.toLinearMap) (J₀ v)) = B (F v) (F (J₀ v)) := by
+  have h1 : (F.comp J₀.toLinearMap) v = F (J₀ v) := rfl
+  have h2 : (F.comp J₀.toLinearMap) (J₀ v) = -F v :=
+    calc
+      (F.comp J₀.toLinearMap) (J₀ v) = F (J₀ (J₀ v)) := rfl
+      _ = F (-v) := by rw [J₀.apply_apply]
+      _ = -F v := by rw [map_neg]
+  rw [h1, h2]
+  simpa using hB.neg_eq (F (J₀ v)) (F v)
 
 /-- A symplectic form on a real module is an alternating, nondegenerate bilinear form.
 
@@ -284,6 +369,15 @@ lemma neg_eq (ω : SymplecticForm V) (v w : V) :
     -ω v w = ω w v :=
   ω.isAlt.neg_eq v w
 
+/-- The ordered area density `ω (F v) (F (J₀ v))` is unchanged when both arguments are
+precomposed by a source almost complex structure `J₀`: rotating the source by `J₀` sends the
+pair `(v, J₀ v)` to `(J₀ v, -v)`, which has the same symplectic area. This is the
+`SymplecticForm` corollary of `bilinForm_comp_almostComplexStructure`. -/
+lemma symplecticForm_comp_almostComplexStructure {U : Type*} [AddCommGroup U] [Module ℝ U]
+    (ω : SymplecticForm V) (J₀ : AlmostComplexStructure U) (F : U →ₗ[ℝ] V) (v : U) :
+    ω ((F.comp J₀.toLinearMap) v) ((F.comp J₀.toLinearMap) (J₀ v)) = ω (F v) (F (J₀ v)) :=
+  bilinForm_comp_almostComplexStructure ω.isAlt J₀ F v
+
 /-- A symplectic form is reflexive as an orthogonality relation. -/
 lemma isRefl (ω : SymplecticForm V) : ω.toBilinForm.IsRefl :=
   ω.isAlt.isRefl
@@ -299,7 +393,7 @@ lemma separatingRight (ω : SymplecticForm V) :
   (LinearMap.IsRefl.nondegenerate_iff_separatingRight ω.isRefl).mp ω.nondegenerate
 
 /-- The bilinear form `ω(J ·, J ·)`. -/
-def pullback (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
+@[expose] def pullback (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
     LinearMap.BilinForm ℝ V :=
   ω.toBilinForm.comp J.toLinearMap J.toLinearMap
 
@@ -308,7 +402,7 @@ lemma pullback_apply (ω : SymplecticForm V) (J : AlmostComplexStructure V) (v w
     ω.pullback J v w = ω (J v) (J w) := rfl
 
 /-- A symplectic form is `J`-invariant when `ω(Jv, Jw) = ω(v, w)`. -/
-def Invariant (ω : SymplecticForm V) (J : AlmostComplexStructure V) : Prop :=
+@[expose] def Invariant (ω : SymplecticForm V) (J : AlmostComplexStructure V) : Prop :=
   ω.pullback J = ω.toBilinForm
 
 lemma invariant_iff (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
@@ -316,7 +410,7 @@ lemma invariant_iff (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
   LinearMap.ext_iff₂
 
 /-- The bilinear form `g(v,w) = ω(v, Jw)` associated to `ω` and `J`. -/
-def associatedBilinForm (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
+@[expose] def associatedBilinForm (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
     LinearMap.BilinForm ℝ V :=
   LinearMap.BilinForm.compRight ω.toBilinForm J.toLinearMap
 
@@ -326,7 +420,7 @@ lemma associatedBilinForm_apply
     ω.associatedBilinForm J v w = ω v (J w) := rfl
 
 /-- `ω` tames `J` if `ω(v, Jv)` is positive on every nonzero vector. -/
-def Tames (ω : SymplecticForm V) (J : AlmostComplexStructure V) : Prop :=
+@[expose] def Tames (ω : SymplecticForm V) (J : AlmostComplexStructure V) : Prop :=
   ∀ v, v ≠ 0 → 0 < ω v (J v)
 
 lemma tames_iff_associated_pos (ω : SymplecticForm V) (J : AlmostComplexStructure V) :
@@ -362,24 +456,80 @@ lemma Compatible.invariant_apply {ω : SymplecticForm V} {J : AlmostComplexStruc
     (h : ω.Compatible J) (v w : V) : ω (J v) (J w) = ω v w :=
   (ω.invariant_iff J).mp h.invariant v w
 
+/-- For a `J`-invariant form, the associated bilinear form is symmetric pointwise. Only invariance
+is needed. -/
+lemma Invariant.associatedBilinForm_apply_swap
+    {ω : SymplecticForm V} {J : AlmostComplexStructure V}
+    (hinv : ω.Invariant J) (v w : V) : ω v (J w) = ω w (J v) := by
+  calc
+    ω v (J w) = -ω (J w) v := by rw [ω.neg_eq]
+    _ = ω w (J v) := by simpa using (ω.invariant_iff J).mp hinv w (J v)
+
 /-- For a compatible pair, the associated bilinear form is symmetric pointwise. -/
 lemma Compatible.associatedBilinForm_apply_swap
     {ω : SymplecticForm V} {J : AlmostComplexStructure V}
-    (h : ω.Compatible J) (v w : V) : ω v (J w) = ω w (J v) := by
-  calc
-    ω v (J w) = -ω (J w) v := by rw [ω.neg_eq]
-    _ = ω w (J v) := by simpa using h.invariant_apply w (J v)
+    (h : ω.Compatible J) (v w : V) : ω v (J w) = ω w (J v) :=
+  h.invariant.associatedBilinForm_apply_swap v w
+
+/-- For a `J`-invariant form, the associated bilinear form `ω(·, J ·)` is symmetric. Only
+invariance is needed. -/
+lemma Invariant.associatedBilinForm_isSymm
+    {ω : SymplecticForm V} {J : AlmostComplexStructure V}
+    (hinv : ω.Invariant J) : (ω.associatedBilinForm J).IsSymm :=
+  ⟨fun v w => hinv.associatedBilinForm_apply_swap v w⟩
 
 /-- For a compatible pair, the associated bilinear form `ω(·, J ·)` is symmetric. -/
 lemma Compatible.associatedBilinForm_isSymm
     {ω : SymplecticForm V} {J : AlmostComplexStructure V}
     (h : ω.Compatible J) : (ω.associatedBilinForm J).IsSymm :=
-  ⟨fun v w => h.associatedBilinForm_apply_swap v w⟩
+  h.invariant.associatedBilinForm_isSymm
+
+/-- Applying the almost complex structure to both entries preserves the diagonal of the
+associated bilinear form. -/
+lemma associatedBilinForm_apply_apply_self_eq (ω : SymplecticForm V)
+    (J : AlmostComplexStructure V) (v : V) :
+    ω.associatedBilinForm J (J v) (J v) = ω.associatedBilinForm J v v := by
+  calc
+    ω.associatedBilinForm J (J v) (J v) = ω (J v) (-v) := by
+      rw [associatedBilinForm_apply, AlmostComplexStructure.apply_apply]
+    _ = -ω (J v) v := by
+      exact map_neg (ω.toBilinForm (J v)) v
+    _ = ω v (J v) := by
+      rw [← ω.neg_eq v (J v)]
+      simp
+    _ = ω.associatedBilinForm J v v := by
+      rw [associatedBilinForm_apply]
 
 lemma Compatible.associated_pos {ω : SymplecticForm V} {J : AlmostComplexStructure V}
     (h : ω.Compatible J) {v : V} (hv : v ≠ 0) : 0 < ω v (J v) :=
   h.tames v hv
 
 end SymplecticForm
+
+namespace IsComplexLinearMap
+
+variable {U : Type*} [AddCommGroup U] [Module ℝ U]
+variable [AddCommGroup V] [Module ℝ V]
+variable {J₀ : AlmostComplexStructure U} {J : AlmostComplexStructure V}
+variable {F : U →ₗ[ℝ] V} {ω : SymplecticForm V}
+
+/-- For a complex-linear map from any complex source, the associated-bilinear-form diagonal
+of the image of `J₀ v` equals that of the image of `v`. -/
+lemma associatedBilinForm_apply_apply_self_eq
+    (hF : IsComplexLinearMap J₀ J F) (v : U) :
+    ω.associatedBilinForm J (F (J₀ v)) (F (J₀ v)) =
+      ω.associatedBilinForm J (F v) (F v) := by
+  rw [(isComplexLinearMap_iff_apply J₀ J F).mp hF v]
+  exact ω.associatedBilinForm_apply_apply_self_eq J (F v)
+
+/-- For a complex-linear map from any complex source, the associated-bilinear-form diagonal
+of an image vector is the symplectic area density of the ordered pair `(F v, F (J₀ v))`. -/
+lemma associatedBilinForm_apply_self_eq_symplecticForm
+    (hF : IsComplexLinearMap J₀ J F) (v : U) :
+    ω.associatedBilinForm J (F v) (F v) = ω (F v) (F (J₀ v)) := by
+  rw [SymplecticForm.associatedBilinForm_apply,
+    (isComplexLinearMap_iff_apply J₀ J F).mp hF v]
+
+end IsComplexLinearMap
 
 end TauCeti

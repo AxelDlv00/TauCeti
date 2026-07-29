@@ -2,10 +2,10 @@ import VersoBlog
 open Verso Genre Blog
 open Verso.Output Verso.Output.Html
 
-/-- The two "lines of code by date" charts. The SVGs are regenerated weekly into
-`static_files/` by the `loc-graph` workflow, so this page never needs touching as
-the project grows. They are embedded as a raw HTML blob: each `<img>` simply points
-at the static asset. -/
+/-- The two "lines of code by date" charts. The SVGs are regenerated at each site
+deploy (and daily) into `static_files/` by the `pages` workflow, so this page never
+needs touching as the project grows. They are embedded as a raw HTML blob: each
+`<img>` simply points at the static asset. -/
 def locGraphs : Html := {{
   <div class="loc-graphs">
     <figure class="loc-figure">
@@ -21,12 +21,24 @@ def locGraphs : Html := {{
   </div>
 }}
 
+/-- The per-roadmap chart: cumulative net lines of Lean, split by the roadmap each
+merged PR advances (its `roadmap/<Area>` label). Regenerated at each deploy by the
+`pages` workflow (`scripts/loc_roadmap_graph.py`), from the PR labels rather than git,
+so it too needs no committed state. Embedded as a raw HTML blob pointing at the asset. -/
+def roadmapGraph : Html := {{
+  <figure class="loc-figure loc-figure-wide">
+    <img class="loc-graph" src="static/loc-per-roadmap.svg"
+         alt="Tau Ceti: cumulative net lines of Lean per roadmap, over time"/>
+    <figcaption>"Net lines added or refactored per roadmap, stacked, by the date each PR merged."</figcaption>
+  </figure>
+}}
+
 #doc (Page) "Statistics" =>
 
 How much mathematics has Tau Ceti formalized, and how fast is the roadmap that
 directs it growing? Each chart plots the total number of lines present at every
-commit, counted straight from the git history and rebuilt from scratch each week,
-so the figures cannot drift.
+commit, counted straight from the git history and rebuilt from scratch at each
+deploy, so the figures cannot drift.
 
 :::blob locGraphs
 :::
@@ -35,3 +47,14 @@ The vertical scales differ by an order of magnitude and on purpose: the library 
 measured in tens of thousands of lines of Lean, the roadmap in thousands of lines of
 prose and target statements. The library figure counts only the mathematics — the
 files under `TauCeti/` — not the website or tooling.
+
+Which roadmap is all that Lean serving? Every pull request is labelled with the
+roadmap it advances, so we can split the library by roadmap. The chart below stacks
+the net lines each roadmap has accrued — every merged PR's additions minus its
+deletions, attributed to its roadmap — by the day the PR merged. Because it sums
+diffs rather than counting the lines in the tree, a line later rewritten counts under
+both PRs, so this measures work landed per roadmap, not a snapshot line count.
+Infrastructure and refactor PRs, which advance no roadmap, are left out.
+
+:::blob roadmapGraph
+:::

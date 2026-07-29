@@ -2,8 +2,10 @@
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Data.Fin.Rev
-import TauCeti.KnotTheory.Grid.Diagram
+module
+
+public import Mathlib.Data.Fin.Rev
+public import TauCeti.KnotTheory.Grid.Diagram.Basic
 
 /-!
 # The half-turn rotation of grid states and diagrams
@@ -18,8 +20,8 @@ and a grid diagram to a grid diagram.
 
 Only the basic state/diagram operation and its point-set lemmas live here, parallel to where
 `transpose` is developed; the invariance of the `J`-function under coordinate reversal is in
-`TauCeti.KnotTheory.Grid.JFunction`, and the resulting grading invariance is in
-`TauCeti.KnotTheory.Grid.Gradings` and `TauCeti.KnotTheory.Grid.GradingInteger`.
+`TauCeti.KnotTheory.Grid.JFunction.Basic`, and the resulting grading invariance is in
+`TauCeti.KnotTheory.Grid.Gradings` and `TauCeti.KnotTheory.Grid.Grading.Integer`.
 
 ## Main definitions
 
@@ -44,6 +46,8 @@ This advances `TauCetiRoadmap/CombinatorialHeegaardFloer/README.md`, Lane G item
 standard grid symmetries of Ozsváth--Stipsicz--Szabó, *Grid Homology for Knots and Links*,
 Chapter 3.
 -/
+
+@[expose] public section
 
 namespace TauCeti
 
@@ -90,9 +94,15 @@ theorem rotate_apply (x : GridState n) (c : Fin n) :
     x.rotate c = (x (Fin.rev c)).rev := by
   simp [rotate]
 
+/-- In the rotated state, the occupied square in row `r` lies in the reversed column of the
+occupied square in row `r.rev` of the original state. -/
+theorem columnOfRow_rotate (x : GridState n) (r : Fin n) :
+    x.rotate.columnOfRow r = (x.columnOfRow r.rev).rev := by
+  apply x.rotate.toPerm.injective
+  simp [GridState.rotate_apply, Fin.rev_rev]
+
 /-- A square lies in the rotated state exactly when its half-turn rotation lies in the original
 state. -/
-@[simp]
 theorem mem_pointSet_rotate (x : GridState n) (p : Fin n × Fin n) :
     p ∈ x.rotate.pointSet ↔ Prod.map Fin.rev Fin.rev p ∈ x.pointSet := by
   simp only [mem_pointSet, rotate_apply, Prod.map_fst, Prod.map_snd, Fin.rev_eq_iff]
@@ -175,6 +185,20 @@ theorem rotate_O : G.rotate.O = G.O.rotate :=
 theorem rotate_X : G.rotate.X = G.X.rotate :=
   rfl
 
+/-- In the rotated diagram, the `O` marking in row `r` lies in the reversed column of the
+original `O` marking in row `r.rev`. -/
+@[simp]
+theorem OColumnOfRow_rotate (r : Fin n) :
+    OColumnOfRow G.rotate r = (OColumnOfRow G r.rev).rev :=
+  GridState.columnOfRow_rotate G.O r
+
+/-- In the rotated diagram, the `X` marking in row `r` lies in the reversed column of the
+original `X` marking in row `r.rev`. -/
+@[simp]
+theorem XColumnOfRow_rotate (r : Fin n) :
+    XColumnOfRow G.rotate r = (XColumnOfRow G r.rev).rev :=
+  GridState.columnOfRow_rotate G.X r
+
 /-- The `O`-markings of the rotated diagram are the half-turn rotation of the original
 `O`-markings. -/
 theorem rotate_OSet : G.rotate.OSet = G.OSet.image (Prod.map Fin.rev Fin.rev) :=
@@ -187,7 +211,6 @@ theorem rotate_XSet : G.rotate.XSet = G.XSet.image (Prod.map Fin.rev Fin.rev) :=
 
 /-- A square lies in the rotated diagram's `O`-marking set exactly when its half-turn rotation
 lies in the original `O`-marking set. -/
-@[simp]
 theorem mem_OSet_rotate (p : Fin n × Fin n) :
     p ∈ G.rotate.OSet ↔ Prod.map Fin.rev Fin.rev p ∈ G.OSet := by
   rw [OSet, OSet, rotate_O]
@@ -195,7 +218,6 @@ theorem mem_OSet_rotate (p : Fin n × Fin n) :
 
 /-- A square lies in the rotated diagram's `X`-marking set exactly when its half-turn rotation
 lies in the original `X`-marking set. -/
-@[simp]
 theorem mem_XSet_rotate (p : Fin n × Fin n) :
     p ∈ G.rotate.XSet ↔ Prod.map Fin.rev Fin.rev p ∈ G.XSet := by
   rw [XSet, XSet, rotate_X]
