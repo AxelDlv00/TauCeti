@@ -45,8 +45,14 @@ def series(repo, pathspecs, ref):
     # so the "as of" label reflects the current repo. The sort is insurance
     # against history rewrites that leave commit dates out of order; dates are
     # ISO YYYY-MM-DD, so lexicographic order is chronological.
+    #
+    # --first-parent walks the mainline only, so the chart tracks the size of
+    # the branch itself. Without it, a commit on a feature branch is sampled on
+    # its own (earlier) date, and count_lines there sees the whole branch tree,
+    # so a large branch shows up as a spike on the day it was written that
+    # vanishes the next day and only truly lands when the branch merges.
     day_commit = {}
-    for line in git(repo, "log", "--reverse", "--date=short",
+    for line in git(repo, "log", "--first-parent", "--reverse", "--date=short",
                     "--format=%cd %H", ref, "--", *pathspecs).splitlines():
         date, commit = line.split()
         day_commit[date] = commit
