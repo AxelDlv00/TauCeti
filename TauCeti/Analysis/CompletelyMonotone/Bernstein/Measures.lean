@@ -1047,17 +1047,12 @@ private lemma boundary_term_decay (f : ℝ → ℝ) (hcm : IsCompletelyMonotone 
     have h_antitone : AntitoneOn h (Ici 0) := by simpa [h] using h_antitone₀
     have hint_density : IntegrableOn (chafaiDensity f k) (Ioi 0) :=
       chafaiDensity_integrableOn_Ioi_of_tendsto f hcm k hk1 L hL
-    have htail : Tendsto (fun S : ℝ => ∫ t in Ioi S, chafaiDensity f k t)
-        atTop (nhds 0) :=
-      tendsto_integral_Ioi_zero tendsto_id
+    -- `tendsto_integral_Ioi_zero` takes the cut point along any map to `atTop`, so `T / 2` needs
+    -- no separate composition argument.
     have htail_half : Tendsto (fun T : ℝ => ∫ t in Ioi (T / 2), chafaiDensity f k t)
-        atTop (nhds 0) := by
-      have hhalf_map : Tendsto (fun T : ℝ => (1 / 2 : ℝ) * T) atTop atTop :=
-        (tendsto_const_mul_atTop_of_pos (show (0 : ℝ) < 1 / 2 by positivity)).2 tendsto_id
-      refine (htail.comp hhalf_map).congr' ?_
-      filter_upwards with T
-      simp
-      ring_nf
+        atTop (nhds 0) :=
+      tendsto_integral_Ioi_zero (b := fun T : ℝ => T / 2)
+        (tendsto_id.atTop_div_const (by norm_num))
     have hupper := density_tail_lower_bound_eventually f hcm k hk x hx h h_nonneg h_antitone
       (by
         intro t
@@ -1084,8 +1079,7 @@ private lemma boundary_term_decay (f : ℝ → ℝ) (hcm : IsCompletelyMonotone 
     simp only [h, pow_succ]
     ring
   simp_rw [heq]
-  rw [show (0 : ℝ) = -(1 / ↑k.factorial) * 0 from by ring]
-  exact hkey.const_mul _
+  simpa using hkey.const_mul (-(1 / (k.factorial : ℝ)))
 
 /-- **The shifted order-`k` kernel is dominated by the Chafaï density.** For `0 ≤ x ≤ t` the
 kernel built from `(t - x) ^ (k - 1)` is nonnegative and bounded by the density built from
