@@ -434,6 +434,55 @@ theorem ConditionallyIIDWith.integral_empiricalFrequency_sub_sq_le [IsProbabilit
 
 /-! ### Uniqueness -/
 
+omit [MeasurableSpace Ω] [MeasurableSpace α] in
+/-- **An average of indicators lies in `[0, 1]`.** Stated with the absolute value because that is
+the form the `L²` estimates below consume. -/
+private theorem abs_average_indicator_le_one (A : ℕ → Set Ω) (n : ℕ) (ω : Ω) :
+    |(n : ℝ)⁻¹ * ∑ i ∈ Finset.range n, (A i).indicator (1 : Ω → ℝ) ω| ≤ 1 := by
+  rcases Nat.eq_zero_or_pos n with rfl | hpos
+  · simp
+  have hne : (Finset.range n).Nonempty := Finset.nonempty_range_iff.mpr hpos.ne'
+  -- The average is `𝔼 i ∈ range n`, so the generic expectation bounds apply term by term.
+  have hexp : (n : ℝ)⁻¹ * ∑ i ∈ Finset.range n, (A i).indicator (1 : Ω → ℝ) ω
+      = Finset.expect (Finset.range n) fun i => (A i).indicator (1 : Ω → ℝ) ω := by
+    rw [Finset.expect_eq_sum_div_card, Finset.card_range, div_eq_inv_mul]
+  rw [hexp]
+  refine le_trans (Finset.abs_expect_le _ _) (Finset.expect_le hne fun i _ => ?_)
+  by_cases hmem : ω ∈ A i <;> simp [hmem]
+
+/-- **A squared difference of bounded functions is integrable**, being bounded by `4` on a finite
+measure space. -/
+private theorem integrable_sub_sq_of_abs_le_one [IsFiniteMeasure μ] {u v : Ω → ℝ}
+    (hu : AEMeasurable u μ) (hv : AEMeasurable v μ)
+    (hu1 : ∀ᵐ ω ∂μ, |u ω| ≤ 1) (hv1 : ∀ᵐ ω ∂μ, |v ω| ≤ 1) :
+    Integrable (fun ω => (u ω - v ω) ^ 2) μ := by
+  refine Integrable.of_bound ((hu.sub hv).pow_const 2).aestronglyMeasurable 4 ?_
+  filter_upwards [hu1, hv1] with ω hu1 hv1
+  rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
+  nlinarith [abs_le.mp hu1, abs_le.mp hv1]
+
+
+/-- **An `L²` triangle bound.** If `q` and `q'` are within `c₁` and `c₂` of a common `Y` in mean
+square, then they are within `2c₁ + 2c₂` of each other. The three squared differences are assumed
+integrable; `hd` is not implied by `hi1` and `hi2`, which constrain only the squares `(Y - q)²` and
+`(Y - q')²` and so do not make `q - q'` measurable. -/
+private theorem integral_sub_sq_le_two_mul_add_two_mul_of_integral_sub_sq_le_of_integral_sub_sq_le
+    {q q' Y : Ω → ℝ}
+    (hd : Integrable (fun ω => (q ω - q' ω) ^ 2) μ)
+    (hi1 : Integrable (fun ω => (Y ω - q ω) ^ 2) μ)
+    (hi2 : Integrable (fun ω => (Y ω - q' ω) ^ 2) μ)
+    {c₁ c₂ : ℝ} (h1 : ∫ ω, (Y ω - q ω) ^ 2 ∂μ ≤ c₁) (h2 : ∫ ω, (Y ω - q' ω) ^ 2 ∂μ ≤ c₂) :
+    ∫ ω, (q ω - q' ω) ^ 2 ∂μ ≤ 2 * c₁ + 2 * c₂ := by
+  -- The pointwise step is Mathlib's `add_sq_le` applied to `q - q' = (q - Y) + (Y - q')`.
+  calc ∫ ω, (q ω - q' ω) ^ 2 ∂μ
+      ≤ ∫ ω, (2 * (Y ω - q ω) ^ 2 + 2 * (Y ω - q' ω) ^ 2) ∂μ :=
+        integral_mono hd ((hi1.const_mul 2).add (hi2.const_mul 2)) fun ω => by
+          nlinarith [add_sq_le (a := q ω - Y ω) (b := Y ω - q' ω)]
+    _ = 2 * ∫ ω, (Y ω - q ω) ^ 2 ∂μ + 2 * ∫ ω, (Y ω - q' ω) ^ 2 ∂μ := by
+        rw [integral_add (hi1.const_mul 2) (hi2.const_mul 2), integral_const_mul,
+          integral_const_mul]
+    _ ≤ 2 * c₁ + 2 * c₂ := by linarith
+
 /-- Two directing measures of the same process assign the same mass to each fixed measurable set,
 almost everywhere.
 
@@ -460,24 +509,8 @@ theorem ConditionallyIIDWith.ae_measure_apply_eq [IsProbabilityMeasure μ]
     exact aemeasurable_const.mul
       (Finset.aemeasurable_fun_sum _ fun i _ => measurable_one.aemeasurable.indicator₀ (hXB i))
   have heb : ∀ (n : ℕ) (ω : Ω),
-      |(n : ℝ)⁻¹ * ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω| ≤ 1 := by
-    intro n ω
-    have h0 : ∀ i, 0 ≤ (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω := fun i =>
-      Set.indicator_nonneg (fun _ _ => zero_le_one) ω
-    have h1 : ∀ i, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω ≤ 1 := by
-      intro i
-      by_cases hmem : ω ∈ X i ⁻¹' B <;> simp [hmem]
-    have hs0 : 0 ≤ ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω :=
-      Finset.sum_nonneg fun i _ => h0 i
-    have hsn : ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω ≤ (n : ℝ) := by
-      calc ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
-          ≤ ∑ _i ∈ Finset.range n, (1 : ℝ) := Finset.sum_le_sum fun i _ => h1 i
-        _ = (n : ℝ) := by simp
-    rcases Nat.eq_zero_or_pos n with rfl | hpos
-    · simp
-    · have hnpos : (0 : ℝ) < n := by exact_mod_cast hpos
-      rw [abs_of_nonneg (mul_nonneg (by positivity) hs0), ← div_eq_inv_mul, div_le_one hnpos]
-      exact hsn
+      |(n : ℝ)⁻¹ * ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω| ≤ 1 :=
+    fun n ω => abs_average_indicator_le_one (fun i => X i ⁻¹' B) n ω
   set d : Ω → ℝ := fun ω =>
     ((ν ω : Measure α) B).toReal - ((ν' ω : Measure α) B).toReal with hd_def
   have hdm : Measurable d := (hqm ν h.measurable_directing).sub (hqm ν' h'.measurable_directing)
@@ -486,59 +519,38 @@ theorem ConditionallyIIDWith.ae_measure_apply_eq [IsProbabilityMeasure μ]
       (ae_of_all _ fun ω => ?_)
     rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
     nlinarith [hq0 ν ω, hq1 ν ω, hq0 ν' ω, hq1 ν' ω]
+  have habs : ∀ (ρ : Ω → ProbabilityMeasure α) (ω : Ω),
+      |((ρ ω : Measure α) B).toReal| ≤ 1 := fun ρ ω => by
+    rw [abs_of_nonneg (hq0 ρ ω)]; exact hq1 ρ ω
   have hbound : ∀ n : ℕ, 1 ≤ n → ∫ ω, d ω ^ 2 ∂μ ≤ 4 / n := by
     intro n hn
     have hn0 : n ≠ 0 := by omega
-    set Y : Ω → ℝ := fun ω =>
-      (n : ℝ)⁻¹ * ∑ i ∈ Finset.range n, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
-    have hi1 : Integrable (fun ω => (Y ω - ((ν ω : Measure α) B).toReal) ^ 2) μ := by
-      refine Integrable.of_bound
-        (((hem n).sub (hqm ν h.measurable_directing).aemeasurable).pow_const
-          2).aestronglyMeasurable 4
-        (ae_of_all _ fun ω => ?_)
-      rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
-      nlinarith [abs_le.mp (heb n ω), hq0 ν ω, hq1 ν ω]
-    have hi2 : Integrable (fun ω => (Y ω - ((ν' ω : Measure α) B).toReal) ^ 2) μ := by
-      refine Integrable.of_bound
-        (((hem n).sub (hqm ν' h'.measurable_directing).aemeasurable).pow_const
-          2).aestronglyMeasurable 4
-        (ae_of_all _ fun ω => ?_)
-      rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
-      nlinarith [abs_le.mp (heb n ω), hq0 ν' ω, hq1 ν' ω]
-    have hpt : ∀ ω, d ω ^ 2 ≤ 2 * (Y ω - ((ν ω : Measure α) B).toReal) ^ 2
-        + 2 * (Y ω - ((ν' ω : Measure α) B).toReal) ^ 2 := by
-      intro ω
-      simp only [hd_def]
-      nlinarith [sq_nonneg (((ν ω : Measure α) B).toReal + ((ν' ω : Measure α) B).toReal
-        - 2 * Y ω)]
-    calc ∫ ω, d ω ^ 2 ∂μ
-        ≤ ∫ ω, (2 * (Y ω - ((ν ω : Measure α) B).toReal) ^ 2
-            + 2 * (Y ω - ((ν' ω : Measure α) B).toReal) ^ 2) ∂μ :=
-          integral_mono hdint (((hi1.const_mul 2).add (hi2.const_mul 2))) hpt
-      _ = 2 * ∫ ω, (Y ω - ((ν ω : Measure α) B).toReal) ^ 2 ∂μ
-            + 2 * ∫ ω, (Y ω - ((ν' ω : Measure α) B).toReal) ^ 2 ∂μ := by
-          rw [integral_add (hi1.const_mul 2) (hi2.const_mul 2), integral_const_mul,
-            integral_const_mul]
-      _ ≤ 2 * (n : ℝ)⁻¹ + 2 * (n : ℝ)⁻¹ := by
-          gcongr
-          · exact h.integral_empiricalFrequency_sub_sq_le hX hB hn0
-          · exact h'.integral_empiricalFrequency_sub_sq_le hX hB hn0
-      _ = 4 / n := by rw [div_eq_mul_inv]; ring
+    -- Both errors are bounded by `1 / n`, so the general `2c₁ + 2c₂` bound specializes to `4 / n`.
+    -- `hd_def` turns the `set` wrapper `d` into the explicit difference the helper is stated for.
+    have hb : ∫ ω, d ω ^ 2 ∂μ ≤ 2 * (n : ℝ)⁻¹ + 2 * (n : ℝ)⁻¹ := by
+      simpa only [hd_def] using
+        integral_sub_sq_le_two_mul_add_two_mul_of_integral_sub_sq_le_of_integral_sub_sq_le hdint
+          (integrable_sub_sq_of_abs_le_one (hem n)
+            (hqm ν h.measurable_directing).aemeasurable
+            (ae_of_all _ (heb n)) (ae_of_all _ (habs ν)))
+          (integrable_sub_sq_of_abs_le_one (hem n)
+            (hqm ν' h'.measurable_directing).aemeasurable
+            (ae_of_all _ (heb n)) (ae_of_all _ (habs ν')))
+          (h.integral_empiricalFrequency_sub_sq_le hX hB hn0)
+          (h'.integral_empiricalFrequency_sub_sq_le hX hB hn0)
+    rw [div_eq_mul_inv]
+    linarith
   have hle : ∫ ω, d ω ^ 2 ∂μ ≤ 0 :=
     ge_of_tendsto (tendsto_const_div_atTop_nhds_zero_nat (4 : ℝ))
       (eventually_atTop.2 ⟨1, fun n hn => hbound n hn⟩)
-  have hzero : ∫ ω, d ω ^ 2 ∂μ = 0 :=
-    le_antisymm hle (integral_nonneg fun ω => by positivity)
   have hae : (fun ω => d ω ^ 2) =ᵐ[μ] 0 :=
-    (integral_eq_zero_iff_of_nonneg (fun ω => by positivity) hdint).mp hzero
+    (integral_eq_zero_iff_of_nonneg (fun ω => by positivity) hdint).mp
+      (le_antisymm hle (integral_nonneg fun ω => by positivity))
   filter_upwards [hae] with ω hω
-  have hd0 : d ω = 0 := by
-    have : d ω ^ 2 = 0 := hω
-    exact pow_eq_zero_iff (n := 2) (by norm_num) |>.mp this
-  have : ((ν ω : Measure α) B).toReal = ((ν' ω : Measure α) B).toReal := by
-    simp only [hd_def] at hd0
-    linarith
-  exact (ENNReal.toReal_eq_toReal_iff' (measure_ne_top _ _) (measure_ne_top _ _)).mp this
+  have hd0 : d ω = 0 := pow_eq_zero_iff (n := 2) (by norm_num) |>.mp hω
+  refine (ENNReal.toReal_eq_toReal_iff' (measure_ne_top _ _) (measure_ne_top _ _)).mp ?_
+  simp only [hd_def] at hd0
+  linarith
 
 /-- Almost sure equality of two random probability measures follows from a.e. equality of their
 masses on each fixed measurable set, when the σ-algebra is countably generated. Private: the final
