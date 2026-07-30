@@ -184,6 +184,8 @@ theorem StronglyContinuousSemigroup.generator_eq_toPMap_top_of_forall_tendsto
   refine LinearPMap.ext ?_ ?_
   · rw [S.generator_domain, hdomain, LinearMap.toPMap_domain]
   · intro x hx _
+    -- `LinearPMap.ext` leaves the goal on the coercion of `S.generator`, whose argument still
+    -- carries the membership proof from the old domain; `change` names the bundled element.
     change S.generator ⟨x, hx⟩ = L x
     exact S.generator_eq_of_tendsto (hmem x) (h x)
 

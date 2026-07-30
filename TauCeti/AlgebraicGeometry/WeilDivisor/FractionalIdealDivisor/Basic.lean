@@ -149,7 +149,6 @@ underlying homomorphism `fractionalIdealDivisor`. -/
 @[simp]
 lemma fractionalIdealDivisorAddEquiv_apply (I : Additive (FractionalIdeal R⁰ K)ˣ) :
     fractionalIdealDivisorAddEquiv R K I = fractionalIdealDivisor R K I := by
-  change fractionalIdealDivisor R K I = fractionalIdealDivisor R K I
   rfl
 
 /-- The inverse of `fractionalIdealDivisorAddEquiv` sends a Weil divisor `D` to the invertible

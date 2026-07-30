@@ -102,6 +102,8 @@ theorem LocalGeneratorsData.IsInvertible.ofIso {q : SheafOfModules.LocalGenerato
         intro i
         rw [SheafOfModules.GeneratingSections.ofEpi_π]
         exact IsIso.comp_isIso' (hq.isLocallyFreeData.isIso i) inferInstance }
+  -- the index type of the transported presentation is the untouched `(q.generators i).I`, but the
+  -- goal presents it through `ofEpi`; `change` names it directly, there being no lemma for it.
   basisNonempty i := by
     change Nonempty (q.generators i).I
     exact hq.basisNonempty i
@@ -126,6 +128,8 @@ instance free_isInvertible (I : Type u) [Nonempty I] [Subsingleton I] :
   exists_isInvertible :=
     ⟨(SheafOfModules.free.generatingSections (R := R) I).localGeneratorsData,
       { isLocallyFreeData := inferInstance
+        -- the index type of `free.generatingSections I` is `I` itself, so the two goals are the
+        -- ambient instances; `change` names `I` so instance search can see them.
         basisNonempty := fun _ => by
           change Nonempty I
           infer_instance

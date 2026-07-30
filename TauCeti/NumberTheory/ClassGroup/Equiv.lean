@@ -77,6 +77,8 @@ private theorem canonicalEquiv_eq_ringEquivOfRingEquiv (K K' : Type*) [Field K] 
   ext I x
   rw [FractionalIdeal.mem_canonicalEquiv_apply]
   erw [FractionalIdeal.ringEquivOfRingEquiv_apply]
+  -- the right-hand side is the image submodule under the semilinear equivalence, presented by
+  -- `erw` through the equivalence's coercion; `change` names it so `Submodule.mem_map` fires.
   change _ ↔ x ∈ Submodule.map
       (IsFractionRing.semilinearEquivOfRingEquiv K K' (RingEquiv.refl R)).toLinearMap I.val
   rw [Submodule.mem_map]

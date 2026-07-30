@@ -242,7 +242,11 @@ lemma cast_subgroupFiberOrbitClass {H K : Subgroup (Deck p)} (hHK : H = K) (e : 
 
 /-- The identity over-base homeomorphism induces the identity on subgroup fibre-orbit
 quotients, up to the canonical rewrite identifying the image of a subgroup under the identity
-conjugation with the original subgroup. -/
+conjugation with the original subgroup.
+
+The compatibility argument is written `by change p e = p e; rfl` rather than `rfl`: a bare `rfl`
+elaborates at `p ((Homeomorph.refl E) e) = p ((Homeomorph.refl E) e)`, and the rewrite by
+`subgroupFiberOrbitQuotientEquiv_apply` in the proof below then no longer matches. -/
 @[simp]
 lemma subgroupFiberOrbitQuotientEquiv_refl (H : Subgroup (Deck p))
     (x : SubgroupFiberOrbitQuotient H b) :

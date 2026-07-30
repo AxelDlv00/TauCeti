@@ -249,7 +249,6 @@ theorem mem_range_pointsHom_iff (a : Multiplicative A) :
       rw [map_mul, map_pow, hfx, h, mul_zero]
     have hlift : Ideal.Quotient.liftₐ (hopfIdeal (R := R) p).toIdeal f hfker
         (Ideal.Quotient.mk (hopfIdeal (R := R) p).toIdeal (ι R R 1)) = f (ι R R 1) := by
-      change f (ι R R 1) = f (ι R R 1)
       rfl
     refine ⟨toConv (Ideal.Quotient.liftₐ (hopfIdeal (R := R) p).toIdeal f hfker), ?_⟩
     apply Multiplicative.toAdd.injective

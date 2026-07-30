@@ -153,45 +153,44 @@ private noncomputable def deformTerminal {u v : X} (γ : BasedPath x₀)
   refine ⟨ContinuousMap.mk
     (fun t : I ↦ f t)
     (hf_cont.comp continuous_subtype_val), ?_⟩
+  -- the basepoint condition is `f 0 = x₀`; `f` is a local `let`, so no application lemma is
+  -- available yet and the branch structure has to be spelled out by hand here.  `0 ≤ a` picks
+  -- the first branch, on which `f` is `γ.toPath.extend`.
   change (if _ : (0 : ℝ) ≤ a then γ.toPath.extend 0 else
     if _ : (0 : ℝ) ≤ b then tail.extend ((0 - a) / (b - a))
     else δ.extend ((0 - b) / (1 - b))) = x₀
   rw [dif_pos ha, Path.extend_zero]
 
+/-- Application lemma for `deformTerminal`: the spliced path is the three-branch `dite` selected
+by `t ≤ a` and `t ≤ b`.  This is the only place the construction is unfolded; the three branch
+lemmas below rewrite with it and then discharge the branch conditions. -/
+private theorem deformTerminal_apply {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
+    (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1) (t : I) :
+    (deformTerminal γ hu δ ha hab hb).1 t =
+      if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
+        if _ : (t : ℝ) ≤ b then
+          (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
+        else δ.extend (((t : ℝ) - b) / (1 - b)) :=
+  rfl
+
 private theorem deformTerminal_apply_of_le {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
     (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (ht : (t : ℝ) ≤ a) :
     (deformTerminal γ hu δ ha hab hb).1 t = γ.toPath.extend t := by
-  unfold deformTerminal
-  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
-    if _ : (t : ℝ) ≤ b then
-      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
-    else δ.extend (((t : ℝ) - b) / (1 - b))) = γ.toPath.extend t
-  rw [dif_pos ht]
+  rw [deformTerminal_apply, dif_pos ht]
 
 private theorem deformTerminal_apply_of_lt_of_le {u v : X} (γ : BasedPath x₀)
     (hu : endpoint γ = u) (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (hta : a < (t : ℝ)) (htb : (t : ℝ) ≤ b) :
     (deformTerminal γ hu δ ha hab hb).1 t =
       (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a)) := by
-  unfold deformTerminal
-  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
-    if _ : (t : ℝ) ≤ b then
-      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
-    else δ.extend (((t : ℝ) - b) / (1 - b))) =
-      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
-  rw [dif_neg (not_le_of_gt hta), dif_pos htb]
+  rw [deformTerminal_apply, dif_neg (not_le_of_gt hta), dif_pos htb]
 
 private theorem deformTerminal_apply_of_lt {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
     (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1)
     (t : I) (ht : b < (t : ℝ)) :
     (deformTerminal γ hu δ ha hab hb).1 t = δ.extend (((t : ℝ) - b) / (1 - b)) := by
-  unfold deformTerminal
-  change (if _ : (t : ℝ) ≤ a then γ.toPath.extend t else
-    if _ : (t : ℝ) ≤ b then
-      (terminalTail γ hu a (by linarith)).extend (((t : ℝ) - a) / (b - a))
-    else δ.extend (((t : ℝ) - b) / (1 - b))) = δ.extend (((t : ℝ) - b) / (1 - b))
-  rw [dif_neg (not_le_of_gt (lt_trans hab ht)), dif_neg (not_le_of_gt ht)]
+  rw [deformTerminal_apply, dif_neg (not_le_of_gt (lt_trans hab ht)), dif_neg (not_le_of_gt ht)]
 
 /-- The endpoint of `deformTerminal γ hu δ ha hab hb` is the endpoint of `δ`. -/
 private theorem endpoint_deformTerminal {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)

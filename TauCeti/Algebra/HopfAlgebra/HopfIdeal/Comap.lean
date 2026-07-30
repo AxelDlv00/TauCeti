@@ -71,6 +71,8 @@ theorem comap_toIdeal (I : HopfIdeal R K) (f : H →ₐc[R] K)
     (hf : Function.Surjective f) :
     (I.comap f hf).toIdeal = Ideal.comap (f : H →+* K) I.toIdeal := by
   ext h
+  -- membership in `comap` is by definition vanishing of the composite in the quotient; `change`
+  -- spells that composite out, since `comap` has no equation lemma to rewrite with.
   change Ideal.Quotient.mk I.toIdeal (f h) = 0 ↔ f h ∈ I.toIdeal
   exact Ideal.Quotient.eq_zero_iff_mem
 

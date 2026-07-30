@@ -162,6 +162,8 @@ lemma ofGeometricallyIntegral_mul (G : Over (Spec (.of K))) [GrpObj G]
     μ[(ofGeometricallyIntegral G).toOver] ≫ eqToHom (by rfl) =
       (eqToHom (by rfl) ⊗ₘ eqToHom (by rfl)) ≫ μ[G] := by
   unfold ofGeometricallyIntegral
+  -- after `unfold` the two `eqToHom (by rfl)` casts are between syntactically equal objects, so
+  -- they reduce to identities; `change` performs that reduction, and `simp` cancels them.
   change μ[G] = (𝟙 G ⊗ₘ 𝟙 G) ≫ μ[G]
   simp
 
@@ -172,6 +174,7 @@ lemma ofGeometricallyIntegral_inv (G : Over (Spec (.of K))) [GrpObj G]
     ι[(ofGeometricallyIntegral G).toOver] ≫ eqToHom (by rfl) =
       eqToHom (by rfl) ≫ ι[G] := by
   unfold ofGeometricallyIntegral
+  -- as in `ofGeometricallyIntegral_mul`, the `eqToHom (by rfl)` casts reduce to identities
   change ι[G] = 𝟙 G ≫ ι[G]
   simp
 
@@ -232,6 +235,8 @@ lemma baseChange_mul (A : AbelianVariety K) (L : Type u) [Field L] [Algebra K L]
         (Over.pullback (Spec.map (CommRingCat.ofHom (algebraMap K L)))).map μ[A.toOver] :=
   by
     unfold baseChange
+    -- after `unfold` the `eqToHom (by rfl)` casts are between syntactically equal objects and so
+    -- reduce to identities; `change` performs that reduction, and `simp` cancels them.
     change _ = (𝟙 _ ⊗ₘ 𝟙 _) ≫ _
     simp
 
@@ -243,6 +248,7 @@ lemma baseChange_inv (A : AbelianVariety K) (L : Type u) [Field L] [Algebra K L]
       (Over.pullback (Spec.map (CommRingCat.ofHom (algebraMap K L)))).map ι[A.toOver] :=
   by
     unfold baseChange
+    -- as in `baseChange_mul`, the `eqToHom (by rfl)` casts reduce to identities
     change _ = 𝟙 _ ≫ _
     simp
 

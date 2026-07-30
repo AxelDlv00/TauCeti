@@ -169,6 +169,8 @@ private lemma liftQuotientPointHom_apply (H : _root_.CommHopfAlgCat.{v} R)
   apply quotientPointsHom_injective H I A
   have hg : g.1 ∈ (quotientPointsHom H I A).hom.range := by
     have hgp := g.property
+    -- `g.property` is stated through the `Subtype` predicate of the subgroup coercion; `change`
+    -- puts it back in the `∈ quotientPointsSubgroup …` form the membership lemmas expect.
     change g.1 ∈ quotientPointsSubgroup H I A at hgp
     exact hgp
   -- `liftQuotientPointHom` is the `toMonoidHom` of the inverse equivalence returned by

@@ -88,6 +88,8 @@ private lemma asIdeal_equivOfRingEquiv (σ : R ≃+* R)
     (IsDedekindDomain.HeightOneSpectrum.equivOfRingEquiv σ p).asIdeal =
       Ideal.map σ p.asIdeal := by
   ext x
+  -- `equivOfRingEquiv` transports a prime by comapping along `σ.symm`, so membership in its
+  -- ideal is by definition membership of `σ.symm x`; there is no lemma stating this.
   change σ.symm x ∈ p.asIdeal ↔ x ∈ Ideal.map σ p.asIdeal
   exact Ideal.symm_apply_mem_of_equiv_iff
 
