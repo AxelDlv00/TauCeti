@@ -84,6 +84,8 @@ theorem discr_eq_of_basis_isIntegral_of_span_eq_top
     have hcomp :
         ⇑(IsScalarTower.toAlgHom ℤ (𝓞 K) K).toLinearMap ∘ v = (b : ι → K) := by
       funext i
+      -- `v i` is `⟨b i, hb i⟩`, so the inclusion `𝒪_K → K` returns `b i` by definition; the
+      -- pre-bump `simp [hv]` no longer closes this.
       rfl
     rw [← hcomp] at hb'
     exact hb'.of_comp _
@@ -93,6 +95,7 @@ theorem discr_eq_of_basis_isIntegral_of_span_eq_top
     funext i
     have hi : c i = v i := Basis.mk_apply hli hspan.ge i
     rw [hi]
+    -- as above, `algebraMap (𝓞 K) K ⟨b i, hb i⟩` is `b i` by definition.
     rfl
   have := discr_eq_of_integralBasis c
   rwa [hc] at this

@@ -152,6 +152,11 @@ theorem range_adjoint_eq_orthogonal_ker_of_isClosed_range (T : E →L[𝕜] F)
     calc
       inner 𝕜 x (B y) = inner 𝕜 (x : E) ((T†) (y : F)) := by
         rw [Submodule.coe_inner]
+        -- `B` is `(T†).domRestrict R` corestricted to `Kᗮ`, so its value at `y` carries `(T†) y`
+        -- as its underlying vector.  The pre-bump
+        -- `simp only [B, ContinuousLinearMap.coe_codRestrict_apply,
+        -- ContinuousLinearMap.domRestrict_apply]` no longer closes this, so unfold the two
+        -- restriction wrappers definitionally.
         rfl
       _ = inner 𝕜 (T (x : E)) (y : F) := T.adjoint_inner_right x y
       _ = inner 𝕜 ((e x : R) : F) (y : F) := by

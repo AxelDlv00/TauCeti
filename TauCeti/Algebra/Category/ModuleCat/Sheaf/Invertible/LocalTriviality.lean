@@ -92,6 +92,9 @@ lemma trivializationIso_hom {q : SheafOfModules.LocalGeneratorsData M}
         (q.generators i).π :=
   by
     simp only [trivializationIso, Iso.trans_hom, Functor.mapIso_hom]
+    -- the residual goal is `(asIso (q.generators i).π).hom = (q.generators i).π`; `asIso_hom`
+    -- no longer rewrites under the composition after the bump, and `asIso` stores its `hom`
+    -- field as the given morphism, so this is definitional.
     rfl
 
 end LocalGeneratorsData.IsInvertible

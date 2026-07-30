@@ -112,6 +112,8 @@ based path within a path component of `endpoint ⁻¹' U`. -/
 @[simp] public theorem toPath_append {y : X} (γ : BasedPath x₀) (δ : Path (endpoint γ) y) :
     (append γ δ).toPath = (γ.toPath.trans δ).cast rfl (γ.toPath.trans δ).target := by
   simp [append, toPath_ofPath]
+  -- `simp` reduces both sides to `γ.toPath.trans (δ.cast _ _)`; what is left differs only in the
+  -- proof arguments of `Path.cast`, which are proof-irrelevant.
   rfl
 
 @[simp] public theorem endpoint_append {y : X} (γ : BasedPath x₀) (δ : Path (endpoint γ) y) :
@@ -162,8 +164,9 @@ private noncomputable def deformTerminal {u v : X} (γ : BasedPath x₀)
   rw [dif_pos ha, Path.extend_zero]
 
 /-- Application lemma for `deformTerminal`: the spliced path is the three-branch `dite` selected
-by `t ≤ a` and `t ≤ b`.  This is the only place the construction is unfolded; the three branch
-lemmas below rewrite with it and then discharge the branch conditions. -/
+by `t ≤ a` and `t ≤ b`. -/
+-- This is the only place the construction is unfolded; the three branch lemmas below rewrite with
+-- it and then discharge the branch conditions.
 private theorem deformTerminal_apply {u v : X} (γ : BasedPath x₀) (hu : endpoint γ = u)
     (δ : Path u v) {a b : ℝ} (ha : 0 ≤ a) (hab : a < b) (hb : b < 1) (t : I) :
     (deformTerminal γ hu δ ha hab hb).1 t =

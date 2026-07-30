@@ -93,6 +93,8 @@ theorem joined_basepoint_ofBasedPath (α : BasedPath x₀) :
         apply UniversalCover.ext α.2
         apply Path.Homotopic.hpath_hext
         intro t
+        -- `BasedPath.ofPath` packages a path and `toPath` unpacks it, so the two sides agree
+        -- pointwise by definition.
         rfl
       target' := by
         rw [Path.initialSegmentFamily_one, ofBasedPath_def]
@@ -100,6 +102,7 @@ theorem joined_basepoint_ofBasedPath (α : BasedPath x₀) :
         apply UniversalCover.ext rfl
         apply Path.Homotopic.hpath_hext
         intro t
+        -- as in `source'`, the two sides differ only in the proof arguments of `Path.cast`.
         rfl }⟩
 
 /-- The universal cover is path-connected. -/

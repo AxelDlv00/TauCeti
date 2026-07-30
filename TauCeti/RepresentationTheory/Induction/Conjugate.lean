@@ -60,6 +60,8 @@ theorem coe_conjSubgroupEquiv_apply (s : G) (H : Subgroup G)
     (x : (MulAut.conj s • H : Subgroup G)) :
     (conjSubgroupEquiv s H x : G) = s⁻¹ * (x : G) * s := by
   simp [conjSubgroupEquiv]
+  -- `Subgroup.equivSMul (MulAut.conj s) H` acts by `x ↦ s * x * s⁻¹`, so its inverse returns
+  -- `s⁻¹ * x * s` as the underlying element by definition.
   rfl
 
 @[simp]

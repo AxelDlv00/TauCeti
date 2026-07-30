@@ -90,6 +90,9 @@ theorem deFinettiMeasure_toMeasure {μ : Measure Ω} [IsProbabilityMeasure μ] {
     (deFinettiMeasure μ X hTail : Measure (ProbabilityMeasure α))
       = μ.map (directingProbabilityMeasure μ X) := by
   unfold deFinettiMeasure
+  -- `ProbabilityMeasure.map` is `Measure.map` on the underlying measures by construction; the
+  -- pre-bump `simp only [ProbabilityMeasure.toMeasure_map, ProbabilityMeasure.coe_mk]` no
+  -- longer rewrites through the bundled subtype, so strip it definitionally.
   rfl
 
 /-- **The mixture representation against the de Finetti measure.** When the canonical directing

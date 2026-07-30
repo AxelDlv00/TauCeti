@@ -123,10 +123,11 @@ quotient. -/
 /-! ### Bilinearity of composition -/
 
 /-- Two homomorphisms of abelian varieties with the same underlying morphism over `Spec K` are
-equal.  This restates faithfulness of `toOverFunctor` with the hom-type written through
-`toOverHom`, so that the goals it produces live in `A.toOver ⟶ C.toOver` rather than in
-`toOverFunctor.obj A ⟶ toOverFunctor.obj C`; the two agree only up to unfolding `toOverFunctor`,
-which would otherwise leave each proof below with a trailing `rfl`. -/
+equal. -/
+-- This restates faithfulness of `toOverFunctor` with the hom-type written through `toOverHom`, so
+-- that the goals it produces live in `A.toOver ⟶ C.toOver` rather than in
+-- `toOverFunctor.obj A ⟶ toOverFunctor.obj C`; the two agree only up to unfolding
+-- `toOverFunctor`, which would otherwise leave each proof below with a trailing `rfl`.
 private lemma toOverHom_injective {A B : AbelianVariety K} {f g : A ⟶ B}
     (h : toOverHom f = toOverHom g) : f = g :=
   Hom.toOverFunctor.map_injective h

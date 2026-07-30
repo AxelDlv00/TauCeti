@@ -116,6 +116,8 @@ theorem mapValue_inclusion (χ : A →ₐ[R] B) :
     AdditiveGroup.gaPointsMulEquiv_mapValue, gaPointsMulEquiv_inclusion]
   apply Multiplicative.toAdd.injective
   simp
+  -- `simp` leaves `(⇑χ ∘ ⇑F.ofConv) x = χ (F.ofConv x)`: the two sides differ only by the
+  -- `Function.comp` wrapper that `AlgHom.mapValue` introduces, which unfolds definitionally.
   rfl
 
 /-- **The Frobenius endomorphism annihilates `αₚ`.** Composing the Frobenius endomorphism of `𝔾ₐ`

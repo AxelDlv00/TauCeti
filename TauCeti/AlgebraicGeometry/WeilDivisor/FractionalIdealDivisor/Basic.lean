@@ -149,6 +149,9 @@ underlying homomorphism `fractionalIdealDivisor`. -/
 @[simp]
 lemma fractionalIdealDivisorAddEquiv_apply (I : Additive (FractionalIdeal R⁰ K)ˣ) :
     fractionalIdealDivisorAddEquiv R K I = fractionalIdealDivisor R K I := by
+  -- `AddEquiv.ofBijective` stores the given homomorphism as its underlying map.  After the bump
+  -- `rw [fractionalIdealDivisorAddEquiv, AddEquiv.ofBijective_apply]` no longer matches the
+  -- coercion appearing here, so take the definitional step.
   rfl
 
 /-- The inverse of `fractionalIdealDivisorAddEquiv` sends a Weil divisor `D` to the invertible

@@ -91,6 +91,9 @@ private theorem canonicalEquiv_eq_ringEquivOfRingEquiv (K K' : Type*) [Field K] 
     refine ⟨y, hy, ?_⟩
     erw [IsFractionRing.semilinearEquivOfRingEquiv_apply,
       IsFractionRing.ringEquivOfRingEquiv_apply]
+    -- what is left is `IsLocalization.map K' (RingHom.id R) _ y = IsLocalization.map K'
+    -- ↑(RingEquiv.refl R) _ y`: the coercion of `RingEquiv.refl R` *is* `RingHom.id R`, and the
+    -- two remaining field arguments are proofs.
     rfl
 
 /-- `ClassGroup.mulEquiv f` sends the class of a unit fractional ideal `I` to the class of its

@@ -190,10 +190,10 @@ lemma pointsFunctor_map {H K : (FiniteTypeCommHopfAlgCat.{u, v} R)ᵒᵖ} (φ : 
     (pointsFunctor (R := R)).map φ = CommHopfAlgCat.mapPointsFunctor φ.unop.hom :=
   rfl
 
-/-- Pointwise form of the morphism part of `pointsFunctor`.
-
-The point is ascribed to its algebra-map type by `show … from`, so that the application to `h`
-elaborates through the `WithConv` synonym that `HopfAlgebra.points` carries. -/
+/-- Pointwise form of the morphism part of `pointsFunctor`: the image of a point `f` under `φ`
+sends `h` to the value of `f` at the image of `h` under `φ`. -/
+-- The point is ascribed to its algebra-map type by `show … from`, so that the application to `h`
+-- elaborates through the `WithConv` synonym that `HopfAlgebra.points` carries.
 @[simp]
 lemma pointsFunctor_map_app_apply_apply {H K : (FiniteTypeCommHopfAlgCat.{u, v} R)ᵒᵖ}
     (φ : H ⟶ K) (A : CommAlgCat.{w} R)
