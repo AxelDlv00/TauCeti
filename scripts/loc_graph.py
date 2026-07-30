@@ -36,11 +36,13 @@ def count_lines(repo, commit, pathspecs):
 
 
 def series(repo, pathspecs, ref):
-    # Use the committer timestamp: that records when the commit landed, whereas
-    # author dates can predate their parents. Convert the timestamp to a UTC day
-    # explicitly; Git's short date otherwise uses each commit's recorded timezone,
-    # which can make consecutive calendar dates decrease across timezone offsets.
-    # --reverse walks oldest-first, so the last write for a UTC day wins.
+    # The last commit to land on each day that touched the files, keyed by
+    # committer timestamp: that records when the code entered the repo, whereas
+    # author dates can predate their parents after a rebase or squash. Convert
+    # the timestamp to a UTC day explicitly; Git's short date otherwise uses
+    # each commit's recorded timezone, which can make consecutive calendar dates
+    # decrease across timezone offsets. --reverse walks oldest-first, so the
+    # last write for a UTC day wins, and the newest point tracks the branch tip.
     day_commit = {}
     for line in git(repo, "log", "--reverse",
                     "--format=%ct %H", ref, "--", *pathspecs).splitlines():
