@@ -25,6 +25,10 @@ what new mathematics gets *added*, not whether already-merged code may be made b
   Mathlib linter set (style, file length, no `maxHeartbeats` overrides). Do not try to disable
   these.
 - One topic per PR. Ship a prerequisite refactor as its own PR.
+- When Mathlib adds mathematics that duplicates Tau Ceti code, migrate all uses to Mathlib and
+  delete the duplicate Tau Ceti declarations. Do not preserve the old API with compatibility
+  aliases, wrapper declarations, deprecated shims, or duplicate theorem names: Tau Ceti defers to
+  Mathlib's names, definitions, and design decisions directly.
 - `TauCeti/` is the only place code goes. `scripts/`, `.github/`, and the lakefile
   (`lakefile.toml`/`lakefile.lean`) are human-owned. The two Lake *pins* —
   `lake-manifest.json` and `lean-toolchain` — are an exception: a **forward-only** bump of
