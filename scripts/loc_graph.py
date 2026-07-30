@@ -36,13 +36,23 @@ def count_lines(repo, commit, pathspecs):
 
 
 def series(repo, pathspecs, ref):
-    # Use the committer timestamp: that records when the commit landed, whereas
-    # author dates can predate their parents. Convert the timestamp to a UTC day
-    # explicitly; Git's short date otherwise uses each commit's recorded timezone,
-    # which can make consecutive calendar dates decrease across timezone offsets.
-    # --reverse walks oldest-first, so the last write for a UTC day wins.
+    # The last commit to land on each day that touched the files, keyed by
+    # committer timestamp: that records when the code actually entered the repo,
+    # whereas author dates can predate their parents. Convert the timestamp to a
+    # UTC day explicitly; Git's short date otherwise uses each commit's recorded
+    # timezone, which can make consecutive calendar dates decrease across timezone
+    # offsets. Keying on committer time also keeps the newest point at HEAD, so the
+    # "as of" label reflects the current repo. The sort is insurance against
+    # history rewrites that leave committer timestamps out of order.
+    #
+    # --first-parent walks the mainline only, so the chart tracks the size of
+    # the branch itself. Without it, a commit on a feature branch is sampled on
+    # its own (earlier) date, and count_lines there sees the whole branch tree,
+    # so a large branch shows up as a spike on the day it was written that
+    # vanishes the next day and only truly lands when the branch merges.
     day_commit = {}
-    for line in git(repo, "log", "--reverse",
+    # --reverse walks oldest-first, so the last write for a UTC day wins.
+    for line in git(repo, "log", "--first-parent", "--reverse",
                     "--format=%ct %H", ref, "--", *pathspecs).splitlines():
         timestamp, commit = line.split()
         day = dt.datetime.fromtimestamp(int(timestamp), dt.timezone.utc).date().isoformat()

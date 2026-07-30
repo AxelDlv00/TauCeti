@@ -1,3 +1,7 @@
+/-
+Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+-/
 module
 
 public import TauCeti.RepresentationTheory.CharacterTable.ClassSum.Basis
@@ -12,7 +16,8 @@ of the representative.
 
 These natural numbers are the coefficients for multiplication in the class-sum basis of the center
 of the group algebra. They are the integral input to the Dixon--Schneider character-table
-algorithm.
+algorithm. The class of `1` is a unit for them
+(`TauCeti.structureConstant_mk_one_right`), since its class sum is the unit of the group algebra.
 -/
 
 public section
@@ -98,5 +103,56 @@ theorem classSum_mul (k : Type*) [Semiring k] (Cᵢ Cⱼ : ConjClasses G) :
   · intro Cₖ _ hCₖ
     rw [if_neg hCₖ.symm, mul_zero]
   · simp
+
+/-- **The coordinate identity**: multiplication of class sums inside the centre of the group
+algebra expands in the class-sum basis with the structure constants as coefficients. This is
+`TauCeti.classSum_mul` read in the centre, where the class sums are a basis. -/
+theorem classSumCenter_mul (k : Type*) [CommSemiring k] (Cᵢ Cⱼ : ConjClasses G) :
+    classSumCenter (k := k) Cᵢ * classSumCenter Cⱼ =
+      ∑ Cₖ : ConjClasses G, (structureConstant Cᵢ Cⱼ Cₖ : k) • classSumCenter Cₖ := by
+  refine Subtype.ext ?_
+  push_cast [classSumCenter_coe]
+  exact classSum_mul k Cᵢ Cⱼ
+
+/-- The coefficient of `g` in a product of two class sums is the structure constant at the
+conjugacy class of `g`. This is the pointwise form of `TauCeti.classSum_mul`. -/
+theorem coeff_classSum_mul (k : Type*) [Semiring k] (Cᵢ Cⱼ : ConjClasses G) (g : G) :
+    (classSum k Cᵢ * classSum k Cⱼ).coeff g =
+      (structureConstant Cᵢ Cⱼ (ConjClasses.mk g) : k) := by
+  rw [classSum_mul]
+  simp only [MonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply, MonoidAlgebra.coeff_smul_apply,
+    smul_eq_mul, classSum_coeff]
+  rw [Finset.sum_eq_single (ConjClasses.mk g)]
+  · rw [if_pos rfl, mul_one]
+  · intro Cₖ _ hCₖ
+    rw [if_neg hCₖ.symm, mul_zero]
+  · simp
+
+/-- **The structure constants are symmetric in their two class arguments**, because the two class
+sums commute in the group algebra. -/
+theorem structureConstant_comm (Cᵢ Cⱼ Cₖ : ConjClasses G) :
+    structureConstant Cᵢ Cⱼ Cₖ = structureConstant Cⱼ Cᵢ Cₖ := by
+  obtain ⟨g, rfl⟩ := ConjClasses.exists_rep Cₖ
+  have hcomm : classSum ℤ Cᵢ * classSum ℤ Cⱼ = classSum ℤ Cⱼ * classSum ℤ Cᵢ :=
+    Subalgebra.mem_center_iff.mp (classSum_mem_center ℤ Cⱼ) _
+  have h := congrArg (fun a : MonoidAlgebra ℤ G => a.coeff g) hcomm
+  simp only [coeff_classSum_mul] at h
+  exact_mod_cast h
+
+/-- **The class of `1` is a unit for the structure constants**: because `K_{Cᵢ} · K_{[1]} = K_{Cᵢ}`,
+the constant `aᵢ,[1],ₖ` is `1` when `Cₖ = Cᵢ` and `0` otherwise. -/
+@[simp]
+theorem structureConstant_mk_one_right (Cᵢ Cₖ : ConjClasses G) :
+    structureConstant Cᵢ (ConjClasses.mk (1 : G)) Cₖ = if Cₖ = Cᵢ then 1 else 0 := by
+  obtain ⟨g, rfl⟩ := ConjClasses.exists_rep Cₖ
+  have h := coeff_classSum_mul ℕ Cᵢ (ConjClasses.mk (1 : G)) g
+  rw [classSum_mk_one, mul_one, classSum_coeff] at h
+  simpa using h.symm
+
+/-- The symmetric companion of `TauCeti.structureConstant_mk_one_right`. -/
+@[simp]
+theorem structureConstant_mk_one_left (Cⱼ Cₖ : ConjClasses G) :
+    structureConstant (ConjClasses.mk (1 : G)) Cⱼ Cₖ = if Cₖ = Cⱼ then 1 else 0 := by
+  rw [structureConstant_comm, structureConstant_mk_one_right]
 
 end TauCeti

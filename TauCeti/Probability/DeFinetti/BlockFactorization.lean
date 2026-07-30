@@ -11,7 +11,7 @@ public import TauCeti.Probability.Exchangeability.MixedIID.Basic
 public import TauCeti.Probability.DeFinetti.DirectingMeasure.Basic
 public import Mathlib.Probability.Independence.Conditional
 public import Mathlib.MeasureTheory.Constructions.Polish.Basic
--- Non-public: used only inside proofs — the merged tail factorization
+-- Non-public: used only inside proofs — the tail factorization
 -- `condExp_blockIndicatorProd_tailProcess_ae_eq_prod`, the path-law transfer and contractability
 -- bridges, and `Tuple.sort` (the injective-selection reduction).
 import TauCeti.Probability.DeFinetti.TailFactorization
@@ -34,13 +34,16 @@ directing measure on the coordinate sets:
 This chains Mathlib's `iCondIndepFun_iff_condExp_inter_preimage_eq_mul` (conditional independence ⟺
 product of indicator conditional expectations) with
 `Contractable.directingMeasure_ae_eq_condExp_coord` (each coordinate's conditional law is the
-directing measure). The merged tail factorization
+directing measure). The tail factorization
 `condExp_blockIndicatorProd_tailProcess_ae_eq_prod` (from `TailFactorization`) then discharges the
 finite-block rectangle identity for `directingProbabilityMeasure μ X`, exactly what
 `mixedIIDWith_of_forall_rectangles` consumes — so the whole chain assembles here.
 
 ## Main results
 
+* `condExp_blockIndicatorProd_prefix_ae_eq_prod_directingMeasure` — the prefix block factorization
+  at the directing measure, the base case rectangle identities over a contractable process reduce
+  to.
 * `mixedIIDWith_of_contractable` — a contractable process on a standard Borel sample space
   is mixed i.i.d., with `directingProbabilityMeasure μ X` (the tail conditional law) as the
   witness. That witness is the canonical *directing measure*, not merely a mixing representative;
@@ -199,10 +202,15 @@ theorem mixedIID_of_iCondIndepFun_tailProcess
   MixedIID.of_mixingRepresentative
     (mixedIIDWith_of_iCondIndepFun_tailProcess hX hX_meas hCI)
 
-/-- For a contractable process, the conditional expectation of the length-`r` prefix indicator
-product given the tail σ-algebra `tailProcess X` is a.e. the product of directing-measure
-evaluations `∏ i, (directingMeasure μ X ω).real (C i)` on the coordinate sets. -/
-private theorem condExp_blockIndicatorProd_prefix_ae_eq_prod_directingMeasure
+/-- **Prefix block factorization at the directing measure.** For a contractable process, the
+conditional expectation of the length-`r` prefix indicator product given the tail σ-algebra
+`tailProcess X` is a.e. the product of directing-measure evaluations
+`∏ i, (directingMeasure μ X ω).real (C i)` on the coordinate sets.
+
+This is the base case for rectangle identities over a contractable process: a finite block of
+coordinates is replaced by the directing measure under the tail σ-algebra, and identities for
+arbitrary selections reduce to it. -/
+theorem condExp_blockIndicatorProd_prefix_ae_eq_prod_directingMeasure
     [StandardBorelSpace Ω] [StandardBorelSpace α] [Nonempty α] {μ : Measure Ω} [IsFiniteMeasure μ]
     {X : ℕ → Ω → α} (hX : Contractable μ X) (hX_meas : ∀ n, Measurable (X n))
     {r : ℕ} {C : Fin r → Set α} (hC : ∀ i, MeasurableSet (C i)) :
@@ -300,13 +308,8 @@ theorem mixedIID_of_contractable {Ω α : Type*} [MeasurableSpace Ω] [Measurabl
     MixedIID μ X := by
   refine mixedIID_of_mixedIID_pathLaw hX_meas ?_
   haveI : IsFiniteMeasure (pathLaw μ X) := by rw [pathLaw_def]; infer_instance
-  have hcontract : Contractable (pathLaw μ X) (fun n p => p n) := by
-    rw [contractable_iff_contractableLaw_pathLaw fun i => (measurable_pi_apply i).aemeasurable]
-    have hpl : pathLaw (pathLaw μ X) (fun n p => p n) = pathLaw μ X := by
-      rw [pathLaw_def]; exact Measure.map_id
-    rw [hpl]
-    exact hX.contractableLaw_pathLaw fun i => (hX_meas i).aemeasurable
-  exact mixedIID_of_contractable_standardBorelOmega hcontract measurable_pi_apply
+  exact mixedIID_of_contractable_standardBorelOmega
+    (hX.coordinate_pathLaw fun i => (hX_meas i).aemeasurable) measurable_pi_apply
 
 /-- **de Finetti's theorem, mixture form: exchangeable ⇒ mixed i.i.d.** An exchangeable process
 valued in a standard Borel space, on an arbitrary measurable sample space, is mixed i.i.d. -/
