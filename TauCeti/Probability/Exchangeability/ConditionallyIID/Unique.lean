@@ -316,6 +316,57 @@ private theorem ConditionallyIIDWith.integral_directing_mul_indicator
     (fun ω => ENNReal.mul_ne_top (measure_ne_top _ _) (measure_ne_top _ _)) hlin
   simpa [ENNReal.toReal_mul, toReal_indicator_one, sq] using this
 
+/-- **The centred indicators are uncorrelated, with common variance `∫ q - ∫ q²`.** Writing
+`q ω = ((ν ω) B).toReal` for the directing mass of `B`, the centred variables
+`1_{Xᵢ ∈ B} - q` have vanishing cross moments and common second moment `∫ q - ∫ q²`.
+
+This is the covariance hypothesis of `integral_sq_average_sub`, and it is the only place the
+conditional i.i.d. structure enters beyond measurability of the directing map. -/
+private theorem ConditionallyIIDWith.integral_indicator_sub_directing_mul_indicator_sub_directing
+    [IsFiniteMeasure μ] (h : ConditionallyIIDWith μ X ν) (hX : ∀ i, AEMeasurable (X i) μ)
+    (hB : MeasurableSet B) (i j : ℕ) :
+    ∫ ω, ((X i ⁻¹' B).indicator (1 : Ω → ℝ) ω - ((ν ω : Measure α) B).toReal)
+        * ((X j ⁻¹' B).indicator (1 : Ω → ℝ) ω - ((ν ω : Measure α) B).toReal) ∂μ
+      = if i = j then
+          (∫ ω, ((ν ω : Measure α) B).toReal ∂μ - ∫ ω, ((ν ω : Measure α) B).toReal ^ 2 ∂μ)
+        else 0 := by
+  classical
+  have hu : Measurable fun ω => (ν ω : Measure α) B :=
+    (Measure.measurable_coe hB).comp (measurable_subtype_coe.comp h.measurable_directing)
+  have hq : Measurable fun ω => ((ν ω : Measure α) B).toReal := hu.ennreal_toReal
+  have he : ∀ i, AEMeasurable ((X i ⁻¹' B).indicator (1 : Ω → ℝ)) μ := fun i =>
+    measurable_one.aemeasurable.indicator₀ ((hX i).nullMeasurableSet_preimage hB)
+  have hb : ∀ i, ∀ᵐ ω ∂μ, 0 ≤ (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
+      ∧ (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω ≤ 1 := fun i => ae_of_all _ fun ω => by
+    by_cases hmem : ω ∈ X i ⁻¹' B <;> simp [hmem]
+  have hbq : ∀ᵐ ω ∂μ, 0 ≤ ((ν ω : Measure α) B).toReal
+      ∧ ((ν ω : Measure α) B).toReal ≤ 1 := ae_of_all _ fun ω =>
+    ⟨ENNReal.toReal_nonneg, by
+      simpa using
+        ENNReal.toReal_mono ENNReal.one_ne_top (prob_le_one (μ := (ν ω : Measure α)) (s := B))⟩
+  rw [integral_sub_mul_sub
+    (integrable_mul_of_nonneg_of_le_one (he i) (he j) (hb i) (hb j))
+    (integrable_mul_of_nonneg_of_le_one hq.aemeasurable (he i) hbq (hb i))
+    (integrable_mul_of_nonneg_of_le_one hq.aemeasurable (he j) hbq (hb j))
+    (by simpa [sq] using
+      integrable_mul_of_nonneg_of_le_one hq.aemeasurable hq.aemeasurable hbq hbq)]
+  by_cases hij : i = j
+  · -- On the diagonal the indicator is idempotent, so the first moment appears in place of the
+    -- pair moment and the variance is `∫ q - ∫ q²`.
+    subst hij
+    have hsq : ∀ ω, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
+        * (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω = (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω := by
+      intro ω
+      by_cases hmem : ω ∈ X i ⁻¹' B <;> simp [hmem]
+    rw [if_pos rfl, integral_congr_ae (ae_of_all _ hsq),
+      h.integral_indicator_single hX hB i, h.integral_directing_mul_indicator hX hB i]
+    ring
+  · -- Off the diagonal the pair moment and both cross moments are `∫ q²`, so the four terms of
+    -- the expansion cancel.
+    rw [if_neg hij, h.integral_indicator_pair hX hB hij,
+      h.integral_directing_mul_indicator hX hB i, h.integral_directing_mul_indicator hX hB j]
+    ring
+
 /-- **The `L²` rate for empirical frequencies.** For a conditionally i.i.d. process with directing
 measure `ν` and a measurable set `B`, the empirical frequency of `B` among the first `n`
 coordinates approximates `ω ↦ (ν ω) B` with mean square error
@@ -337,7 +388,7 @@ theorem ConditionallyIIDWith.integral_empiricalFrequency_sub_sq [IsProbabilityMe
   have hq : Measurable fun ω => ((ν ω : Measure α) B).toReal := hu.ennreal_toReal
   have he : ∀ i, AEMeasurable ((X i ⁻¹' B).indicator (1 : Ω → ℝ)) μ := fun i =>
     measurable_one.aemeasurable.indicator₀ ((hX i).nullMeasurableSet_preimage hB)
-  -- bounds
+  -- the `[0, 1]` bounds feeding the `|·| ≤ 1` hypotheses of `integral_sq_average_sub`
   have hq0 : ∀ ω, 0 ≤ ((ν ω : Measure α) B).toReal := fun _ => ENNReal.toReal_nonneg
   have hq1 : ∀ ω, ((ν ω : Measure α) B).toReal ≤ 1 := by
     intro ω
@@ -348,41 +399,10 @@ theorem ConditionallyIIDWith.integral_empiricalFrequency_sub_sq [IsProbabilityMe
   have he1 : ∀ i ω, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω ≤ 1 := by
     intro i ω
     by_cases hmem : ω ∈ X i ⁻¹' B <;> simp [hmem]
-  have hb : ∀ i, ∀ᵐ ω ∂μ, 0 ≤ (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
-      ∧ (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω ≤ 1 := fun i =>
-    ae_of_all _ fun ω => ⟨he0 i ω, he1 i ω⟩
-  have hbq : ∀ᵐ ω ∂μ, 0 ≤ ((ν ω : Measure α) B).toReal
-      ∧ ((ν ω : Measure α) B).toReal ≤ 1 := ae_of_all _ fun ω => ⟨hq0 ω, hq1 ω⟩
-  -- the centred variables are uncorrelated with common variance `∫ q - ∫ q²`
-  have hcov : ∀ i j, ∫ ω, ((X i ⁻¹' B).indicator (1 : Ω → ℝ) ω - ((ν ω : Measure α) B).toReal)
-        * ((X j ⁻¹' B).indicator (1 : Ω → ℝ) ω - ((ν ω : Measure α) B).toReal) ∂μ
-      = if i = j then
-          (∫ ω, ((ν ω : Measure α) B).toReal ∂μ - ∫ ω, ((ν ω : Measure α) B).toReal ^ 2 ∂μ)
-        else 0 := by
-    intro i j
-    rw [integral_sub_mul_sub
-      (integrable_mul_of_nonneg_of_le_one (he i) (he j) (hb i) (hb j))
-      (integrable_mul_of_nonneg_of_le_one hq.aemeasurable (he i) hbq (hb i))
-      (integrable_mul_of_nonneg_of_le_one hq.aemeasurable (he j) hbq (hb j))
-      (by simpa [sq] using
-        integrable_mul_of_nonneg_of_le_one hq.aemeasurable hq.aemeasurable hbq hbq)]
-    by_cases hij : i = j
-    · -- On the diagonal the indicator is idempotent, so the first moment appears in place of the
-      -- pair moment and the variance is `∫ q - ∫ q²`.
-      subst hij
-      have hsq : ∀ ω, (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω
-          * (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω = (X i ⁻¹' B).indicator (1 : Ω → ℝ) ω := by
-        intro ω
-        by_cases hmem : ω ∈ X i ⁻¹' B <;> simp [hmem]
-      rw [if_pos rfl, integral_congr_ae (ae_of_all _ hsq),
-        h.integral_indicator_single hX hB i, h.integral_directing_mul_indicator hX hB i]
-      ring
-    · rw [if_neg hij, h.integral_indicator_pair hX hB hij,
-        h.integral_directing_mul_indicator hX hB i, h.integral_directing_mul_indicator hX hB j]
-      ring
   exact integral_sq_average_sub he hq.aemeasurable
     (fun i ω => abs_le.mpr ⟨by linarith [he0 i ω], he1 i ω⟩)
-    (fun ω => abs_le.mpr ⟨by linarith [hq0 ω], hq1 ω⟩) hcov hn
+    (fun ω => abs_le.mpr ⟨by linarith [hq0 ω], hq1 ω⟩)
+    (h.integral_indicator_sub_directing_mul_indicator_sub_directing hX hB) hn
 
 /-- The mean square error of `ConditionallyIIDWith.integral_empiricalFrequency_sub_sq` is at most
 `1 / n`: the variance factor is a difference of moments of a `[0, 1]`-valued variable. -/
