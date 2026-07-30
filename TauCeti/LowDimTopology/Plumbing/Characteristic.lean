@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-import Mathlib.Data.ZMod.Basic
 import Mathlib.FieldTheory.Finite.Basic
 public import Mathlib.Data.Int.ModEq
 public import TauCeti.LowDimTopology.Plumbing.IntersectionForm
