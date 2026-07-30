@@ -59,115 +59,104 @@ private def blockCorner
   (ContinuousLinearMap.fst 𝕜 Y C).comp
     (A.comp (ContinuousLinearMap.inr 𝕜 K X))
 
+omit [IsRCLikeNormedField 𝕜] [CompleteSpace 𝕜] in
+/-- Block elimination. Write the operator as the block matrix `!![a, e; c, d]`, acting by
+`(k, x) ↦ (a k + e x, c k + d x)`, and suppose the corner `e : X → Y` is invertible. Shearing the
+domain by `x ↦ x - e⁻¹ a k` kills `a`, and then shearing the codomain by `z ↦ z - d e⁻¹ y` kills
+`d`. What survives is the anti-diagonal `!![0, e; c - d e⁻¹ a, 0]` — the direct sum of `e` with
+the Schur complement `c - d e⁻¹ a`, with the two target factors interchanged, which is where the
+swap in the statement comes from.
+
+Only the factorization is recorded, not the Schur complement itself: all the index computation
+needs is that the remaining factor is *some* operator `K → C`, since between finite-dimensional
+spaces every operator has index `finrank K - finrank C`. -/
+private theorem exists_factorization_of_blocks
+    {K X Y C : Type*}
+    [NormedAddCommGroup K] [NormedSpace 𝕜 K]
+    [NormedAddCommGroup X] [NormedSpace 𝕜 X]
+    [NormedAddCommGroup Y] [NormedSpace 𝕜 Y]
+    [NormedAddCommGroup C] [NormedSpace 𝕜 C]
+    (A : K × X →L[𝕜] Y × C) (a : K →L[𝕜] Y) (c : K →L[𝕜] C) (d : X →L[𝕜] C) (e : X ≃L[𝕜] Y)
+    (hA : ∀ (k : K) (x : X), A (k, x) = (a k + e x, c k + d x)) :
+    ∃ (f : K →L[𝕜] C) (P : (K × X) ≃L[𝕜] (K × X)) (Q : (C × Y) ≃L[𝕜] (Y × C)),
+      A = (Q : C × Y →L[𝕜] Y × C).comp
+        ((f.prodMap (e : X →L[𝕜] Y)).comp (P : K × X →L[𝕜] K × X)) := by
+  -- The two shears here are the *inverses* of the eliminating ones: the domain shear adds
+  -- `e⁻¹ a` and the codomain shear adds `d e⁻¹`, the latter composed with the swap that puts
+  -- the two target factors back in their original order.
+  refine ⟨c - d.comp ((e.symm : Y →L[𝕜] X).comp a),
+    (ContinuousLinearEquiv.refl 𝕜 K).skewProd (ContinuousLinearEquiv.refl 𝕜 X)
+      ((e.symm : Y →L[𝕜] X).comp a),
+    (LinearIsometryEquiv.prodComm 𝕜 C Y).toContinuousLinearEquiv.trans
+      ((ContinuousLinearEquiv.refl 𝕜 Y).skewProd (ContinuousLinearEquiv.refl 𝕜 C)
+        (d.comp (e.symm : Y →L[𝕜] X))), ?_⟩
+  apply ContinuousLinearMap.ext
+  rintro ⟨k, x⟩
+  rw [ContinuousLinearMap.comp_apply, ContinuousLinearMap.comp_apply]
+  apply Prod.ext
+  · simp [hA, add_comm]
+  · simp [hA, map_add]
+
+omit [IsRCLikeNormedField 𝕜] in
+private theorem isFredholm_and_index_eq_of_blocks
+    {K X Y C : Type*}
+    [NormedAddCommGroup K] [NormedSpace 𝕜 K] [FiniteDimensional 𝕜 K]
+    [NormedAddCommGroup X] [NormedSpace 𝕜 X]
+    [NormedAddCommGroup Y] [NormedSpace 𝕜 Y]
+    [NormedAddCommGroup C] [NormedSpace 𝕜 C] [FiniteDimensional 𝕜 C]
+    (A : K × X →L[𝕜] Y × C) (a : K →L[𝕜] Y) (c : K →L[𝕜] C) (d : X →L[𝕜] C) (e : X ≃L[𝕜] Y)
+    (hA : ∀ (k : K) (x : X), A (k, x) = (a k + e x, c k + d x)) :
+    IsFredholm A ∧
+      ContinuousLinearMap.index A = (finrank 𝕜 K : ℤ) - finrank 𝕜 C := by
+  letI : CompleteSpace K := FiniteDimensional.complete 𝕜 K
+  letI : CompleteSpace C := FiniteDimensional.complete 𝕜 C
+  obtain ⟨f, P, Q, hfac⟩ := exists_factorization_of_blocks A a c d e hA
+  have hf : IsFredholm f := isFredholm_of_finiteDimensional f
+  have he : IsFredholm (e : X →L[𝕜] Y) := IsFredholm.of_continuousLinearEquiv e
+  have hprod : IsFredholm (f.prodMap (e : X →L[𝕜] Y)) := hf.prodMap he
+  refine ⟨by rw [hfac]; exact (hprod.comp_equiv P).equiv_comp Q, ?_⟩
+  calc
+    ContinuousLinearMap.index A
+        = ContinuousLinearMap.index (f.prodMap (e : X →L[𝕜] Y)) := by
+      rw [hfac]; simp
+    _ = ContinuousLinearMap.index f + ContinuousLinearMap.index (e : X →L[𝕜] Y) :=
+      ContinuousLinearMap.index_prodMap f (e : X →L[𝕜] Y) hf he
+    _ = ((finrank 𝕜 K : ℤ) - finrank 𝕜 C) + 0 := by
+      rw [ContinuousLinearMap.index_eq_of_finiteDimensional]
+      simp
+    _ = (finrank 𝕜 K : ℤ) - finrank 𝕜 C := add_zero _
+
 omit [IsRCLikeNormedField 𝕜] in
 private theorem isFredholm_and_index_eq_of_blockCorner_equiv
     {K X Y C : Type*}
     [NormedAddCommGroup K] [NormedSpace 𝕜 K] [FiniteDimensional 𝕜 K]
-    [NormedAddCommGroup X] [NormedSpace 𝕜 X] [CompleteSpace X]
-    [NormedAddCommGroup Y] [NormedSpace 𝕜 Y] [CompleteSpace Y]
+    [NormedAddCommGroup X] [NormedSpace 𝕜 X]
+    [NormedAddCommGroup Y] [NormedSpace 𝕜 Y]
     [NormedAddCommGroup C] [NormedSpace 𝕜 C] [FiniteDimensional 𝕜 C]
     (A : K × X →L[𝕜] Y × C) (e : X ≃L[𝕜] Y)
     (he : blockCorner A = (e : X →L[𝕜] Y)) :
     IsFredholm A ∧
       ContinuousLinearMap.index A = (finrank 𝕜 K : ℤ) - finrank 𝕜 C := by
-  -- Write `A` as a two-by-two block operator. The lower-case maps below are its four
-  -- corners, with `e` the invertible infinite-dimensional corner.
-  letI : CompleteSpace K := FiniteDimensional.complete 𝕜 K
-  letI : CompleteSpace C := FiniteDimensional.complete 𝕜 C
+  -- Read off the other three corners of `A`, so that `isFredholm_and_index_eq_of_blocks`
+  -- applies. The hypothesis `he` names the fourth.
   let fstY := ContinuousLinearMap.fst 𝕜 Y C
   let sndC := ContinuousLinearMap.snd 𝕜 Y C
   let inlK := ContinuousLinearMap.inl 𝕜 K X
   let inrX := ContinuousLinearMap.inr 𝕜 K X
-  let a : K →L[𝕜] Y := fstY.comp (A.comp inlK)
-  let c : K →L[𝕜] C := sndC.comp (A.comp inlK)
-  let d : X →L[𝕜] C := sndC.comp (A.comp inrX)
-  let bInvA : K →L[𝕜] X := (e.symm : Y →L[𝕜] X).comp a
-  let dBInv : Y →L[𝕜] C := d.comp (e.symm : Y →L[𝕜] X)
-  let schur : K →L[𝕜] C := c - d.comp bInvA
-  -- The domain shear subtracts `e⁻¹ a`, eliminating the upper-left off-diagonal block.
-  let P : (K × X) ≃L[𝕜] (K × X) :=
-    (ContinuousLinearEquiv.refl 𝕜 K).skewProd
-      (ContinuousLinearEquiv.refl 𝕜 X) (-bInvA)
-  -- The codomain shear subtracts `d e⁻¹`, eliminating the other off-diagonal block.
-  let Q : (Y × C) ≃L[𝕜] (Y × C) :=
-    (ContinuousLinearEquiv.refl 𝕜 Y).skewProd
-      (ContinuousLinearEquiv.refl 𝕜 C) (-dBInv)
-  let swap : (C × Y) ≃L[𝕜] (Y × C) :=
-    (LinearIsometryEquiv.prodComm 𝕜 C Y).toContinuousLinearEquiv
-  let B : K × X →L[𝕜] Y × C :=
-    (Q : Y × C →L[𝕜] Y × C).comp
-      (A.comp (P : K × X →L[𝕜] K × X))
-  have he_apply (x : X) : (A (0, x)).1 = e x := by
+  refine isFredholm_and_index_eq_of_blocks A (fstY.comp (A.comp inlK))
+    (sndC.comp (A.comp inlK)) (sndC.comp (A.comp inrX)) e fun k x => ?_
+  have he_apply : (A (0, x)).1 = e x := by
     have hx := DFunLike.congr_fun he x
     simpa [blockCorner] using hx
-  have hA_decomp (k : K) (x : X) :
-      A (k, x) = A (k, 0) + A (0, x) := by
+  have hA_decomp : A (k, x) = A (k, 0) + A (0, x) := by
     simpa using (A.comp_inl_add_comp_inr (k, x)).symm
-  have hP_apply (k : K) (x : X) :
-      (P : K × X →L[𝕜] K × X) (k, x) = (k, x - bInvA k) := by
-    simp [P, sub_eq_add_neg]
-  have hQ_apply (y : Y) (z : C) :
-      (Q : Y × C →L[𝕜] Y × C) (y, z) = (y, z - dBInv y) := by
-    simp [Q, sub_eq_add_neg]
-  have ha_apply (k : K) : (A (k, 0)).1 = a k := by
-    simp [a, fstY, inlK]
-  have hc_apply (k : K) : (A (k, 0)).2 = c k := by
-    simp [c, sndC, inlK]
-  have hd_apply (x : X) : (A (0, x)).2 = d x := by
-    simp [d, sndC, inrX]
-  have hA_fst_apply (k : K) (x : X) : (A (k, x)).1 = a k + e x := by
-    rw [hA_decomp]
-    simp only [Prod.fst_add, ha_apply, he_apply]
-  have hA_snd_apply (k : K) (x : X) : (A (k, x)).2 = c k + d x := by
-    rw [hA_decomp]
-    simp only [Prod.snd_add, hc_apply, hd_apply]
-  have hA_apply (k : K) (x : X) :
-      A (k, x) = (a k + e x, c k + d x) :=
-    Prod.ext (hA_fst_apply k x) (hA_snd_apply k x)
-  -- After both shears, `A` is the product of its finite-dimensional Schur complement and
-  -- the equivalence `e`, up to swapping the two target factors.
-  have hB :
-      B = (swap : C × Y →L[𝕜] Y × C).comp
-        (schur.prodMap (e : X →L[𝕜] Y)) := by
-    apply ContinuousLinearMap.ext
-    rintro ⟨k, x⟩
-    simp only [B, ContinuousLinearMap.comp_apply]
-    rw [hP_apply, hA_apply, hQ_apply]
-    apply Prod.ext
-    · simp [bInvA, schur, swap, map_sub]
-    · simp [bInvA, dBInv, schur, swap, map_sub]
-      abel
-  have hSchur : IsFredholm schur := isFredholm_of_finiteDimensional schur
-  have heFredholm : IsFredholm (e : X →L[𝕜] Y) :=
-    IsFredholm.of_continuousLinearEquiv e
-  have hBfredholm : IsFredholm B := by
-    rw [hB]
-    exact (hSchur.prodMap heFredholm).equiv_comp swap
-  -- Undoing the shears preserves both Fredholmness and the index.
-  have hrecover :
-      A = (Q.symm : Y × C →L[𝕜] Y × C).comp
-        (B.comp (P.symm : K × X →L[𝕜] K × X)) := by
-    apply ContinuousLinearMap.ext
-    intro z
-    simp [B]
-  have hA : IsFredholm A := by
-    rw [hrecover]
-    exact (hBfredholm.comp_equiv P.symm).equiv_comp Q.symm
-  refine ⟨hA, ?_⟩
-  calc
-    ContinuousLinearMap.index A = ContinuousLinearMap.index B := by
-      rw [hrecover]
-      simp
-    _ = ContinuousLinearMap.index (schur.prodMap (e : X →L[𝕜] Y)) := by
-      rw [hB]
-      simp
-    _ = ContinuousLinearMap.index schur +
-        ContinuousLinearMap.index (e : X →L[𝕜] Y) :=
-      ContinuousLinearMap.index_prodMap schur (e : X →L[𝕜] Y) hSchur heFredholm
-    _ = ((finrank 𝕜 K : ℤ) - finrank 𝕜 C) + 0 := by
-      rw [ContinuousLinearMap.index_eq_of_finiteDimensional]
-      simp
-    _ = (finrank 𝕜 K : ℤ) - finrank 𝕜 C := add_zero _
+  refine Prod.ext ?_ ?_
+  · rw [hA_decomp]
+    simp only [Prod.fst_add, he_apply]
+    simp [fstY, inlK]
+  · rw [hA_decomp]
+    simp only [Prod.snd_add]
+    simp [sndC, inlK, inrX]
 
 variable {E F : Type*}
 variable [NormedAddCommGroup E] [NormedSpace 𝕜 E] [CompleteSpace E]
