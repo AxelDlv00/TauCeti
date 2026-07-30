@@ -45,10 +45,10 @@ namespace YoungTableau
 variable {μ : YoungDiagram}
 
 /-- The row of the cell of `μ` carrying the label `k` in the tableau `t`. -/
-def rowIndex (t : YoungTableau μ) (k : Fin μ.card) : ℕ := (t.symm k : ℕ × ℕ).1
+@[expose] def rowIndex (t : YoungTableau μ) (k : Fin μ.card) : ℕ := (t.symm k : ℕ × ℕ).1
 
 /-- The column of the cell of `μ` carrying the label `k` in the tableau `t`. -/
-def colIndex (t : YoungTableau μ) (k : Fin μ.card) : ℕ := (t.symm k : ℕ × ℕ).2
+@[expose] def colIndex (t : YoungTableau μ) (k : Fin μ.card) : ℕ := (t.symm k : ℕ × ℕ).2
 
 /-- The row of a label is the first coordinate of the cell carrying it.  This is not a `simp`
 lemma: `rowIndex` is the normal form, and `rowIndex_apply` computes it on a label presented as
@@ -82,7 +82,7 @@ theorem rowIndex_colIndex_injective (t : YoungTableau μ) :
   exact t.symm.injective (Subtype.ext (Prod.ext h.1 h.2))
 
 /-- The labels lying in row `i` of a `μ`-tableau are the cells of the `i`-th row of `μ`. -/
-def rowFiberEquiv (t : YoungTableau μ) (i : ℕ) :
+@[expose] def rowFiberEquiv (t : YoungTableau μ) (i : ℕ) :
     {k : Fin μ.card // rowIndex t k = i} ≃ ↥(μ.row i) :=
   -- the two predicates are given explicitly: inferring them from `Iff.rfl` would state the source
   -- subtype through the unfolding of `rowIndex` rather than through `rowIndex` itself
@@ -93,7 +93,7 @@ def rowFiberEquiv (t : YoungTableau μ) (i : ℕ) :
         rw [YoungDiagram.mem_row_iff, YoungDiagram.mem_cells]
 
 /-- The labels lying in column `j` of a `μ`-tableau are the cells of the `j`-th column of `μ`. -/
-def colFiberEquiv (t : YoungTableau μ) (j : ℕ) :
+@[expose] def colFiberEquiv (t : YoungTableau μ) (j : ℕ) :
     {k : Fin μ.card // colIndex t k = j} ≃ ↥(μ.col j) :=
   -- as for `rowFiberEquiv`, the two predicates are given explicitly
   (Equiv.subtypeEquiv (p := fun k => colIndex t k = j) (q := fun c : ↥μ.cells => (↑c : ℕ × ℕ).2 = j)
@@ -102,19 +102,15 @@ def colFiberEquiv (t : YoungTableau μ) (j : ℕ) :
       Equiv.subtypeEquivRight fun _ => by
         rw [YoungDiagram.mem_col_iff, YoungDiagram.mem_cells]
 
-set_option backward.isDefEq.respectTransparency false in
 @[simp]
 theorem rowFiberEquiv_apply_coe (t : YoungTableau μ) (i : ℕ)
     (k : {k : Fin μ.card // rowIndex t k = i}) :
-    (rowFiberEquiv t i k : ℕ × ℕ) = (t.symm k.1 : ℕ × ℕ) := by
-  simp [rowFiberEquiv]
+    (rowFiberEquiv t i k : ℕ × ℕ) = (t.symm k.1 : ℕ × ℕ) := rfl
 
-set_option backward.isDefEq.respectTransparency false in
 @[simp]
 theorem colFiberEquiv_apply_coe (t : YoungTableau μ) (j : ℕ)
     (k : {k : Fin μ.card // colIndex t k = j}) :
-    (colFiberEquiv t j k : ℕ × ℕ) = (t.symm k.1 : ℕ × ℕ) := by
-  simp [colFiberEquiv]
+    (colFiberEquiv t j k : ℕ × ℕ) = (t.symm k.1 : ℕ × ℕ) := rfl
 
 /-- The label attached to a cell of row `i` is the label of that cell in the tableau. -/
 @[simp]

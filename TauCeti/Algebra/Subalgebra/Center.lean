@@ -74,7 +74,7 @@ section Pi
 variable {ι : Type*} {S : ι → Type*} [∀ i, Semiring (S i)] [∀ i, Algebra R (S i)]
 
 /-- The center of a product of algebras is the product of their centers. -/
-def centerPiAlgEquiv :
+@[expose] def centerPiAlgEquiv :
     Subalgebra.center R (Π i, S i) ≃ₐ[R] Π i, Subalgebra.center R (S i) :=
   have mem_iff : ∀ x : Π i, S i,
       x ∈ Subalgebra.center R (Π i, S i) ↔ ∀ i, x i ∈ Subalgebra.center R (S i) := fun _ => by
@@ -87,18 +87,14 @@ def centerPiAlgEquiv :
     map_add' := fun _ _ => rfl
     commutes' := fun _ => rfl }
 
-set_option backward.isDefEq.respectTransparency false in
 @[simp]
 theorem centerPiAlgEquiv_apply_coe (x : Subalgebra.center R (Π i, S i)) (i : ι) :
-    (centerPiAlgEquiv x i : S i) = (x : Π i, S i) i := by
-  simp [centerPiAlgEquiv]
+    (centerPiAlgEquiv x i : S i) = (x : Π i, S i) i := rfl
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The inverse of `centerPiAlgEquiv` assembles a tuple of central elements componentwise. -/
 @[simp]
 theorem centerPiAlgEquiv_symm_apply_coe (y : Π i, Subalgebra.center R (S i)) (i : ι) :
-    (centerPiAlgEquiv.symm y : Π i, S i) i = (y i : S i) := by
-  simp [centerPiAlgEquiv]
+    (centerPiAlgEquiv.symm y : Π i, S i) i = (y i : S i) := rfl
 
 end Pi
 

@@ -66,16 +66,12 @@ noncomputable def map {N : Type*} [AddCommMonoid N] [Module R N] (f : M →ₗ[R
   map_smul' r x := AddCon.induction_on x fun x => by
     exact congrArg (mk R ι N) ((PiTensorProduct.map fun _ : ι => f).map_smul r x)
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The map on symmetric powers commutes with the quotient map from the tensor power. -/
 @[simp]
 theorem map_mk {N : Type*} [AddCommMonoid N] [Module R N] (f : M →ₗ[R] N)
     (x : ⨂[R] (_ : ι), M) :
     map f (mk R ι M x) = mk R ι N (PiTensorProduct.map (fun _ : ι => f) x) :=
-  by
-    simpa only [map, mk, LinearMap.coe_mk, AddHom.coe_mk, AddMonoidHom.toFun_eq_coe,
-      AddMonoidHom.comp_apply, LinearMap.toAddMonoidHom_coe] using
-        AddCon.lift_mk' (map_rel f) x
+  AddCon.lift_mk' (map_rel f) x
 
 /-- The map induced on symmetric powers sends a pure tensor to the tensor of the images. -/
 @[simp]

@@ -184,17 +184,17 @@ theorem IsSource.isSink_reflect {i : V} (h : IsSource i) : @IsSink (Reflect V i)
   (@IsSink_def (Reflect V i) _ i).mpr fun b ↦
     ⟨fun e ↦ (h.isEmpty_hom b).elim (cast ((hom_reflect i i b).trans (reflectHom_left i b)) e)⟩
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Reflecting twice at the same vertex restores the original arrow types: reflection at a vertex
 is an involution on quivers. -/
 theorem hom_reflect_reflect (i a b : V) :
-    @_root_.Quiver.Hom (Reflect (Reflect V i) i) _ a b = (a ⟶ b) := by
+    @_root_.Quiver.Hom (Reflect (Reflect V i) i) (reflectQuiver (V := Reflect V i) i) a b =
+      (a ⟶ b) := by
   rw [@hom_reflect (Reflect V i) _ i a b]
   rcases eq_or_ne a i with rfl | ha
-  · simp
+  · rw [@reflectHom_left (Reflect V a) _ a b, @hom_reflect V _ a b a, reflectHom_right]
   · rcases eq_or_ne b i with rfl | hb
-    · simp
-    · rw [@reflectHom_of_ne_of_ne (Reflect V i) _ i a b ha hb, hom_reflect,
+    · rw [@reflectHom_right (Reflect V b) _ b a, @hom_reflect V _ b b a, reflectHom_left]
+    · rw [@reflectHom_of_ne_of_ne (Reflect V i) _ i a b ha hb, @hom_reflect V _ i a b,
         reflectHom_of_ne_of_ne ha hb]
 
 /-! ### Arrow counts in the reflected quiver -/

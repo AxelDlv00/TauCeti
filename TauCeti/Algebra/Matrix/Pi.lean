@@ -37,7 +37,6 @@ noncomputable def centerPiMatrixAlgEquiv [∀ i, NeZero (d i)] :
     haveI : Nonempty (Fin (d i)) := Fin.pos_iff_nonempty.mp (Nat.pos_of_ne_zero (NeZero.ne (d i)))
     centerAlgEquivOfIsCentral k _)
 
-set_option backward.isDefEq.respectTransparency false in
 /-- `centerPiMatrixAlgEquiv` reads off the scalar of each component: the `i`-th component of a
 central tuple is the scalar matrix on the `i`-th value of the corresponding function. -/
 @[simp]
@@ -45,16 +44,15 @@ theorem algebraMap_centerPiMatrixAlgEquiv_apply [∀ i, NeZero (d i)]
     (x : Subalgebra.center k (Π i, Matrix (Fin (d i)) (Fin (d i)) k)) (i : ι) :
     algebraMap k (Matrix (Fin (d i)) (Fin (d i)) k) (centerPiMatrixAlgEquiv k d x i) =
       (x : Π i, Matrix (Fin (d i)) (Fin (d i)) k) i := by
-  simp [centerPiMatrixAlgEquiv, AlgEquiv.piCongrRight]
+  simp [centerPiMatrixAlgEquiv]
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The inverse of `centerPiMatrixAlgEquiv` assembles a function on the index into the tuple of the
 corresponding scalar matrices. -/
 @[simp]
 theorem centerPiMatrixAlgEquiv_symm_apply_coe [∀ i, NeZero (d i)] (f : ι → k) (i : ι) :
     ((centerPiMatrixAlgEquiv k d).symm f : Π i, Matrix (Fin (d i)) (Fin (d i)) k) i =
       algebraMap k (Matrix (Fin (d i)) (Fin (d i)) k) (f i) := by
-  simp [centerPiMatrixAlgEquiv, AlgEquiv.piCongrRight]
+  simp [centerPiMatrixAlgEquiv]
 
 variable [Fintype ι]
 

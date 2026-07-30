@@ -87,7 +87,7 @@ theorem fiberSubgroup_eq_bot_iff {f : α → ι} :
 /-- The permutations preserving the fibers of `f` are the stabilizer of `f` for the domain action
 of `Equiv.Perm α` on `α → ι`, read as a subgroup of `Equiv.Perm α` itself: the `ᵈᵐᵃ` and `ᵐᵒᵖ`
 synonyms reverse multiplication twice, so `σ ↦ DomMulAct.mk σ` is an isomorphism. -/
-def fiberSubgroupMulEquivStabilizer (f : α → ι) :
+@[expose] def fiberSubgroupMulEquivStabilizer (f : α → ι) :
     fiberSubgroup f ≃* (MulAction.stabilizer (Equiv.Perm α)ᵈᵐᵃ f)ᵐᵒᵖ where
   toFun σ := MulOpposite.op ⟨DomMulAct.mk (σ : Equiv.Perm α),
     DomMulAct.mem_stabilizer_iff.mpr (funext (mem_fiberSubgroup.mp σ.2))⟩
@@ -97,14 +97,12 @@ def fiberSubgroupMulEquivStabilizer (f : α → ι) :
   right_inv _ := rfl
   map_mul' _ _ := rfl
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Read in `(Equiv.Perm α)ᵈᵐᵃ`, the stabilizer element attached to a fiber-preserving permutation
 is that permutation. -/
 @[simp]
 theorem fiberSubgroupMulEquivStabilizer_apply_unop_coe (f : α → ι) (σ : fiberSubgroup f) :
     ((fiberSubgroupMulEquivStabilizer f σ).unop : (Equiv.Perm α)ᵈᵐᵃ) =
-      DomMulAct.mk (σ : Equiv.Perm α) := by
-  simp [fiberSubgroupMulEquivStabilizer]
+      DomMulAct.mk (σ : Equiv.Perm α) := rfl
 
 /-- Read in `Equiv.Perm α`, the fiber-preserving permutation attached to an element of the
 stabilizer is that element. -/
