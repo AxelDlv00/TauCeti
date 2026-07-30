@@ -36,15 +36,18 @@ def count_lines(repo, commit, pathspecs):
 
 
 def series(repo, pathspecs, ref):
-    # The latest commit on each day that touched the files. --reverse walks
-    # oldest-first so the last write for a day wins, but the ordering is by
-    # commit date while the key is the author date (%ad); a commit authored one
-    # day and landed the next (or across a timezone boundary) makes the days
-    # arrive out of order. Sort by date so the chart's x-axis never runs
-    # backwards — dates are ISO YYYY-MM-DD, so lexicographic order is chronological.
+    # The last commit to land on each day that touched the files, keyed by
+    # commit date (%cd): the date the code actually entered the repo, which is
+    # the faithful x-axis for a lines-over-time chart and is monotonic under
+    # --reverse, so the chart never runs backwards. Author date (%ad) is freely
+    # rewritable by rebase and squash, which is what made the days arrive out of
+    # order before. Keying on commit date also keeps the newest point at HEAD,
+    # so the "as of" label reflects the current repo. The sort is insurance
+    # against history rewrites that leave commit dates out of order; dates are
+    # ISO YYYY-MM-DD, so lexicographic order is chronological.
     day_commit = {}
     for line in git(repo, "log", "--reverse", "--date=short",
-                    "--format=%ad %H", ref, "--", *pathspecs).splitlines():
+                    "--format=%cd %H", ref, "--", *pathspecs).splitlines():
         date, commit = line.split()
         day_commit[date] = commit
     return [(date, count_lines(repo, commit, pathspecs))
