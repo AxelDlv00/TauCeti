@@ -35,8 +35,9 @@ As an unconditional value it is junk (`0`) when `f` is not meromorphic at `z₀`
 * `TauCeti.Contour.residue_eq_of_eventuallyEq_zpow_smul` — the same value from any presentation
   `f =ᶠ[𝓝[≠] z₀] (· − z₀) ^ n • g` with `g` analytic and `n ≤ −1`, dropping `g z₀ ≠ 0`.
 * `TauCeti.Contour.residue_add`, `TauCeti.Contour.residue_const_mul`,
-  `TauCeti.Contour.residue_smul`, `TauCeti.Contour.residue_sub`, `TauCeti.Contour.residue_sum` — the
-  residue is linear in `f` (over functions meromorphic at `z₀`), including over finite sums.
+  `TauCeti.Contour.residue_const_smul`, `TauCeti.Contour.residue_sub`,
+  `TauCeti.Contour.residue_sum` — the residue is linear in `f` (over functions meromorphic at
+  `z₀`), including over finite sums.
 * `TauCeti.Contour.residue_congr_nhdsNE` — the residue depends only on the germ of `f` on a
   punctured neighborhood of `z₀`.
 * `TauCeti.Contour.residue_eq_zero_of_analyticAt` — the residue vanishes where `f` is analytic.
@@ -360,13 +361,17 @@ theorem residue_const_mul {f : ℂ → ℂ} {z₀ : ℂ} (c : ℂ) (hf : Meromor
     residue_eq_of_eventuallyEq_zpow_smul hm1 hcφ_an hcf_eq,
     iteratedDeriv_const_mul_field c φ, mul_div_assoc]
 
-/-- **Scaling of the residue (pointwise `•`).** The residue commutes with scalar multiplication;
+/-- **Scaling of the residue (unapplied `•`).** The residue commutes with scalar multiplication;
 the `Pi.smul` companion to `residue_const_mul`. -/
 @[simp]
-theorem residue_smul {f : ℂ → ℂ} {z₀ : ℂ} (c : ℂ) (hf : MeromorphicAt f z₀) :
-    residue (c • f) z₀ = c • residue f z₀ := by
-  have hcf : (c • f) = fun z => c * f z := by funext z; rw [Pi.smul_apply, smul_eq_mul]
-  rw [hcf, residue_const_mul c hf, smul_eq_mul]
+theorem residue_const_smul {f : ℂ → ℂ} {z₀ : ℂ} (c : ℂ) (hf : MeromorphicAt f z₀) :
+    residue (c • f) z₀ = c • residue f z₀ :=
+  -- `c • f` unfolds to `fun z => c * f z` by `Pi.smul_apply`, and `c • r` to `c * r` in `ℂ` by
+  -- `smul_eq_mul`; both are definitional, so `residue_const_mul` applies directly.
+  residue_const_mul c hf
+
+@[deprecated (since := "2026-07-30")]
+alias residue_smul := residue_const_smul
 
 /-- **Subtractivity of the residue.** The residue distributes over subtraction of meromorphic
 functions; the `−1` scaling case of `residue_add` and `residue_const_mul`. -/
