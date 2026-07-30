@@ -103,6 +103,12 @@ theorem col_strict {μ : YoungDiagram} (T : StandardYoungTableau μ)
 private def transposeCellEquiv (μ : YoungDiagram) : ↥μ.transpose.cells ≃ ↥μ.cells :=
   (Equiv.prodComm ℕ ℕ).subtypeEquiv fun _ => YoungDiagram.mem_transpose
 
+-- These are the two defining equations of `transposeCellEquiv`, in the shape
+-- `@[simps apply symm_apply]` would generate: `Equiv.subtypeEquiv` applies `Equiv.prodComm` to the
+-- underlying pair in each direction, so both sides differ only by the subtype coercion and hold by
+-- `rfl`.  They are needed because Mathlib's own `Equiv.subtypeEquiv_apply` and
+-- `Equiv.subtypeEquiv_symm` no longer fire on this equivalence: the subtype here is `↥μ.cells`, the
+-- `Finset` coercion to a sort, which `simp` no longer sees through to `Subtype _` after the bump.
 @[simp]
 private theorem transposeCellEquiv_apply (μ : YoungDiagram) (c : ↥μ.transpose.cells) :
     transposeCellEquiv μ c = ⟨c.1.swap, YoungDiagram.mem_transpose.mp c.2⟩ :=

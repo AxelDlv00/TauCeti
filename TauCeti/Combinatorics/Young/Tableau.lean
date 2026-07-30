@@ -102,6 +102,13 @@ def colFiberEquiv (t : YoungTableau μ) (j : ℕ) :
       Equiv.subtypeEquivRight fun _ => by
         rw [YoungDiagram.mem_col_iff, YoungDiagram.mem_cells]
 
+-- This and `colFiberEquiv_apply_coe` are the defining equations of the two fiber equivalences: in
+-- each chain only the leading `Equiv.subtypeEquiv` moves the underlying cell, by applying `t.symm`,
+-- while `Equiv.subtypeSubtypeEquivSubtypeInter` and `Equiv.subtypeEquivRight` change only the
+-- predicate, so the two sides differ by subtype coercions alone and hold by `rfl`.  The definitions
+-- are deliberately not `@[expose]`d, so the pre-bump `simp [rowFiberEquiv]` has nothing to unfold;
+-- the parentheses in `(rfl)` keep the definitional step inside this module, leaving these lemmas
+-- and the `_symm_apply_coe` pair below as the whole interface for importers.
 @[simp]
 theorem rowFiberEquiv_apply_coe (t : YoungTableau μ) (i : ℕ)
     (k : {k : Fin μ.card // rowIndex t k = i}) :
