@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 import Mathlib.Data.ZMod.Basic
+import Mathlib.FieldTheory.Finite.Basic
 public import Mathlib.Data.Int.ModEq
 public import TauCeti.LowDimTopology.Plumbing.IntersectionForm
 
@@ -101,16 +102,6 @@ section Form
 
 variable [DecidableEq V] [Fintype V]
 
-private theorem zmod_two_sq (a : ZMod 2) : a ^ 2 = a := by
-  have ha : a.val = 0 ∨ a.val = 1 := by
-    have := a.val_lt
-    omega
-  rcases ha with ha | ha
-  · rw [(ZMod.val_eq_zero a).mp ha]
-    simp
-  · rw [(ZMod.val_eq_one (by decide) a).mp ha]
-    simp
-
 omit [DecidableEq V] in
 private theorem adjacency_sum_cast_zmod_two_eq_zero (x : V → ℤ) :
     (∑ i, ∑ j, ((if P.toSimpleGraph.Adj i j then x i * x j else 0 : ℤ) : ZMod 2)) = 0 := by
@@ -173,7 +164,7 @@ theorem isCharacteristicVector_iff_forall_modEq_intersectionForm (k : V → ℤ)
     refine Finset.sum_congr rfl fun v _ => ?_
     have hkz : (k v : ZMod 2) = P.weight v :=
       (ZMod.intCast_eq_intCast_iff (k v) (P.weight v) 2).mpr (hk v)
-    rw [hkz, zmod_two_sq]
+    rw [hkz, ZMod.pow_card]
   · intro h v
     have hv := h (Pi.single v (1 : ℤ) : V → ℤ)
     simp only [Pi.single_apply] at hv
