@@ -275,11 +275,14 @@ jobs:
             echo "::error title=API docs have no provenance::the doc tree carries no SOURCE_SHA, so the commit it documents is unknown; refusing to deploy it"
             exit 1
           fi
-          sha=$(tr -d "[:space:]" < _out/docs/SOURCE_SHA)
-          # Matched exactly. A prefix test such as `[0-9a-f]*` accepts one hex character followed by
-          # anything at all, which is not validation.
-          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error title=API docs have a malformed SOURCE_SHA::got '${sha}', which is not a 40-character commit sha"
+          # Read as written, NOT normalised. Stripping whitespace first would fold a spaced or
+          # multi-line marker into forty hex characters and accept it, which is the same mistake as
+          # a prefix match in a different disguise. The file is written as one sha plus a newline,
+          # so it is exactly 41 bytes; anything else is not a marker this workflow produced.
+          bytes=$(wc -c < _out/docs/SOURCE_SHA)
+          sha=$(< _out/docs/SOURCE_SHA)
+          if [ "$bytes" -ne 41 ] || [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=API docs have a malformed SOURCE_SHA::got ${bytes} bytes, not a bare 40-character commit sha"
             exit 1
           fi
           echo "docs-source-sha=$sha" >> "$GITHUB_OUTPUT"
@@ -317,6 +320,12 @@ jobs:
   # It no longer keys on `docs-rebuilt` either. That output records the *intention* to rebuild,
   # decided before anything is built; the marker records the outcome, which is the question the
   # branch is actually answering.
+  #
+  # The branch is BEST-EFFORT, not exact. Publishing to Pages and updating a git ref are separate
+  # operations that cannot be made atomic, so between the site being replaced and this job running,
+  # `docgen` names documentation that is already gone; if this job then fails, it stays wrong until
+  # the next deploy repairs it. Anything that needs certainty should read `/docs/SOURCE_SHA` from
+  # the deployed site, which is the only value that is true at the moment it is read.
   advance-docgen-ref:
     needs: [build-site, deploy]
     if: needs.build-site.outputs.docs-source-sha != '' && github.ref == 'refs/heads/main'
@@ -333,50 +342,62 @@ jobs:
         run: |
           set -euo pipefail
           endpoint="repos/$REPO/git/refs/heads/docgen"
+
+          # The candidate must be a commit on this repository's mainline. Checked FIRST, before the
+          # branch is even read, so it applies equally to creating the branch, to leaving it
+          # unchanged, and to moving it -- an unrelated commit must never be installed just because
+          # the branch happened to be absent or already wrong.
+          #
+          # Direction matters: `compare/A...B` reports how B stands relative to A, so asking for
+          # CANDIDATE...DEFAULT and requiring ahead|identical is asking "does the default branch
+          # contain the candidate". A candidate that is not in the repository at all fails the call,
+          # which `|| echo unknown` turns into a refusal rather than a crash.
+          rel=$(gh api "repos/$REPO/compare/$CANDIDATE...$DEFAULT_BRANCH" --jq .status || echo unknown)
+          case "$rel" in
+            ahead|identical) ;;
+            *)
+              echo "::error title=documented commit is not on the mainline::$CANDIDATE compares '$rel' to $DEFAULT_BRANCH; refusing to point docgen at it"
+              exit 1 ;;
+          esac
+
           current=$(gh api "repos/$REPO/git/matching-refs/heads/docgen" \
             --jq '.[] | select(.ref == "refs/heads/docgen") | .object.sha')
 
-          if [ -n "$current" ]; then
-            if [ "$current" = "$CANDIDATE" ]; then
-              echo "docgen already points to $CANDIDATE"
-              exit 0
-            fi
-
-            # `docgen` is a POINTER TO CURRENT STATE, not an append-only history: it answers
-            # "which commit's documentation is live right now". Once this run has replaced the site,
-            # leaving the branch anywhere other than the deployed commit means it names documentation
-            # that is no longer published — so a stale value is not a safe fallback, it is the exact
-            # failure the branch exists to prevent.
-            #
-            # A non-fast-forward therefore has to be resolved, not ignored, which means the candidate
-            # must first be shown to be a real commit on this repository's mainline. With that
-            # established, moving the pointer backwards is legitimate and is how the branch recovers
-            # from having been set ahead of reality.
-            rel=$(gh api "repos/$REPO/compare/$CANDIDATE...$DEFAULT_BRANCH" --jq .status || echo unknown)
-            case "$rel" in
-              ahead|identical) ;;
-              *)
-                echo "::error title=documented commit is not on the mainline::$CANDIDATE compares '$rel' to $DEFAULT_BRANCH; refusing to point docgen at it"
-                exit 1 ;;
-            esac
-
-            # Try the safe update first. Anything other than a non-fast-forward — auth, rate limit,
-            # network, a 5xx — must fail loudly rather than be mistaken for a rewind.
-            if gh api --method PATCH "$endpoint" -f sha="$CANDIDATE" -F force=false > /dev/null 2> advance.err; then
-              echo "docgen advanced $current -> $CANDIDATE"
-              exit 0
-            fi
-            if ! grep -qi "not a fast forward" advance.err; then
-              echo "::error title=could not update docgen::the update failed for a reason other than a non-fast-forward"
-              cat advance.err
-              exit 1
-            fi
-            echo "::warning title=docgen rewound::$current is not an ancestor of the deployed commit; pointing docgen back to what is actually live"
-            gh api --method PATCH "$endpoint" -f sha="$CANDIDATE" -F force=true > /dev/null
-            echo "docgen moved $current -> $CANDIDATE"
-          else
+          if [ -z "$current" ]; then
             gh api --method POST "repos/$REPO/git/refs" \
               -f ref='refs/heads/docgen' \
-              -f sha="$CANDIDATE"
+              -f sha="$CANDIDATE" > /dev/null
             echo "docgen created at $CANDIDATE"
+            exit 0
           fi
+
+          if [ "$current" = "$CANDIDATE" ]; then
+            echo "docgen already points to $CANDIDATE"
+            exit 0
+          fi
+
+          # Whether this is a fast-forward is a question the API answers, so ask it rather than
+          # parsing the CLI's English error text: a reworded message or a change of output stream
+          # would silently turn a legitimate rewind into a failure, leaving the branch stale after
+          # the site had already been replaced.
+          #
+          # `docgen` is a POINTER TO CURRENT STATE, not an append-only history: it answers "which
+          # commit's documentation is live". Once this run has replaced the site, a branch left
+          # anywhere but the deployed commit names documentation that is no longer published, so a
+          # rewind is not a hazard to avoid but the correct repair -- and it is how the branch
+          # recovers from having been set ahead of reality. It is guarded by the mainline check
+          # above, so it can only ever move to a commit the default branch contains.
+          step=$(gh api "repos/$REPO/compare/$current...$CANDIDATE" --jq .status || echo unknown)
+          case "$step" in
+            ahead)
+              force=false ;;
+            behind|diverged)
+              force=true
+              echo "::warning title=docgen rewound::$current is not an ancestor of the deployed commit ($step); pointing docgen back to what is actually live" ;;
+            *)
+              echo "::error title=cannot compare docgen with the deployed commit::got '$step'"
+              exit 1 ;;
+          esac
+
+          gh api --method PATCH "$endpoint" -f sha="$CANDIDATE" -F force="$force" > /dev/null
+          echo "docgen moved $current -> $CANDIDATE (force=$force)"
