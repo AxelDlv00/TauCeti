@@ -226,11 +226,27 @@ jobs:
       # /docs inside the site artifact. deploy-pages replaces the whole site each time, so the
       # docs must ride along in every deploy — hence the cache that keeps them available on
       # runs that did not rebuild them.
+      # A missing doc tree is only tolerable when this run did not intend to rebuild one. When it
+      # DID, deploying anyway would break the invariant the `docgen` branch carries: `docs-rebuilt`
+      # is `docs-plan.outputs.build`, which records the *intention* to rebuild, and it is what
+      # `advance-docgen-ref` keys on. So a run that planned a rebuild, produced no docs, and
+      # deployed without them would still advance `docgen` — asserting that documentation is live
+      # for a commit whose documentation was never published, which is exactly what the branch
+      # exists to rule out.
       - name: Fold the API docs into the site under /docs
+        env:
+          REBUILT: ${{ steps.docs-plan.outputs.build }}
         run: |
           if [ -d ../docbuild/.lake/build/doc ]; then
             rm -rf _out/docs
             cp -a ../docbuild/.lake/build/doc _out/docs
+            if [ ! -s _out/docs/index.html ]; then
+              echo "::error title=API docs are empty::the doc tree exists but has no index.html, so /docs would deploy unusable"
+              exit 1
+            fi
+          elif [ "$REBUILT" = "true" ]; then
+            echo "::error title=API docs missing after a rebuild::this run planned to rebuild the docs but produced no doc tree; failing rather than deploying without /docs and advancing the docgen branch"
+            exit 1
           else
             echo "::warning::no generated API docs found; /docs will be absent from this deploy"
           fi
