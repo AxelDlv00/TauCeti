@@ -133,7 +133,11 @@ def write_jsonl(path: pathlib.Path, rows: list[dict]) -> None:
             target.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def validate_evidence(proposal: dict, areas: set[str]) -> tuple[int, str]:
+def validate_evidence(
+    proposal: dict,
+    areas: set[str],
+    roadmap_dir: pathlib.Path,
+) -> tuple[int, str]:
     required = ("pr", "roadmap", "roadmap_file", "roadmap_heading", "roadmap_quote", "provenance")
     missing = [name for name in required if name not in proposal]
     if missing:
@@ -152,11 +156,40 @@ def validate_evidence(proposal: dict, areas: set[str]) -> tuple[int, str]:
         isinstance(item, str) and item.strip() for item in provenance
     ):
         raise ValueError(f"#{pr}: provenance must be a nonempty string list")
+
+    relative = pathlib.PurePosixPath(proposal["roadmap_file"])
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"#{pr}: roadmap_file must stay inside the roadmap checkout")
+    expected_prefixes = {
+        ("TauCetiRoadmap", area),
+        ("Completed", area),
+    }
+    if tuple(relative.parts[:2]) not in expected_prefixes:
+        raise ValueError(f"#{pr}: roadmap_file is not within the {area} roadmap")
+    path = roadmap_dir / pathlib.Path(*relative.parts)
+    if not path.is_file():
+        raise ValueError(f"#{pr}: roadmap_file does not exist: {relative}")
+    contents = path.read_text(encoding="utf-8")
+    heading = proposal["roadmap_heading"].strip()
+    heading_lines = {
+        line.lstrip("#").strip()
+        for line in contents.splitlines()
+        if line.startswith("#")
+    }
+    if heading not in heading_lines:
+        raise ValueError(f"#{pr}: roadmap_heading is not an exact Markdown heading")
+    if proposal["roadmap_quote"].strip() not in contents:
+        raise ValueError(f"#{pr}: roadmap_quote is not present in roadmap_file")
     return pr, area
 
 
-def prepare_record(repo: str, proposal: dict, areas: set[str]) -> dict:
-    pr, area = validate_evidence(proposal, areas)
+def prepare_record(
+    repo: str,
+    proposal: dict,
+    areas: set[str],
+    roadmap_dir: pathlib.Path,
+) -> dict:
+    pr, area = validate_evidence(proposal, areas, roadmap_dir)
     state = pr_state(repo, pr)
     if not REFACTOR_TITLE.match(state.get("title") or ""):
         raise ValueError(f"#{pr}: title is not a conventional refactor title")
@@ -187,8 +220,12 @@ def prepare_record(repo: str, proposal: dict, areas: set[str]) -> dict:
     }
 
 
-def validate_manifest_record(record: dict, areas: set[str]) -> None:
-    pr, area = validate_evidence(record, areas)
+def validate_manifest_record(
+    record: dict,
+    areas: set[str],
+    roadmap_dir: pathlib.Path,
+) -> None:
+    pr, area = validate_evidence(record, areas, roadmap_dir)
     for field in (
         "title", "old_body", "old_body_sha256", "old_roadmap_labels",
         "new_body", "new_body_sha256",
@@ -294,14 +331,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "prepare":
         proposals = read_jsonl(args.proposals)
-        records = [prepare_record(args.repo, proposal, areas) for proposal in proposals]
+        records = [
+            prepare_record(args.repo, proposal, areas, args.roadmap_dir)
+            for proposal in proposals
+        ]
         write_jsonl(args.manifest, records)
         print(f"prepared {len(records)} reversible record(s) in {args.manifest}")
         return 0
 
     rows = read_jsonl(args.manifest)
     for record in rows:
-        validate_manifest_record(record, areas)
+        validate_manifest_record(record, areas, args.roadmap_dir)
     try:
         tranche = select_tranche(rows, args.offset, args.limit)
     except ValueError as exc:

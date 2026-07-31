@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Pure unit tests for the reversible refactor-roadmap migration."""
 
+import pathlib
+import tempfile
 import unittest
 from unittest import mock
 
@@ -41,6 +43,19 @@ class BodyInsertion(unittest.TestCase):
 
 
 class ManifestValidation(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.roadmap_dir = pathlib.Path(self.temp.name)
+        roadmap = self.roadmap_dir / "TauCetiRoadmap" / "PDE"
+        roadmap.mkdir(parents=True)
+        (roadmap / "README.md").write_text(
+            "# PDE\n\n## Lane A\n\nBuild the estimate.\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        self.temp.cleanup()
+
     def record(self):
         old = "This PR does a thing."
         new = "This PR does a thing.\n\nRoadmap: PDE"
@@ -60,19 +75,31 @@ class ManifestValidation(unittest.TestCase):
         }
 
     def test_valid_record(self):
-        migration.validate_manifest_record(self.record(), {"PDE"})
+        migration.validate_manifest_record(self.record(), {"PDE"}, self.roadmap_dir)
 
     def test_tampered_body_fails(self):
         record = self.record()
         record["new_body"] += " changed"
         with self.assertRaisesRegex(ValueError, "new body hash"):
-            migration.validate_manifest_record(record, {"PDE"})
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
 
     def test_requires_evidence(self):
         record = self.record()
         record["roadmap_quote"] = ""
         with self.assertRaisesRegex(ValueError, "roadmap_quote"):
-            migration.validate_manifest_record(record, {"PDE"})
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_evidence_must_resolve_in_the_declared_roadmap(self):
+        record = self.record()
+        record["roadmap_heading"] = "Lane B"
+        with self.assertRaisesRegex(ValueError, "exact Markdown heading"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_evidence_path_cannot_escape_checkout(self):
+        record = self.record()
+        record["roadmap_file"] = "../README.md"
+        with self.assertRaisesRegex(ValueError, "stay inside"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
 
     def test_tranche_limit(self):
         with self.assertRaisesRegex(ValueError, "between 1 and 20"):
