@@ -48,29 +48,14 @@ variable [NormedAddCommGroup F] [NormedSpace K F] [CompleteSpace F]
 
 variable {T : E →L[K] F}
 
-/-- A surjective continuous linear map with finite-dimensional kernel is Fredholm.
-
-This is proved directly because `IsFredholm.of_finite_ker_coker` currently assumes that the scalar
-field is complete, while surjectivity supplies the completeness of this operator's range without
-that assumption. -/
+/-- A surjective continuous linear map with finite-dimensional kernel is Fredholm. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_surjective (hT : Function.Surjective T)
     [FiniteDimensional K (LinearMap.ker (T : E →ₗ[K] F))] :
-    ContinuousLinearMap.IsFredholm T where
-  isStrictMap := by
-    letI : CompleteSpace T.range :=
-      (show IsClosed (T.range : Set F) by
-        rw [LinearMap.range_eq_top.mpr hT]
-        exact isClosed_univ).completeSpace_coe
-    rw [Topology.isStrictMap_iff_isQuotientMap_rangeFactorization]
-    exact T.rangeRestrict.isQuotientMap Set.rangeFactorization_surjective
-  isClosed_range := by
-    rw [LinearMap.range_eq_top.mpr hT]
-    exact isClosed_univ
-  finite_ker := inferInstance
-  finite_coker := by
-    rw [LinearMap.range_eq_top.mpr hT]
-    infer_instance
-  closedComplemented_ker := Submodule.ClosedComplemented.of_finiteDimensional T.ker
+    ContinuousLinearMap.IsFredholm T := by
+  letI := IsRCLikeNormedField.rclike K
+  apply ContinuousLinearMap.IsFredholm.of_finite_ker_coker T inferInstance
+  rw [LinearMap.range_eq_top.mpr hT]
+  infer_instance
 
 /-- For a surjective continuous linear map, Fredholmness is equivalent to finite-dimensionality of
 the kernel. -/
