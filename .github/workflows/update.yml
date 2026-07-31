@@ -3,9 +3,10 @@ name: Update Dependencies
 # Keeps the mathlib pin moving using the leanprover-community/downstream-reports
 # composite actions (TauCeti is registered as a downstream there). Daily behavior:
 #   - mathlib compatible: open/update a single "bump to last-known-good" PR.
-#   - mathlib incompatible: open a tracking issue naming the first-known-bad mathlib
-#     commit, plus a fix PR pinned at that commit (a ready-made branch to fix in
-#     place — not for merging as-is), and close the LKG bump PR until resolved.
+#   - mathlib incompatible: if main is still pinned at an earlier incompatibility,
+#     first open an LKG de-pin PR; otherwise open a tracking issue naming the
+#     first-known-bad mathlib commit, plus a fix PR pinned at that commit (a
+#     ready-made branch to fix in place — not for merging as-is).
 # PRs and pushes use the tauceti-review-bot App token so pr-build/review trigger
 # normally. The LKG bump is de-pinned below to a manifest- and toolchain-only forward move,
 # so bump-guard validates it and it auto-merges. A first-known-bad fix PR keeps its exact
@@ -23,6 +24,8 @@ env:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    outputs:
+      depinning: ${{ steps.transition.outputs.depinning }}
     permissions:
       contents: write
       pull-requests: write
@@ -38,17 +41,56 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
-      # Suppress the LKG bump while a regression is active: the only open PR
-      # should be the fix one pinned at the first-known-bad commit.
+      # Usually suppress the LKG bump while a regression is active. The
+      # transition check below makes the one exception needed to leave an
+      # earlier exact incompatibility pin safely.
       - name: Check whether an incompatibility is reported
         id: fkb
         uses: leanprover-community/downstream-reports/.github/actions/query-latest@43df0aa23fd0d157988f154b9e636c2d0efe2822
         with:
           query-type: first-known-bad
 
+      # A repair PR leaves main exactly pinned at its first-known-bad SHA. If a
+      # later report discovers another incompatibility before any compatible
+      # report has run, a direct old-FKB -> new-FKB PR would violate bump-guard's
+      # two trusted transitions. Land the reported LKG and restore `master`
+      # first; the next updater run can then open the new repair PR.
+      - name: Check whether the previous incompatibility must be de-pinned
+        id: transition
+        env:
+          FKB_COMMIT: ${{ steps.fkb.outputs.commit }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          fkb = os.environ["FKB_COMMIT"]
+          parts = Path("lakefile.toml").read_text().split("[[require]]")
+          revisions = []
+          for part in parts[1:]:
+              if re.search(r'^[ \t]*name[ \t]*=[ \t]*"mathlib"[ \t]*$', part, re.MULTILINE):
+                  match = re.search(
+                      r'^[ \t]*rev[ \t]*=[ \t]*"([^"]+)"[ \t]*$', part, re.MULTILINE)
+                  if match:
+                      revisions.append(match.group(1))
+          if len(revisions) != 1:
+              raise SystemExit(f"expected one Mathlib rev in lakefile.toml; found {revisions}")
+
+          current = revisions[0]
+          depinning = bool(
+              fkb and re.fullmatch(r"[0-9a-f]{40}", current) and current != fkb)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"depinning={'true' if depinning else 'false'}\n")
+          print(f"current Mathlib rev: {current}")
+          print(f"reported first-known-bad: {fkb or '<none>'}")
+          print(f"de-pin previous incompatibility first: {depinning}")
+          PY
+
       - name: Bump to latest mathlib
         id: bump
-        if: steps.fkb.outputs.commit == ''
+        if: steps.fkb.outputs.commit == '' || steps.transition.outputs.depinning == 'true'
         uses: leanprover-community/downstream-reports/.github/actions/bump-to-latest@43df0aa23fd0d157988f154b9e636c2d0efe2822
 
       # TauCeti tracks mathlib `master` and lets bump-guard (scripts/check-bump.sh) validate
@@ -58,7 +100,9 @@ jobs:
       # after an incompatibility PR temporarily pinned the base lakefile, it also performs the
       # trusted bot's validated one-line de-pin back to `master`.
       - name: De-pin to keep tracking master (so bump-guard can auto-merge)
-        if: steps.fkb.outputs.commit == '' && steps.bump.outputs.updated == 'true'
+        if: >-
+          (steps.fkb.outputs.commit == '' && steps.bump.outputs.updated == 'true') ||
+          steps.transition.outputs.depinning == 'true'
         run: |
           set -euo pipefail
           # Restore only Mathlib's nominated rev to master. `git checkout -- lakefile.toml` is not
@@ -102,6 +146,20 @@ jobs:
           git-user-name: tauceti-review-bot[bot]
           git-user-email: 290224625+tauceti-review-bot[bot]@users.noreply.github.com
 
+      - name: Open or update transition PR
+        if: steps.transition.outputs.depinning == 'true'
+        uses: leanprover-community/downstream-reports/.github/actions/open-bump-pr@43df0aa23fd0d157988f154b9e636c2d0efe2822
+        with:
+          branch: ${{ env.LKG_BRANCH }}
+          title: "chore: de-pin mathlib at the last-known-good commit"
+          message: >-
+            Restore Mathlib's `master` nomination at the reported last-known-good
+            commit before opening the newly reported incompatibility repair.
+          commit-message: "chore: de-pin mathlib at the last-known-good commit"
+          token: ${{ steps.app-token.outputs.token }}
+          git-user-name: tauceti-review-bot[bot]
+          git-user-email: 290224625+tauceti-review-bot[bot]@users.noreply.github.com
+
   open-issue:
     runs-on: ubuntu-latest
     needs: bump
@@ -121,6 +179,7 @@ jobs:
 
       - name: Open or update incompatibility issue and fix PR
         id: track
+        if: needs.bump.outputs.depinning != 'true'
         uses: leanprover-community/downstream-reports/.github/actions/track-incompatibility@43df0aa23fd0d157988f154b9e636c2d0efe2822
         with:
           open-pr: true
