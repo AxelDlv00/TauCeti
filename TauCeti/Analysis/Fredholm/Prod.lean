@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Analysis.Fredholm.Basic
+public import Mathlib.Analysis.LocallyConvex.HahnBanach
 
 /-!
 # Products of Fredholm operators
@@ -20,7 +21,7 @@ cokernel of a product submodule and the product of the two cokernels.
 
 ## Main declarations
 
-* `TauCeti.IsFredholm.prodMap`: a product of Fredholm operators is Fredholm.
+* `ContinuousLinearMap.IsFredholm.prodMap`: a product of Fredholm operators is Fredholm.
 * `TauCeti.ContinuousLinearMap.index_prodMap`: the Fredholm index is additive under products.
 -/
 
@@ -31,7 +32,7 @@ namespace TauCeti
 open Module
 
 variable {K E₁ E₂ F₁ F₂ : Type*}
-variable [NontriviallyNormedField K]
+variable [NontriviallyNormedField K] [IsRCLikeNormedField K] [CompleteSpace K]
 variable [NormedAddCommGroup E₁] [NormedSpace K E₁]
 variable [NormedAddCommGroup E₂] [NormedSpace K E₂]
 variable [NormedAddCommGroup F₁] [NormedSpace K F₁]
@@ -67,6 +68,7 @@ private noncomputable def quotientProdEquiv (p : Submodule K F₁) (q : Submodul
     simp only [g, Submodule.mkQ_apply, Submodule.liftQ_apply, f, LinearMap.prodMap_apply,
       Submodule.Quotient.quot_mk_eq_mk]
 
+omit [IsRCLikeNormedField K] [CompleteSpace K] in
 /-- The cokernel of a product submodule has dimension equal to the sum of the dimensions of the
 two cokernels. -/
 private lemma finrank_quotient_prod (p : Submodule K F₁) (q : Submodule K F₂)
@@ -78,23 +80,32 @@ end Submodule
 
 variable {T : E₁ →L[K] F₁} {S : E₂ →L[K] F₂}
 
+omit [CompleteSpace K] in
 /-- The Cartesian product of two Fredholm operators is Fredholm. -/
-lemma IsFredholm.prodMap (hT : IsFredholm T) (hS : IsFredholm S) :
-    IsFredholm (T.prodMap S) := by
-  haveI := hT.finiteDimensional_ker
-  haveI := hS.finiteDimensional_ker
-  haveI := hT.finiteDimensional_coker
-  haveI := hS.finiteDimensional_coker
-  refine ⟨?_, ?_, ?_⟩
+lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
+    (hT : ContinuousLinearMap.IsFredholm T) (hS : ContinuousLinearMap.IsFredholm S) :
+    ContinuousLinearMap.IsFredholm (T.prodMap S) := by
+  have := hT.finite_ker
+  have := hS.finite_ker
+  have := hT.finite_coker
+  have := hS.finite_coker
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · change Topology.IsStrictMap ⇑((T : E₁ →ₗ[K] F₁).prodMap (S : E₂ →ₗ[K] F₂))
+    exact LinearMap.isStrictMap_prodMap hT.isStrictMap hS.isStrictMap
+  · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
+    exact hT.isClosed_range.prod hS.isClosed_range
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
     exact (Submodule.prodSubtypeEquiv _ _).symm.finiteDimensional
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
-    exact hT.isClosed_range.prod hS.isClosed_range
-  · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
     exact (Submodule.quotientProdEquiv _ _).symm.finiteDimensional
+  · have : FiniteDimensional K (T.prodMap S).ker := by
+      rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
+      exact (Submodule.prodSubtypeEquiv _ _).symm.finiteDimensional
+    exact Submodule.ClosedComplemented.of_finiteDimensional _
 
 namespace ContinuousLinearMap
 
+omit [IsRCLikeNormedField K] [CompleteSpace K] in
 /-- The index is additive under Cartesian products when both kernels and cokernels are finite
 dimensional. -/
 private lemma index_prodMap_of_finiteDimensional (T : E₁ →L[K] F₁) (S : E₂ →L[K] F₂)
@@ -109,15 +120,16 @@ private lemma index_prodMap_of_finiteDimensional (T : E₁ →L[K] F₁) (S : E�
     Submodule.finrank_quotient_prod, finrank_prod]
   omega
 
+omit [IsRCLikeNormedField K] [CompleteSpace K] in
 /-- The Fredholm index is additive under Cartesian products of Fredholm operators. -/
 @[simp]
 lemma index_prodMap (T : E₁ →L[K] F₁) (S : E₂ →L[K] F₂)
-    (hT : IsFredholm T) (hS : IsFredholm S) :
+    (hT : ContinuousLinearMap.IsFredholm T) (hS : ContinuousLinearMap.IsFredholm S) :
     index (T.prodMap S) = index T + index S := by
-  letI := hT.finiteDimensional_ker
-  letI := hS.finiteDimensional_ker
-  letI := hT.finiteDimensional_coker
-  letI := hS.finiteDimensional_coker
+  letI := hT.finite_ker
+  letI := hS.finite_ker
+  letI := hT.finite_coker
+  letI := hS.finite_coker
   exact index_prodMap_of_finiteDimensional T S
 
 end ContinuousLinearMap

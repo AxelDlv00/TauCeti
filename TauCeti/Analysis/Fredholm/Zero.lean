@@ -35,21 +35,23 @@ namespace TauCeti
 open Module
 
 variable {𝕜 E F : Type*}
-variable [NontriviallyNormedField 𝕜]
+variable [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
 variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
 
+omit [CompleteSpace 𝕜] in
 private lemma finiteDimensional_domain_of_isFredholm_zero
-    (hT : IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 E := by
-  letI := hT.finiteDimensional_ker
+    (hT : ContinuousLinearMap.IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 E := by
+  letI := hT.finite_ker
   exact
     ((LinearEquiv.ofEq (LinearMap.ker (0 : E →ₗ[𝕜] F)) (⊤ : Submodule 𝕜 E)
         LinearMap.ker_zero) ≪≫ₗ
       (Submodule.topEquiv : (⊤ : Submodule 𝕜 E) ≃ₗ[𝕜] E)).finiteDimensional
 
+omit [CompleteSpace 𝕜] in
 private lemma finiteDimensional_codomain_of_isFredholm_zero
-    (hT : IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 F := by
-  letI := hT.finiteDimensional_coker
+    (hT : ContinuousLinearMap.IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 F := by
+  letI := hT.finite_coker
   exact
     (LinearMap.range (0 : E →ₗ[𝕜] F)).quotEquivOfEqBot LinearMap.range_zero
       |>.finiteDimensional
@@ -58,7 +60,7 @@ private lemma finiteDimensional_codomain_of_isFredholm_zero
 finite dimensional. -/
 @[simp]
 lemma isFredholm_zero_iff :
-    IsFredholm (0 : E →L[𝕜] F) ↔
+    ContinuousLinearMap.IsFredholm (0 : E →L[𝕜] F) ↔
       Nonempty (FiniteDimensional 𝕜 E) ∧ Nonempty (FiniteDimensional 𝕜 F) := by
   constructor
   · intro h
@@ -68,12 +70,17 @@ lemma isFredholm_zero_iff :
     letI := hE
     letI := hF
     exact
-      { finiteDimensional_ker := inferInstance
+      { isStrictMap := ContinuousLinearMap.isStrictMap_of_finiteDimensional _
         isClosed_range := by simp
-        finiteDimensional_coker := inferInstance }
+        finite_ker := inferInstance
+        finite_coker := inferInstance
+        closedComplemented_ker := by
+          rw [ContinuousLinearMap.toLinearMap_zero, LinearMap.ker_zero]
+          exact Submodule.closedComplemented_top }
 
 namespace ContinuousLinearMap
 
+omit [CompleteSpace 𝕜] in
 /-- The index of the zero continuous linear map is the dimension of its domain minus the
 dimension of its codomain. -/
 @[simp]
