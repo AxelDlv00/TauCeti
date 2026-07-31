@@ -122,6 +122,8 @@ theorem indecInjRep_map_apply (i : Q) {a b : Q} (p : Quiver.Path a b)
   induction p with
   | nil =>
     rw [QuiverRep.map_nil]
+    -- The identity component is indexed by `(Paths.of Q).obj _`; expose its definitional
+    -- identification with the underlying vertex before rewriting path concatenation.
     change x q = x (Quiver.Path.nil.comp q)
     rw [Quiver.Path.nil_comp]
   | cons p e ih =>
@@ -129,6 +131,8 @@ theorem indecInjRep_map_apply (i : Q) {a b : Q} (p : Quiver.Path a b)
         = (indecInjRep k Q i).map p ≫ (indecInjRep k Q i).map e.toPath :=
       (indecInjRep k Q i).map_comp p e.toPath
     rw [hcons]
+    -- `ModuleCat.comp_apply` cannot cross the `Paths.of` object wrapper, so expose the component
+    -- types definitionally before applying the explicit arrow-action lemma.
     change (indecInjRep k Q i).map e.toPath ((indecInjRep k Q i).map p x) q =
       x ((p.cons e).comp q)
     rw [indecInjRep_map_toPath]

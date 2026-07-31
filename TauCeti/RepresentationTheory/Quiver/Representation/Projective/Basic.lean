@@ -122,13 +122,17 @@ private theorem indecProjRep_map_single (i : Q) {a b : Q} (p : Quiver.Path a b)
   induction p with
   | nil =>
     rw [QuiverRep.map_nil]
+    -- The identity component is indexed by `(Paths.of Q).obj _`; expose its definitional
+    -- identification with the underlying vertex before rewriting path concatenation.
     change Finsupp.single q c = Finsupp.single (q.comp Quiver.Path.nil) c
-    rfl
+    rw [Quiver.Path.comp_nil]
   | cons p e ih =>
     have hcons : (indecProjRep k Q i).map (p.cons e)
         = (indecProjRep k Q i).map p ≫ (indecProjRep k Q i).map e.toPath :=
       (indecProjRep k Q i).map_comp p e.toPath
     rw [hcons]
+    -- `ModuleCat.comp_apply` cannot cross the `Paths.of` object wrapper, so expose the component
+    -- types definitionally before applying the explicit arrow-action lemma.
     change (indecProjRep k Q i).map e.toPath
         ((indecProjRep k Q i).map p (Finsupp.single q c)) =
       Finsupp.single (q.comp (p.cons e)) c
