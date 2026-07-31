@@ -143,10 +143,18 @@ dependencies, is published at
 [taucetiproject.github.io/TauCeti/docs](https://taucetiproject.github.io/TauCeti/docs/). It is
 scheduled for regeneration every three hours from `main` with
 [`doc-gen4`](https://github.com/leanprover/doc-gen4), alongside the
-[project website](https://taucetiproject.github.io/TauCeti/). The moving `docgen` branch
-points to the newest commit from `main` whose freshly generated API documentation was
-successfully deployed. Downstream processes that require source and published documentation
-to agree can follow that branch instead of `main`.
+[project website](https://taucetiproject.github.io/TauCeti/).
+
+The moving `docgen` branch points to the newest commit from `main` whose generated API
+documentation was successfully deployed, and every deploy re-points it at what is actually
+published, so it recovers by itself if it ever drifts.
+
+It is best-effort rather than exact: publishing to Pages and updating a git ref cannot be done
+atomically, so the branch briefly names documentation that has just been replaced, and it stays
+behind if the update fails. Anything that needs certainty should instead read
+[`/docs/SOURCE_SHA`](https://taucetiproject.github.io/TauCeti/docs/SOURCE_SHA), which is published
+inside the documentation itself and therefore states, at the moment it is read, exactly which commit
+the live documentation describes.
 
 ## Building
 

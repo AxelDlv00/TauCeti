@@ -70,8 +70,9 @@ jobs:
   build-site:
     runs-on: ubuntu-latest
     outputs:
-      docs-rebuilt: ${{ steps.docs-plan.outputs.build }}
       # The commit the /docs actually being deployed were generated from, read from the tree itself.
+      # This is what `advance-docgen-ref` follows; there is deliberately no output for whether a
+      # rebuild was *planned*, because that says nothing about what ended up being published.
       docs-source-sha: ${{ steps.fold.outputs.docs-source-sha }}
     defaults:
       run:
@@ -200,7 +201,19 @@ jobs:
       # deployed, rather than `github.sha` of whichever run happened to deploy it.
       - name: Record the commit the API docs were generated from
         if: steps.docs-plan.outputs.build == 'true'
-        run: printf '%s\n' "${{ github.sha }}" > docbuild/.lake/build/doc/SOURCE_SHA
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          marker=docbuild/.lake/build/doc/SOURCE_SHA
+          # The name must be ours alone. If doc-gen4 ever emits anything at that path, silently
+          # overwriting it would corrupt the documentation, and trusting it would let a generated
+          # file dictate where the docgen branch points.
+          if [ -e "$marker" ] || [ -L "$marker" ]; then
+            echo "::error title=SOURCE_SHA is taken::doc-gen4 produced an entry at $marker; the provenance marker needs another name"
+            exit 1
+          fi
+          printf '%s\n' "$SHA" > "$marker"
 
       - name: Save the generated API docs
         if: steps.docs-plan.outputs.build == 'true'
@@ -236,13 +249,6 @@ jobs:
       # /docs inside the site artifact. deploy-pages replaces the whole site each time, so the
       # docs must ride along in every deploy — hence the cache that keeps them available on
       # runs that did not rebuild them.
-      # A missing doc tree is only tolerable when this run did not intend to rebuild one. When it
-      # DID, deploying anyway would break the invariant the `docgen` branch carries: `docs-rebuilt`
-      # is `docs-plan.outputs.build`, which records the *intention* to rebuild, and it is what
-      # `advance-docgen-ref` keys on. So a run that planned a rebuild, produced no docs, and
-      # deployed without them would still advance `docgen` — asserting that documentation is live
-      # for a commit whose documentation was never published, which is exactly what the branch
-      # exists to rule out.
       # A missing doc tree is ALWAYS fatal here, whether or not this run planned a rebuild.
       #
       # A Pages deployment replaces the whole site, so deploying without `/docs` deletes the live
@@ -275,14 +281,25 @@ jobs:
             echo "::error title=API docs have no provenance::the doc tree carries no SOURCE_SHA, so the commit it documents is unknown; refusing to deploy it"
             exit 1
           fi
-          # Read as written, NOT normalised. Stripping whitespace first would fold a spaced or
-          # multi-line marker into forty hex characters and accept it, which is the same mistake as
-          # a prefix match in a different disguise. The file is written as one sha plus a newline,
-          # so it is exactly 41 bytes; anything else is not a marker this workflow produced.
-          bytes=$(wc -c < _out/docs/SOURCE_SHA)
-          sha=$(< _out/docs/SOURCE_SHA)
-          if [ "$bytes" -ne 41 ] || [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error title=API docs have a malformed SOURCE_SHA::got ${bytes} bytes, not a bare 40-character commit sha"
+          # Validated as BYTES, against the exact form this workflow writes.
+          #
+          # Reading the file into a shell variable and matching a regex is not enough on its own:
+          # command substitution silently drops NUL bytes, so forty hex characters followed by a NUL
+          # arrives as a perfectly valid sha. Rendering the parsed value back into canonical form and
+          # comparing the raw bytes catches that, along with CRLF, a BOM, and any trailing junk --
+          # whatever is on disk must be exactly `<sha>\n` and nothing else.
+          #
+          # A symlink is refused outright: reading, `wc` and the Pages uploader all follow one, so a
+          # link left in a cached tree could point the branch at whatever it resolved to at upload
+          # time rather than at what was read here.
+          marker=_out/docs/SOURCE_SHA
+          if [ -L "$marker" ] || [ ! -f "$marker" ]; then
+            echo "::error title=SOURCE_SHA is not a regular file::refusing to read provenance through a link or special file"
+            exit 1
+          fi
+          sha=$(< "$marker")
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]] || ! printf '%s\n' "$sha" | cmp -s - "$marker"; then
+            echo "::error title=API docs have a malformed SOURCE_SHA::the marker is not exactly one 40-character commit sha followed by a newline"
             exit 1
           fi
           echo "docs-source-sha=$sha" >> "$GITHUB_OUTPUT"
@@ -317,9 +334,9 @@ jobs:
   # is actually published, so a branch that has drifted corrects itself on the next deploy rather
   # than staying wrong until someone notices.
   #
-  # It no longer keys on `docs-rebuilt` either. That output records the *intention* to rebuild,
-  # decided before anything is built; the marker records the outcome, which is the question the
-  # branch is actually answering.
+  # Nothing here keys on whether a rebuild was *planned*: that is decided before anything is built
+  # and says nothing about what ended up published, whereas the marker records the outcome, which is
+  # the question the branch is actually answering.
   #
   # The branch is BEST-EFFORT, not exact. Publishing to Pages and updating a git ref are separate
   # operations that cannot be made atomic, so between the site being replaced and this job running,
