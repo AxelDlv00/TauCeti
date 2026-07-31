@@ -69,7 +69,6 @@ jobs:
   # is hygiene so a future PR trigger here could never reintroduce the collision.
   build-site:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     outputs:
       docs-rebuilt: ${{ steps.docs-plan.outputs.build }}
     defaults:
@@ -244,7 +243,6 @@ jobs:
   deploy:
     needs: build-site
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -261,7 +259,6 @@ jobs:
     needs: [build-site, deploy]
     if: needs.build-site.outputs.docs-rebuilt == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
       contents: write
     steps:
