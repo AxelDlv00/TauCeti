@@ -176,6 +176,11 @@ theorem dimVector_indecProjRep (i j : Q) :
 
 /-! ### The universal property -/
 
+-- A representation is now indexed by the free category `Paths Q`. Mathlib's `Paths.of Q` is
+-- definitionally the identity on objects, but elaboration no longer unfolds that fact
+-- automatically in dependent component types. The explicit `(Paths.of Q).obj` annotations and
+-- `change` steps below expose that canonical object identification without adding a parallel API.
+
 /-- The morphism `Pᵢ ⟶ M` determined by an element `x` of `M` at the vertex `i`: it sends the basis
 element of a path `p : i → j` to the image of `x` under the action of `p`. -/
 noncomputable def indecProjRepHom (i : Q) (M : QuiverRep k Q)
