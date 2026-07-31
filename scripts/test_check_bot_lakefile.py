@@ -29,13 +29,17 @@ def _case(pr_text: str, *, manifest_rev: str = NEW, input_rev: str = NEW):
     root = pathlib.Path(tmp.name)
     base = root / "base.toml"
     pr = root / "pr.toml"
+    base_manifest = root / "base-manifest.json"
     manifest = root / "lake-manifest.json"
     base.write_text(BASE)
     pr.write_text(pr_text)
+    base_manifest.write_text(json.dumps({"packages": [{
+        "name": "mathlib", "type": "git", "rev": OLD, "inputRev": "master",
+    }]}))
     manifest.write_text(json.dumps({"packages": [{
         "name": "mathlib", "type": "git", "rev": manifest_rev, "inputRev": input_rev,
     }]}))
-    return tmp, base, pr, manifest
+    return tmp, base, pr, base_manifest, manifest
 
 
 def _valid_text() -> str:
@@ -43,25 +47,67 @@ def _valid_text() -> str:
 
 
 def test_accepts_the_exact_bot_pin():
-    tmp, base, pr, manifest = _case(_valid_text())
+    tmp, base, pr, base_manifest, manifest = _case(_valid_text())
     with tmp:
-        assert validate(base, pr, manifest) == NEW
+        assert validate(base, pr, base_manifest, manifest) == NEW
 
 
 def test_accepts_depinning_back_to_master_with_a_forward_manifest_pin():
     pinned_base = BASE.replace('rev = "master"', f'rev = "{OLD}"')
-    tmp, base, pr, manifest = _case(BASE, manifest_rev=NEW, input_rev="master")
+    tmp, base, pr, base_manifest, manifest = _case(
+        BASE, manifest_rev=NEW, input_rev="master")
     with tmp:
         base.write_text(pinned_base)
-        assert validate(base, pr, manifest) == "master"
+        base_manifest.write_text(json.dumps({"packages": [{
+            "name": "mathlib", "type": "git", "rev": OLD, "inputRev": OLD,
+        }]}))
+        assert validate(base, pr, base_manifest, manifest) == "master"
+
+
+def test_accepts_depinning_back_to_master_without_advancing_the_manifest_pin():
+    pinned_base = BASE.replace('rev = "master"', f'rev = "{OLD}"')
+    tmp, base, pr, base_manifest, manifest = _case(
+        BASE, manifest_rev=OLD, input_rev="master")
+    with tmp:
+        base.write_text(pinned_base)
+        base_manifest.write_text(json.dumps({"packages": [{
+            "name": "mathlib", "type": "git", "rev": OLD, "inputRev": OLD,
+        }]}))
+        assert validate(base, pr, base_manifest, manifest) == "master"
+
+
+def test_rejects_other_manifest_changes_during_same_revision_depin():
+    pinned_base = BASE.replace('rev = "master"', f'rev = "{OLD}"')
+    tmp, base, pr, base_manifest, manifest = _case(
+        BASE, manifest_rev=OLD, input_rev="master")
+    with tmp:
+        base.write_text(pinned_base)
+        base_manifest.write_text(json.dumps({
+            "version": "1.1.0",
+            "packages": [{
+                "name": "mathlib", "type": "git", "rev": OLD, "inputRev": OLD,
+            }],
+        }))
+        manifest.write_text(json.dumps({
+            "version": "changed",
+            "packages": [{
+                "name": "mathlib", "type": "git", "rev": OLD, "inputRev": "master",
+            }],
+        }))
+        try:
+            validate(base, pr, base_manifest, manifest)
+        except ValidationError as exc:
+            assert "only Mathlib's manifest inputRev" in str(exc)
+        else:
+            raise AssertionError("accepted another manifest change during a same-revision de-pin")
 
 
 def test_rejects_any_second_lakefile_change():
     text = _valid_text().replace('name = "TauCeti"', 'name = "Other"', 1)
-    tmp, base, pr, manifest = _case(text)
+    tmp, base, pr, base_manifest, manifest = _case(text)
     with tmp:
         try:
-            validate(base, pr, manifest)
+            validate(base, pr, base_manifest, manifest)
         except ValidationError as exc:
             assert "exactly one" in str(exc)
         else:
@@ -69,11 +115,12 @@ def test_rejects_any_second_lakefile_change():
 
 
 def test_rejects_a_branch_or_tag_instead_of_an_immutable_sha():
-    tmp, base, pr, manifest = _case(BASE.replace('rev = "master"', 'rev = "stable"'),
-                                    manifest_rev="stable", input_rev="stable")
+    tmp, base, pr, base_manifest, manifest = _case(
+        BASE.replace('rev = "master"', 'rev = "stable"'),
+        manifest_rev="stable", input_rev="stable")
     with tmp:
         try:
-            validate(base, pr, manifest)
+            validate(base, pr, base_manifest, manifest)
         except ValidationError as exc:
             assert "neither master nor a 40-hex" in str(exc)
         else:
@@ -81,10 +128,10 @@ def test_rejects_a_branch_or_tag_instead_of_an_immutable_sha():
 
 
 def test_rejects_manifest_revision_mismatch():
-    tmp, base, pr, manifest = _case(_valid_text(), manifest_rev=OLD)
+    tmp, base, pr, base_manifest, manifest = _case(_valid_text(), manifest_rev=OLD)
     with tmp:
         try:
-            validate(base, pr, manifest)
+            validate(base, pr, base_manifest, manifest)
         except ValidationError as exc:
             assert "does not match manifest" in str(exc)
         else:
@@ -92,10 +139,10 @@ def test_rejects_manifest_revision_mismatch():
 
 
 def test_rejects_a_non_exact_manifest_input():
-    tmp, base, pr, manifest = _case(_valid_text(), input_rev="master")
+    tmp, base, pr, base_manifest, manifest = _case(_valid_text(), input_rev="master")
     with tmp:
         try:
-            validate(base, pr, manifest)
+            validate(base, pr, base_manifest, manifest)
         except ValidationError as exc:
             assert "inputRev" in str(exc)
         else:
@@ -104,12 +151,12 @@ def test_rejects_a_non_exact_manifest_input():
 
 def test_rejects_editing_another_dependency_rev():
     other = '''\n[[require]]\nname = "other"\ngit = "https://example.com/other"\nrev = "stable"\n'''
-    tmp, base, pr, manifest = _case(BASE + other)
+    tmp, base, pr, base_manifest, manifest = _case(BASE + other)
     with tmp:
         base.write_text(BASE + other)
         pr.write_text((BASE + other).replace('rev = "stable"', f'rev = "{NEW}"'))
         try:
-            validate(base, pr, manifest)
+            validate(base, pr, base_manifest, manifest)
         except ValidationError as exc:
             assert "not Mathlib" in str(exc)
         else:
@@ -118,10 +165,10 @@ def test_rejects_editing_another_dependency_rev():
 
 def test_rejects_adding_or_removing_a_lakefile_line():
     for text in (_valid_text() + "# extra\n", _valid_text().replace('name = "TauCeti"\n', "", 1)):
-        tmp, base, pr, manifest = _case(text)
+        tmp, base, pr, base_manifest, manifest = _case(text)
         with tmp:
             try:
-                validate(base, pr, manifest)
+                validate(base, pr, base_manifest, manifest)
             except ValidationError as exc:
                 assert "exactly one existing line" in str(exc)
             else:

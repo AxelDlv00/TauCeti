@@ -81,7 +81,8 @@ if ! diff -q "$b" "$p" >/dev/null 2>&1; then
 fi
 if [ "$MODE" = "--allow-bot-lakefile" ]; then
   python3 "$BASE/scripts/check_bot_lakefile.py" \
-    "$BASE/lakefile.toml" "$PR/lakefile.toml" "$PR/lake-manifest.json" \
+    "$BASE/lakefile.toml" "$PR/lakefile.toml" \
+    "$BASE/lake-manifest.json" "$PR/lake-manifest.json" \
     || fail "review-bot lakefile pin is not the exact validated Mathlib revision change"
 else
   b="$BASE/lakefile.toml"; p="$PR/lakefile.toml"
@@ -149,11 +150,23 @@ ML_SLUG="$(slug "$ML_URL_P")"
 
 # --- 2. mathlib moved forward on the nominated branch -------------------------
 if [ "$ML_REV_B" = "$ML_REV_P" ]; then
-  # mathlib pin unchanged: then NOTHING in the manifest may change (the rest is derived from it).
-  if ! diff -q "$BASE/lake-manifest.json" "$PR/lake-manifest.json" >/dev/null 2>&1; then
+  # Usually an unchanged Mathlib pin means NOTHING in the manifest may change.
+  # The bot-only same-revision de-pin is the sole exception: the validator above
+  # has proved that only Mathlib's inputRev changed from the exact SHA to master.
+  same_revision_depin=0
+  if [ "$MODE" = "--allow-bot-lakefile" ] \
+    && [ "$ML_IR_B" = "$ML_REV_B" ] && [ "$ML_IR_P" = "master" ]; then
+    same_revision_depin=1
+  fi
+  if [ "$same_revision_depin" = 0 ] \
+    && ! diff -q "$BASE/lake-manifest.json" "$PR/lake-manifest.json" >/dev/null 2>&1; then
     fail "mathlib rev unchanged but the manifest changed — not a derived bump"
   fi
-  echo "bump-guard: mathlib pin unchanged."
+  if [ "$same_revision_depin" = 1 ]; then
+    echo "bump-guard: Mathlib pin unchanged; exact nomination safely restored to master."
+  else
+    echo "bump-guard: mathlib pin unchanged."
+  fi
 else
   st_fwd="$(gh api "repos/$ML_SLUG/compare/$ML_REV_B...$ML_REV_P" --jq '.status' 2>/dev/null)" \
     || fail "compare API failed for $ML_SLUG $ML_REV_B...$ML_REV_P"
