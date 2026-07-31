@@ -68,6 +68,8 @@ jobs:
   # is hygiene so a future PR trigger here could never reintroduce the collision.
   build-site:
     runs-on: ubuntu-latest
+    outputs:
+      docs-rebuilt: ${{ steps.docs-plan.outputs.build }}
     defaults:
       run:
         working-directory: web
@@ -252,3 +254,41 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # A moving source ref for consumers that need to stay in lockstep with the published API
+  # documentation. Advance it only after this run freshly rebuilt the docs and successfully
+  # deployed them. Cached site-only deploys must leave it alone: their docs belong to the
+  # earlier commit already named by this ref.
+  advance-docgen-ref:
+    needs: [build-site, deploy]
+    if: needs.build-site.outputs.docs-rebuilt == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Fast-forward the docgen branch to the documented commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          endpoint="repos/$REPO/git/refs/heads/docgen"
+          current=$(gh api "repos/$REPO/git/matching-refs/heads/docgen" \
+            --jq '.[] | select(.ref == "refs/heads/docgen") | .object.sha')
+
+          if [ -n "$current" ]; then
+            if [ "$current" = "$CANDIDATE" ]; then
+              echo "docgen already points to $CANDIDATE"
+              exit 0
+            fi
+
+            # force=false makes an unexpected rewind or divergent update fail closed.
+            gh api --method PATCH "$endpoint" \
+              -f sha="$CANDIDATE" \
+              -F force=false
+          else
+            gh api --method POST "repos/$REPO/git/refs" \
+              -f ref='refs/heads/docgen' \
+              -f sha="$CANDIDATE"
+          fi
