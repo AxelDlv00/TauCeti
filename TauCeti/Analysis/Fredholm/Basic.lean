@@ -60,7 +60,11 @@ private lemma coe_continuousLinearEquiv (e : E ≃L[𝕜] F) :
     ((e : E →L[𝕜] F) : E →ₗ[𝕜] F) = (e.toLinearEquiv : E →ₗ[𝕜] F) := by
   ext x; simp
 
-/-- A continuous linear equivalence is a Fredholm operator. -/
+/-- A continuous linear equivalence is a Fredholm operator.
+
+This is proved directly from the structure fields because Mathlib's quasi-inverse
+characterization currently assumes that the scalar field is complete, whereas this result does
+not need that assumption. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_continuousLinearEquiv (e : E ≃L[𝕜] F) :
     ContinuousLinearMap.IsFredholm (e : E →L[𝕜] F) where
   isStrictMap := e.isHomeomorph.isStrictMap
@@ -156,7 +160,9 @@ private lemma closedComplemented_map_continuousLinearEquiv (e : E ≃L[𝕜] F)
   let ep := e.submoduleMap p
   refine ⟨ep.toContinuousLinearMap.comp (P.comp (e.symm : F →L[𝕜] E)), ?_⟩
   intro y
+  -- Unfold the transported projection; its value lies in the mapped submodule.
   change ep (P (e.symm (y : F))) = y
+  -- The inverse of `e.submoduleMap p` is definitionally `e.symm` on underlying vectors.
   have he : e.symm (y : F) = (ep.symm y : E) := rfl
   rw [he, hP]
   exact ep.apply_symm_apply y
@@ -186,7 +192,10 @@ private lemma range_comp_equiv (e : G ≃L[𝕜] E) :
     (LinearMap.range_eq_top.2 e.toLinearEquiv.surjective)]
 
 /-- Postcomposing a Fredholm operator with a continuous linear equivalence yields a Fredholm
-operator. -/
+operator.
+
+The structure fields are transported directly to avoid the complete-scalar-field assumption on
+Mathlib's quasi-inverse characterization. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
     (hT : ContinuousLinearMap.IsFredholm T) (e : F ≃L[𝕜] G) :
     ContinuousLinearMap.IsFredholm ((e : F →L[𝕜] G).comp T) := by
@@ -205,7 +214,10 @@ lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
     exact hT.closedComplemented_ker
 
 /-- Precomposing a Fredholm operator with a continuous linear equivalence yields a Fredholm
-operator. -/
+operator.
+
+The structure fields are transported directly to avoid the complete-scalar-field assumption on
+Mathlib's quasi-inverse characterization. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.comp_equiv (hT : ContinuousLinearMap.IsFredholm T)
     (e : G ≃L[𝕜] E) :
     ContinuousLinearMap.IsFredholm (T.comp (e : G →L[𝕜] E)) := by

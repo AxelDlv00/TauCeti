@@ -13,8 +13,8 @@ This file proves that the composite of two Fredholm operators between Banach spa
 and that its index is the sum of their indices. It also records the corresponding statements for
 powers of a Fredholm endomorphism.
 
-The finite-dimensional kernel and cokernel statements for a composite are algebraic. Closedness
-of its range then follows from `ContinuousLinearMap.isClosed_range_of_finite_coker`.
+Fredholmness of a composite follows by composing the continuous quasi-inverses supplied by
+Mathlib's Fredholm API.
 Index additivity reuses Mathlib's `LinearMap.index_comp`, whose proof is the six-term exact
 sequence
 

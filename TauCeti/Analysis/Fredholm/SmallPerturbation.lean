@@ -45,8 +45,7 @@ namespace TauCeti
 open Filter Module
 open scoped Topology
 
-variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] [IsRCLikeNormedField 𝕜]
-  [CompleteSpace 𝕜]
+variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
 
 private def blockCorner
     {K X Y C : Type*}
@@ -58,7 +57,7 @@ private def blockCorner
   (ContinuousLinearMap.fst 𝕜 Y C).comp
     (A.comp (ContinuousLinearMap.inr 𝕜 K X))
 
-omit [IsRCLikeNormedField 𝕜] [CompleteSpace 𝕜] in
+omit [CompleteSpace 𝕜] in
 /-- Block elimination. Write the operator as the block matrix `!![a, e; c, d]`, acting by
 `(k, x) ↦ (a k + e x, c k + d x)`, and suppose the corner `e : X → Y` is invertible. Shearing the
 domain by `x ↦ x - e⁻¹ a k` kills `a`, and then shearing the codomain by `z ↦ z - d e⁻¹ y` kills
@@ -160,7 +159,7 @@ variable {E F : Type*}
 variable [NormedAddCommGroup E] [NormedSpace 𝕜 E] [CompleteSpace E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F] [CompleteSpace F]
 
-omit [IsRCLikeNormedField 𝕜] [CompleteSpace 𝕜] in
+omit [CompleteSpace 𝕜] in
 /-- **Invertibility is an open condition along a family continuous at a point.** If `D T` is an
 equivalence and `D` is continuous at `T`, then `D S` is an equivalence for every `S` near `T`.
 

@@ -80,7 +80,7 @@ end Submodule
 
 variable {T : E₁ →L[K] F₁} {S : E₂ →L[K] F₂}
 
-omit [CompleteSpace K] in
+omit [IsRCLikeNormedField K] [CompleteSpace K] in
 /-- The Cartesian product of two Fredholm operators is Fredholm. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
     (hT : ContinuousLinearMap.IsFredholm T) (hS : ContinuousLinearMap.IsFredholm S) :
@@ -99,10 +99,18 @@ lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
     exact (Submodule.prodSubtypeEquiv _ _).symm.finiteDimensional
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
     exact (Submodule.quotientProdEquiv _ _).symm.finiteDimensional
-  · have : FiniteDimensional K (T.prodMap S).ker := by
-      rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
-      exact (Submodule.prodSubtypeEquiv _ _).symm.finiteDimensional
-    exact Submodule.ClosedComplemented.of_finiteDimensional _
+  · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
+    obtain ⟨PT, hPT⟩ := hT.closedComplemented_ker
+    obtain ⟨PS, hPS⟩ := hS.closedComplemented_ker
+    let P : E₁ × E₂ →L[K] E₁ × E₂ :=
+      (T.ker.subtypeL.prodMap S.ker.subtypeL).comp (PT.prodMap PS)
+    refine ⟨P.codRestrict (T.ker.prod S.ker) ?_, ?_⟩
+    · rintro ⟨x, y⟩
+      exact ⟨(PT x).property, (PS y).property⟩
+    · rintro ⟨⟨x, y⟩, hx, hy⟩
+      apply Subtype.ext
+      change (((PT x : T.ker) : E₁), ((PS y : S.ker) : E₂)) = (x, y)
+      rw [hPT ⟨x, hx⟩, hPS ⟨y, hy⟩]
 
 namespace ContinuousLinearMap
 

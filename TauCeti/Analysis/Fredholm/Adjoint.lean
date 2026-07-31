@@ -78,6 +78,8 @@ theorem orthogonalKerEquivRange_apply (T : E →L[𝕜] F)
     (LinearMap.ker (T : E →ₗ[𝕜] F)).isClosed_orthogonal.completeSpace_coe
   letI : CompleteSpace (LinearMap.range (T : E →ₗ[𝕜] F)) :=
     hT.completeSpace_coe
+  -- Unfold the continuous-equivalence wrapper to the underlying
+  -- `LinearMap.kerComplementEquivRange`, whose application lemma gives the result.
   change
     ((LinearMap.kerComplementEquivRange (T : E →ₗ[𝕜] F)
       (LinearMap.ker (T : E →ₗ[𝕜] F)).isCompl_orthogonal.symm x :
