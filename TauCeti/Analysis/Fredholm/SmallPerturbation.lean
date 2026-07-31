@@ -10,10 +10,10 @@ public import Mathlib.Analysis.Normed.Operator.BoundedLinearMaps
 /-!
 # Stability of Fredholm operators under small perturbations
 
-This file proves that Fredholm operators between Banach spaces form an open set in the operator
-norm topology and that their index is locally constant. Equivalently, every Fredholm operator
-`T` has an `ε > 0` such that any operator `S` with `‖S - T‖ < ε` is Fredholm and has the same
-index.
+This file proves that Fredholm operators from a Banach space to a normed space form an open set
+in the operator norm topology and that their index is locally constant. Equivalently, every
+Fredholm operator `T` has an `ε > 0` such that any operator `S` with `‖S - T‖ < ε` is Fredholm
+and has the same index.
 
 The proof uses Mathlib's `ContinuousLinearMap.FredholmPackage`. In the resulting block
 decomposition, the corner between the essential domain and codomain summands is an equivalence
@@ -264,7 +264,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.exists_pos_isFredholm_and_index_eq
   exact ⟨ε, hε, fun S hS => hball (by simpa [dist_eq_norm] using hS)⟩
 
 omit [CompleteSpace F] in
-/-- The set of Fredholm operators between two Banach spaces is open in the operator norm
+/-- The set of Fredholm operators from a Banach space to a normed space is open in the operator norm
 topology. -/
 theorem isOpen_setOf_isFredholm :
     IsOpen {T : E →L[𝕜] F | ContinuousLinearMap.IsFredholm T} := by

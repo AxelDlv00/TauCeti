@@ -159,6 +159,8 @@ theorem range_adjoint_eq_orthogonal_ker_of_isClosed_range (T : E →L[𝕜] F)
     calc
       inner 𝕜 x (B y) = inner 𝕜 (x : E) ((T†) (y : F)) := by
         rw [Submodule.coe_inner]
+        -- `B` hides both restriction wrappers, so expose them in order before applying their
+        -- explicit coercion lemmas.
         rw [show (B y : E) = ((T†).domRestrict R) y by
           exact ContinuousLinearMap.coe_codRestrict_apply _ _ _ y]
         rw [show ((T†).domRestrict R) y = (T†) (y : F) by
