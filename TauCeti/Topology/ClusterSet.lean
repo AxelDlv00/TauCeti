@@ -105,7 +105,7 @@ lemma clusterSetOn_eq_iInter : clusterSetOn f U w = ⋂ s ∈ 𝓝[U] w, closure
   exact closure_mono (image_preimage_subset f t) (h _ (mem_map.mp ht))
 
 /-- The cluster set is closed: it is a set of cluster points of a filter. -/
-lemma isClosed_clusterSetOn : IsClosed (clusterSetOn f U w) := isClosed_setOf_clusterPt
+lemma isClosed_clusterSetOn : IsClosed (clusterSetOn f U w) := isClosed_setOfPred_clusterPt
 
 /-- Enlarging the set along which `f` is followed enlarges the cluster set. -/
 lemma clusterSetOn_mono {V : Set X} (h : U ⊆ V) : clusterSetOn f U w ⊆ clusterSetOn f V w :=
