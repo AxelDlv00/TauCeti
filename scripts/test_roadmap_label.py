@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import subprocess
 import sys
+import tempfile
 
 import roadmap_label as rl
 
@@ -26,9 +28,10 @@ import roadmap_label as rl
 # checkout, but the unit tests pin it so they need no network.
 AREAS = {
     "CombinatorialHeegaardFloer", "ConformalMapping", "ContourIntegration",
-    "Exchangeability", "GeometricTopology", "HeegaardFloer", "JacobianChallenge",
+    "EffectiveBounds", "Exchangeability", "GeometricTopology", "HeegaardFloer",
+    "JacobianChallenge",
     "Multiquadratic", "OneParameterSemigroups", "OrthogonalL2Bases", "PDE",
-    "ReductiveGroups", "UniversalCovers",
+    "ReductiveGroups", "RepresentationTheory", "UniversalCovers",
 }
 
 TC = ["TauCeti/Analysis/Foo.lean"]        # an allowed (AI-ownable) math diff
@@ -94,6 +97,19 @@ def run_unit() -> int:
     assert rl.parse_cited_areas("nothing here", AREAS) == set()
     assert rl.is_infra(["TauCeti/A.lean"]) is False
     assert rl.is_infra(["scripts/x.sh"]) is True
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        for directory in (
+            root / "TauCetiRoadmap" / "ContourIntegration",
+            root / "Completed" / "EffectiveBounds",
+        ):
+            directory.mkdir(parents=True)
+            (directory / "README.md").touch()
+        # The archive container has a README of its own, but is not an area.
+        (root / "Completed" / "README.md").touch()
+        assert rl.canonical_areas(root) == {"ContourIntegration", "EffectiveBounds"}
+
     print(f"\n{len(CASES) - fails}/{len(CASES)} classifier cases passed")
     return 1 if fails else 0
 

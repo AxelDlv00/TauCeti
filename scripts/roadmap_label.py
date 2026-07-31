@@ -133,14 +133,28 @@ def classify(title: str, body: str, files: list[str], areas: set[str]) -> str:
 
 
 def canonical_areas(roadmap_dir: pathlib.Path) -> set[str]:
-    """Roadmap directory names (those containing a README.md) under a checkout.
+    """Active and completed roadmap directory names under a checkout.
 
-    Accepts either the roadmap repo root (areas live under its inner
-    `TauCetiRoadmap/` package dir) or the package dir itself.
+    At the repository root, active areas live under the inner
+    `TauCetiRoadmap/` package and archived areas live under the sibling
+    `Completed/` directory. Accepting the package directory itself remains
+    useful for local one-area tests and older callers.
     """
     inner = roadmap_dir / "TauCetiRoadmap"
-    base = inner if inner.is_dir() else roadmap_dir
-    return {p.name for p in base.iterdir() if p.is_dir() and (p / "README.md").is_file()}
+    if not inner.is_dir():
+        return {
+            p.name for p in roadmap_dir.iterdir()
+            if p.is_dir() and (p / "README.md").is_file()
+        }
+
+    bases = [inner]
+    completed = roadmap_dir / "Completed"
+    if completed.is_dir():
+        bases.append(completed)
+    return {
+        p.name for base in bases for p in base.iterdir()
+        if p.is_dir() and (p / "README.md").is_file()
+    }
 
 
 # --- gh plumbing (only reached in --apply/--nudge/--pr/--backfill IO paths) --
