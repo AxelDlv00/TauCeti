@@ -54,7 +54,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
 
 namespace ContinuousLinearMap
 
-omit [IsRCLikeNormedField 𝕜] [CompleteSpace F] in
+omit [IsRCLikeNormedField 𝕜] [CompleteSpace E] [CompleteSpace F] in
 /-- Perturbing a Fredholm operator by an operator of finite rank leaves its index unchanged: both
 operators restrict to the same map on the closed, finite-codimensional subspace `ker K`, and
 additivity of the index cancels the index shift of that restriction. -/
