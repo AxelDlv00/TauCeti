@@ -208,15 +208,17 @@ theorem indecProjRepHom_app_basis (i : Q) (M : QuiverRep k Q)
     Finsupp.linearCombination_single k 1 p
   rwa [one_smul] at h
 
--- Not `@[simp]`: `simp` proves this outright, from `indecProjRepHom_app_basis` and
--- `QuiverRep.map_nil`, so tagging it is a simp-normal-form violation (`simpNF`). It is kept as a
--- named lemma because it is one half of the universal property below.
+-- Not `@[simp]`: `simp` uses `indecProjRepHom_app_basis` and `QuiverRep.map_nil` to reduce this to
+-- the definitional identification of the vertex `i` with `(Paths.of Q).obj i`; tagging the theorem
+-- is therefore a simp-normal-form violation (`simpNF`). It remains named because it is one half of
+-- the universal property below.
 /-- The morphism attached to `x : Mᵢ` sends the basis vector of the trivial path back to `x`. -/
 theorem indecProjRepHom_app_nil (i : Q) (M : QuiverRep k Q)
     (x : M.obj ((Paths.of Q).obj i)) :
     (indecProjRepHom i M x).app ((Paths.of Q).obj i)
       (indecProjRepBasis k i i Quiver.Path.nil) = x := by
   simp
+  -- The residual goal is the object identification described above.
   rfl
 
 /-- A morphism out of `Pᵢ` is determined by the image of the basis vector of the trivial path
