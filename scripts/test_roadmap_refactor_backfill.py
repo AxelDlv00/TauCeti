@@ -77,6 +77,11 @@ class ManifestValidation(unittest.TestCase):
     def test_valid_record(self):
         migration.validate_manifest_record(self.record(), {"PDE"}, self.roadmap_dir)
 
+    def test_matching_existing_area_label_is_valid_rollback_state(self):
+        record = self.record()
+        record["old_roadmap_labels"] = ["roadmap/PDE"]
+        migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
     def test_tampered_body_fails(self):
         record = self.record()
         record["new_body"] += " changed"

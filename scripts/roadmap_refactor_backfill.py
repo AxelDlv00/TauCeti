@@ -201,8 +201,11 @@ def prepare_record(
     if roadmap_label.is_pin_only(files):
         raise ValueError(f"#{pr}: pin-only diff is outside migration scope")
     old_labels = roadmap_labels(state)
-    if old_labels != [roadmap_label.NONE_LABEL]:
-        raise ValueError(f"#{pr}: expected only roadmap/none, found {old_labels}")
+    expected = roadmap_label.area_label(area)
+    if old_labels not in ([roadmap_label.NONE_LABEL], [expected]):
+        raise ValueError(
+            f"#{pr}: expected roadmap/none or {expected}, found {old_labels}"
+        )
 
     old_body = state.get("body") or ""
     new_body = insert_roadmap_line(old_body, area)
@@ -238,8 +241,11 @@ def validate_manifest_record(
         raise ValueError(f"#{pr}: new body hash is inconsistent")
     if insert_roadmap_line(record["old_body"], area) != record["new_body"]:
         raise ValueError(f"#{pr}: new body is not the canonical insertion")
-    if record["old_roadmap_labels"] != [roadmap_label.NONE_LABEL]:
-        raise ValueError(f"#{pr}: rollback label must be roadmap/none")
+    expected = roadmap_label.area_label(area)
+    if record["old_roadmap_labels"] not in ([roadmap_label.NONE_LABEL], [expected]):
+        raise ValueError(
+            f"#{pr}: rollback label must be roadmap/none or {expected}"
+        )
 
 
 def select_tranche(rows: list[dict], offset: int, limit: int) -> list[dict]:
