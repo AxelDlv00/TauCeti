@@ -363,6 +363,8 @@ def _run_backfill(args, areas) -> int:
         # A per-PR failure must not abandon the rest of the backfill; collect and
         # retry once at the end (transient API errors are already retried in _gh).
         for num, label, current in plan:
+            if current == {label}:
+                continue
             if current and current != {label} and not args.allow_relabel:
                 print(
                     f"  - #{num}: preserving {', '.join(sorted(current))}; "
