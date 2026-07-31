@@ -106,9 +106,11 @@ lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
       exact ⟨(PT x).property, (PS y).property⟩
     · rintro ⟨⟨x, y⟩, hx, hy⟩
       apply Subtype.ext
-      -- Unfold the corestricted product projection to its two component projections.
-      change (((PT x : T.ker) : E₁), ((PS y : S.ker) : E₂)) = (x, y)
-      rw [hPT ⟨x, hx⟩, hPS ⟨y, hy⟩]
+      -- Rewrite the corestricted product projection as its two component projections.
+      rw [ContinuousLinearMap.coe_codRestrict_apply, ContinuousLinearMap.comp_apply,
+        ContinuousLinearMap.coe_prodMap', ContinuousLinearMap.coe_prodMap', Prod.map_apply,
+        Prod.map_apply, Submodule.subtypeL_apply, Submodule.subtypeL_apply, hPT ⟨x, hx⟩,
+        hPS ⟨y, hy⟩]
 
 namespace ContinuousLinearMap
 

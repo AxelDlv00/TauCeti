@@ -12,7 +12,14 @@ public import Mathlib.Algebra.Module.LinearMap.Index
 
 This file connects Mathlib's analytic notion of a **Fredholm operator** to the nonlinear-analysis
 substrate of the analytic Heegaard Floer roadmap (Lane F0, "Fredholm operators and index theory").
-All Fredholm hypotheses use `ContinuousLinearMap.IsFredholm` directly.
+All Fredholm hypotheses use `ContinuousLinearMap.IsFredholm` directly. That predicate asks for a
+strict map with closed range, finite-dimensional kernel and cokernel, and a topologically
+complemented kernel. Between Banach spaces over an `IsRCLikeNormedField` the strictness,
+closed-range and complemented-kernel conditions are automatic, so the predicate is *equivalent*
+there to finite dimensionality of the kernel and cokernel alone; that equivalence is proved and
+exposed as `TauCeti.isFredholm_iff_finite_ker_coker` in `TauCeti.Analysis.Fredholm.ClosedRange`.
+Outside that setting `ContinuousLinearMap.IsFredholm` is genuinely stronger, and it is the notion
+intended throughout.
 
 The **index** of such an operator is the integer `dim ker T − dim coker T`. Mathlib already builds
 the purely algebraic index of a linear map, `LinearMap.index`, together with its behaviour under
