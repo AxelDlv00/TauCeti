@@ -12,15 +12,15 @@ public import TauCeti.Analysis.Fredholm.Criteria
 
 Mathlib's `ContinuousLinearMap.IsFredholm` API characterizes Fredholm operators by the existence
 of a continuous quasi-inverse. This file uses that characterization directly to prove that
-finite-rank perturbations preserve Fredholmness. The index statement then follows by restricting
-both operators to the kernel of the perturbation.
+finite-rank perturbations over a complete nontrivially normed field preserve Fredholmness. The
+index statement then follows by restricting both operators to the kernel of the perturbation.
 
 ## Main declarations
 
-* `ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range`: adding an operator with
-  finite-dimensional range preserves Fredholmness.
-* `TauCeti.ContinuousLinearMap.index_add_of_finiteDimensional_range`: adding an operator with
-  finite-dimensional range preserves the Fredholm index.
+* `ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range`: over a complete nontrivially
+  normed field, adding an operator with finite-dimensional range preserves Fredholmness.
+* `TauCeti.ContinuousLinearMap.index_add_of_finiteDimensional_range`: over a complete nontrivially
+  normed field, adding an operator with finite-dimensional range preserves the Fredholm index.
 -/
 
 public section
@@ -36,7 +36,8 @@ variable [NormedAddCommGroup F] [NormedSpace 𝕜 F] [CompleteSpace F]
 variable {T K : E →L[𝕜] F}
 
 omit [IsRCLikeNormedField 𝕜] [CompleteSpace E] [CompleteSpace F] in
-/-- Perturbing a Fredholm operator by an operator of finite rank leaves it Fredholm. -/
+/-- Over a complete nontrivially normed field, perturbing a Fredholm operator by an operator of
+finite rank leaves it Fredholm. -/
 theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
     (hT : ContinuousLinearMap.IsFredholm T)
     (hK : FiniteDimensional 𝕜 (LinearMap.range (K : E →ₗ[𝕜] F))) :
@@ -55,9 +56,10 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
 namespace ContinuousLinearMap
 
 omit [IsRCLikeNormedField 𝕜] [CompleteSpace E] [CompleteSpace F] in
-/-- Perturbing a Fredholm operator by an operator of finite rank leaves its index unchanged: both
-operators restrict to the same map on the closed, finite-codimensional subspace `ker K`, and
-additivity of the index cancels the index shift of that restriction. -/
+/-- Over a complete nontrivially normed field, perturbing a Fredholm operator by an operator of
+finite rank leaves its index unchanged: both operators restrict to the same map on the closed,
+finite-codimensional subspace `ker K`, and additivity of the index cancels the index shift of that
+restriction. -/
 theorem index_add_of_finiteDimensional_range (hT : ContinuousLinearMap.IsFredholm T)
     (hK : FiniteDimensional 𝕜 (LinearMap.range (K : E →ₗ[𝕜] F))) :
     index (T + K) = index T := by
