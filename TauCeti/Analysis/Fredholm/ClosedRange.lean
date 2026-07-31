@@ -24,20 +24,22 @@ between Banach spaces, hence a quotient map. Its preimage `Φ ⁻¹' range T = E
 a quotient map carries the closed-set characterization that a set is closed exactly when its
 preimage is, so `range T` is closed.
 
-This upgrades the Fredholm predicate of `TauCeti.Analysis.Fredholm.Basic`: over Banach spaces a
-Fredholm operator is *exactly* a continuous linear map with finite-dimensional kernel and cokernel,
-the closed-range condition following for free. Downstream this lets Sard–Smale and transversality
-arguments certify Fredholmness of a linearization from the two defect spaces alone, without a
-separate closed-range check.
+This upgrades the Fredholm predicate of `TauCeti.Analysis.Fredholm.Basic`: over Banach spaces over
+an `IsRCLikeNormedField` (in particular, real or complex Banach spaces), a Fredholm operator is
+*exactly* a continuous linear map with finite-dimensional kernel and cokernel, the closed-range
+condition following for free. Downstream this lets Sard–Smale and transversality arguments certify
+Fredholmness of a linearization from the two defect spaces alone, without a separate closed-range
+check.
 
 ## Main declarations
 
 * `TauCeti.ContinuousLinearMap.isClosed_range_of_finite_coker`: a continuous linear map
   between Banach spaces with finite-dimensional cokernel has closed range.
-* `ContinuousLinearMap.IsFredholm.of_finite_ker_coker`: over Banach spaces,
-  finite-dimensional kernel and cokernel suffice for Fredholmness.
-* `TauCeti.isFredholm_iff_finite_ker_coker`: over Banach spaces, the Fredholm predicate
-  is equivalent to finite dimensionality of the kernel and cokernel.
+* `ContinuousLinearMap.IsFredholm.of_finite_ker_coker`: over Banach spaces over an
+  `IsRCLikeNormedField`, finite-dimensional kernel and cokernel suffice for Fredholmness.
+* `TauCeti.isFredholm_iff_finite_ker_coker`: over Banach spaces over an
+  `IsRCLikeNormedField`, the Fredholm predicate is equivalent to finite dimensionality of the
+  kernel and cokernel.
 
 The conventions follow McDuff--Salamon, *J-holomorphic Curves and Symplectic Topology*, Appendix
 A.1, where a Fredholm operator has finite-dimensional kernel and cokernel; the closed-range
@@ -101,8 +103,8 @@ theorem isClosed_range_of_finite_coker (T : E →L[𝕜] F)
 
 end ContinuousLinearMap
 
-/-- Over Banach spaces, a continuous linear map with finite-dimensional kernel and cokernel is
-Fredholm: the closed-range condition is automatic.
+/-- Over Banach spaces over an `IsRCLikeNormedField`, a continuous linear map with
+finite-dimensional kernel and cokernel is Fredholm: the closed-range condition is automatic.
 
 This is the Banach-space form of the Fredholm criterion, complementing the direct constructor of
 `ContinuousLinearMap.IsFredholm` by removing the closed-range obligation. -/
@@ -126,8 +128,9 @@ theorem _root_.ContinuousLinearMap.IsFredholm.of_finite_ker_coker (T : E →L[�
     have := hker
     exact Submodule.ClosedComplemented.of_finiteDimensional T.ker
 
-/-- Over Banach spaces the Fredholm predicate is equivalent to finite dimensionality of the kernel
-and cokernel; closedness of the range is not an independent condition. -/
+/-- Over Banach spaces over an `IsRCLikeNormedField`, the Fredholm predicate is equivalent to finite
+dimensionality of the kernel and cokernel; closedness of the range is not an independent
+condition. -/
 theorem isFredholm_iff_finite_ker_coker (T : E →L[𝕜] F) :
     ContinuousLinearMap.IsFredholm T ↔
       FiniteDimensional 𝕜 (LinearMap.ker (T : E →ₗ[𝕜] F)) ∧
