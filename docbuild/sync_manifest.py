@@ -19,6 +19,15 @@ DOCS_MANIFEST = DOCBUILD_DIR / "lake-manifest.json"
 
 
 def packages_by_name(manifest: dict, path: Path) -> dict[str, dict]:
+    """Index a Lake manifest's packages by package name.
+
+    ``manifest`` is a parsed ``lake-manifest.json``; ``path`` is the file it was
+    read from, and is used only in the error message.  Package names index a
+    manifest uniquely, so this doubles as a validation: if two packages share a
+    name, the index would silently drop one, and instead ``SystemExit`` is
+    raised, aborting the synchronization rather than writing a manifest built
+    from a partial view of the input.
+    """
     packages = manifest["packages"]
     by_name = {package["name"]: package for package in packages}
     if len(by_name) != len(packages):
