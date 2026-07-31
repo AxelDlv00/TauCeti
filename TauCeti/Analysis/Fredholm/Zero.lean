@@ -35,11 +35,10 @@ namespace TauCeti
 open Module
 
 variable {𝕜 E F : Type*}
-variable [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
+variable [NontriviallyNormedField 𝕜]
 variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
 
-omit [CompleteSpace 𝕜] in
 private lemma finiteDimensional_domain_of_isFredholm_zero
     (hT : ContinuousLinearMap.IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 E := by
   letI := hT.finite_ker
@@ -48,7 +47,6 @@ private lemma finiteDimensional_domain_of_isFredholm_zero
         LinearMap.ker_zero) ≪≫ₗ
       (Submodule.topEquiv : (⊤ : Submodule 𝕜 E) ≃ₗ[𝕜] E)).finiteDimensional
 
-omit [CompleteSpace 𝕜] in
 private lemma finiteDimensional_codomain_of_isFredholm_zero
     (hT : ContinuousLinearMap.IsFredholm (0 : E →L[𝕜] F)) : FiniteDimensional 𝕜 F := by
   letI := hT.finite_coker
@@ -70,7 +68,12 @@ lemma isFredholm_zero_iff :
     letI := hE
     letI := hF
     exact
-      { isStrictMap := ContinuousLinearMap.isStrictMap_of_finiteDimensional _
+      { isStrictMap := by
+          have hclosed : IsClosedMap (0 : E →L[𝕜] F) := fun s hs ↦ by
+            simpa using (Set.Subsingleton.isClosed (by
+              rintro _ ⟨a, -, rfl⟩ _ ⟨b, -, rfl⟩
+              rfl))
+          exact hclosed.isStrictMap (by fun_prop)
         isClosed_range := by simp
         finite_ker := inferInstance
         finite_coker := inferInstance
@@ -80,7 +83,6 @@ lemma isFredholm_zero_iff :
 
 namespace ContinuousLinearMap
 
-omit [CompleteSpace 𝕜] in
 /-- The index of the zero continuous linear map is the dimension of its domain minus the
 dimension of its codomain. -/
 @[simp]

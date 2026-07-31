@@ -9,9 +9,9 @@ public import TauCeti.Analysis.Fredholm.Basic
 /-!
 # Composition of Fredholm operators
 
-This file proves that the composite of two Fredholm operators between Banach spaces is Fredholm
-and that its index is the sum of their indices. It also records the corresponding statements for
-powers of a Fredholm endomorphism.
+This file proves that, over a complete nontrivially normed scalar field, the composite of two
+Fredholm operators between normed spaces is Fredholm and that its index is the sum of their
+indices. It also records the corresponding statements for powers of a Fredholm endomorphism.
 
 Fredholmness of a composite follows by composing the continuous quasi-inverses supplied by
 Mathlib's Fredholm API.
@@ -42,14 +42,14 @@ open Module
 
 variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
 variable {E F G : Type*}
-variable [NormedAddCommGroup E] [NormedSpace 𝕜 E] [CompleteSpace E]
+variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
-variable [NormedAddCommGroup G] [NormedSpace 𝕜 G] [CompleteSpace G]
+variable [NormedAddCommGroup G] [NormedSpace 𝕜 G]
 
 variable {T : E →L[𝕜] F} {S : F →L[𝕜] G}
 
-omit [CompleteSpace E] [CompleteSpace G] in
-/-- The composite of two Fredholm operators is Fredholm. -/
+/-- Over a complete nontrivially normed scalar field, the composite of two Fredholm operators is
+Fredholm. -/
 theorem _root_.ContinuousLinearMap.IsFredholm.comp
     (hS : ContinuousLinearMap.IsFredholm S) (hT : ContinuousLinearMap.IsFredholm T) :
     ContinuousLinearMap.IsFredholm (S.comp T) := by
@@ -60,7 +60,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.comp
 
 namespace ContinuousLinearMap
 
-omit [CompleteSpace 𝕜] [CompleteSpace E] [CompleteSpace G] in
+omit [CompleteSpace 𝕜] in
 /-- The Fredholm index is additive under composition. -/
 @[simp]
 theorem index_comp (S : F →L[𝕜] G) (T : E →L[𝕜] F)
@@ -79,11 +79,11 @@ end ContinuousLinearMap
 
 section Pow
 
-variable {X : Type*} [NormedAddCommGroup X] [NormedSpace 𝕜 X] [CompleteSpace X]
+variable {X : Type*} [NormedAddCommGroup X] [NormedSpace 𝕜 X]
 variable {A : X →L[𝕜] X}
 
-omit [CompleteSpace X] in
-/-- Every natural-number power of a Fredholm endomorphism is Fredholm. -/
+/-- Over a complete nontrivially normed scalar field, every natural-number power of a Fredholm
+endomorphism is Fredholm. -/
 theorem _root_.ContinuousLinearMap.IsFredholm.pow (hA : ContinuousLinearMap.IsFredholm A) :
     ∀ n : ℕ, ContinuousLinearMap.IsFredholm (A ^ n)
   | 0 => by
@@ -95,7 +95,6 @@ theorem _root_.ContinuousLinearMap.IsFredholm.pow (hA : ContinuousLinearMap.IsFr
 
 namespace ContinuousLinearMap
 
-omit [CompleteSpace X] in
 /-- The index of the `n`th power of a Fredholm endomorphism is `n` times its index. -/
 @[simp]
 theorem index_pow (A : X →L[𝕜] X) (hA : ContinuousLinearMap.IsFredholm A) (n : ℕ) :

@@ -29,13 +29,11 @@ namespace TauCeti
 
 open Module
 
-variable {𝕜 E F : Type*} [NontriviallyNormedField 𝕜] [IsRCLikeNormedField 𝕜]
-  [CompleteSpace 𝕜]
-variable [NormedAddCommGroup E] [NormedSpace 𝕜 E] [CompleteSpace E]
-variable [NormedAddCommGroup F] [NormedSpace 𝕜 F] [CompleteSpace F]
+variable {𝕜 E F : Type*} [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
+variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
+variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
 variable {T K : E →L[𝕜] F}
 
-omit [IsRCLikeNormedField 𝕜] [CompleteSpace E] [CompleteSpace F] in
 /-- Over a complete nontrivially normed field, perturbing a Fredholm operator by an operator of
 finite rank leaves it Fredholm. -/
 theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
@@ -55,7 +53,6 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
 
 namespace ContinuousLinearMap
 
-omit [IsRCLikeNormedField 𝕜] [CompleteSpace E] [CompleteSpace F] in
 /-- Over a complete nontrivially normed field, perturbing a Fredholm operator by an operator of
 finite rank leaves its index unchanged: both operators restrict to the same map on the closed,
 finite-codimensional subspace `ker K`, and additivity of the index cancels the index shift of that
