@@ -191,10 +191,10 @@ jobs:
         working-directory: docbuild
         run: lake exe cache get
 
-      # docbuild deliberately has no lean-toolchain file: elan inherits TauCeti's root toolchain,
-      # so there is no second copy to drift. The pinned doc-gen4 source still uses Lean internals,
-      # though, and may need updating after a Lean bump. Compile it on its own first so an
-      # incompatibility fails in minutes rather than near the end of the full documentation build.
+      # The generated docbuild/lean-toolchain symlink resolves to TauCeti's root toolchain, so
+      # there is no second independently pinned copy to drift. The pinned doc-gen4 source still
+      # uses Lean internals, though, and may need updating after a Lean bump. Compile it on its own
+      # first so an incompatibility fails in minutes rather than near the end of the full build.
       - name: Verify doc-gen4 is compatible with TauCeti's toolchain
         if: steps.docs-plan.outputs.build == 'true'
         working-directory: docbuild
