@@ -4,11 +4,14 @@
 The ordinary bump guard requires the Lake configuration to be byte-identical to
 the trusted base.  The incompatibility tracker is the one exception: its PR
 replaces Mathlib's nominated branch with the immutable first-known-bad SHA so the
-PR builds against the commit it is meant to repair.  Once compatible again, the
-same bot changes that line back to ``master`` while advancing the manifest pin.
-This helper proves that the sole lakefile change is Mathlib's revision and that
-Mathlib's manifest ``rev``/``inputRev`` fields agree with it.  ``check-bump.sh``
-validates the rest of the manifest and the direction of the pin transition.
+PR builds against the commit it is meant to repair.  To leave an exact pin, the
+same bot changes that line back to ``master`` while either advancing the manifest
+pin or, when the reported last-known-good commit equals the existing pin, changing
+only Mathlib's manifest ``inputRev``.  This helper proves that the sole lakefile
+change is Mathlib's revision, that Mathlib's manifest ``rev``/``inputRev`` fields
+agree with it, and that a same-revision de-pin leaves every other manifest field
+unchanged.  ``check-bump.sh`` validates the remaining manifest derivation and the
+direction of any resolved-pin transition.
 """
 
 from __future__ import annotations
