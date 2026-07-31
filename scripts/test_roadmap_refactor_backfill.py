@@ -49,7 +49,10 @@ class ManifestValidation(unittest.TestCase):
         roadmap = self.roadmap_dir / "TauCetiRoadmap" / "PDE"
         roadmap.mkdir(parents=True)
         (roadmap / "README.md").write_text(
-            "# PDE\n\n## Lane A\n\nBuild the estimate.\n",
+            "# PDE\n\n"
+            "```sh\n#949 not a heading\n```\n\n"
+            "## Lane A\n\nBuild the estimate.\n\n"
+            "## Lane B\n\nSharpen the constant.\n",
             encoding="utf-8",
         )
 
@@ -96,8 +99,33 @@ class ManifestValidation(unittest.TestCase):
 
     def test_evidence_must_resolve_in_the_declared_roadmap(self):
         record = self.record()
-        record["roadmap_heading"] = "Lane B"
+        record["roadmap_heading"] = "Lane Z"
         with self.assertRaisesRegex(ValueError, "exact Markdown heading"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_quote_from_another_section_is_rejected(self):
+        record = self.record()
+        record["roadmap_quote"] = "Sharpen the constant."
+        with self.assertRaisesRegex(ValueError, "under the cited roadmap_heading"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_fenced_hash_line_is_not_a_heading(self):
+        record = self.record()
+        record["roadmap_heading"] = "949 not a heading"
+        record["roadmap_quote"] = "Build the estimate."
+        with self.assertRaisesRegex(ValueError, "exact Markdown heading"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_free_text_provenance_is_rejected(self):
+        record = self.record()
+        record["provenance"] = ["garbage"]
+        with self.assertRaisesRegex(ValueError, "not a #N or pull-request URL"):
+            migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
+
+    def test_provenance_cannot_cite_the_migrated_pr(self):
+        record = self.record()
+        record["provenance"] = ["#1"]
+        with self.assertRaisesRegex(ValueError, "cannot cite the PR being migrated"):
             migration.validate_manifest_record(record, {"PDE"}, self.roadmap_dir)
 
     def test_evidence_path_cannot_escape_checkout(self):
@@ -125,6 +153,54 @@ class ManifestValidation(unittest.TestCase):
             ],
         )
         restore.assert_called_once_with("owner/repo", record, {"PDE"})
+
+
+class ProvenanceResolution(unittest.TestCase):
+    """`verify_provenance` is what stops a citation from being mere assertion."""
+
+    def record(self, provenance=("#2",)):
+        return {"pr": 1, "roadmap": "PDE", "provenance": list(provenance)}
+
+    def source(self, **overrides):
+        state = {
+            "state": "MERGED",
+            "title": "feat: build the estimate",
+            "body": "This PR builds it.\n\nRoadmap: PDE",
+            "files": [{"path": "TauCeti/PDE/Estimate.lean"}],
+            "labels": [{"name": "roadmap/PDE"}],
+        }
+        state.update(overrides)
+        return state
+
+    def verify(self, state, target=("TauCeti/PDE/Estimate.lean",), provenance=("#2",)):
+        with mock.patch.object(migration, "pr_state", return_value=state):
+            migration.verify_provenance(
+                "owner/repo", self.record(provenance), {"PDE"}, list(target))
+
+    def test_merged_same_area_overlapping_pr_is_accepted(self):
+        self.verify(self.source())
+
+    def test_label_alone_suffices_when_the_body_predates_declarations(self):
+        self.verify(self.source(body="This PR builds it."))
+
+    def test_pr_attributed_elsewhere_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "not attributed to PDE"):
+            self.verify(self.source(body="Roadmap: none", labels=[]))
+
+    def test_unmerged_pr_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "not merged"):
+            self.verify(self.source(state="OPEN"))
+
+    def test_pr_sharing_no_file_with_the_target_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "does not connect it to PDE"):
+            self.verify(self.source(), target=("TauCeti/Other/Thing.lean",))
+
+    def test_foreign_repository_reference_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "not a owner/repo pull request"):
+            self.verify(
+                self.source(),
+                provenance=("https://github.com/other/repo/pull/2",),
+            )
 
 
 if __name__ == "__main__":

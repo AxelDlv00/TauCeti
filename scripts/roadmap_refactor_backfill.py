@@ -11,6 +11,14 @@ PR with these fields:
      "roadmap_quote": "the multi-crossing PV engine",
      "provenance": ["#949", "#950"]}
 
+The evidence fields must actually connect the PR to the roadmap, so none of them
+is taken on trust. ``roadmap_heading`` must be a real ATX heading of
+``roadmap_file`` (fenced code cannot supply one) and ``roadmap_quote`` must sit in
+that heading's own section, not merely somewhere in the file. ``provenance`` must
+be ``#N``/pull-request-URL references that resolve, against GitHub, to merged PRs
+of this repository which the production classifier already attributes to the same
+roadmap area, at least one of which touched a file the migrated PR also changes.
+
 ``prepare`` captures the verbatim body and roadmap labels, validates the PR and
 evidence, computes the insertion, and writes a reversible execution manifest.
 ``dry-run`` revalidates a tranche without writing (``check`` is a short alias).
@@ -35,6 +43,10 @@ import roadmap_label
 REPO = "TauCetiProject/TauCeti"
 REFACTOR_TITLE = re.compile(r"^refactor(?:[(!:/]| )", re.IGNORECASE)
 MAX_TRANCHE = 20
+PROVENANCE_REF = re.compile(
+    r"(?:#|https://github\.com/(?P<repo>[\w.-]+/[\w.-]+)/pull/)(?P<number>[1-9][0-9]*)"
+)
+ATX_HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*")
 
 
 def body_hash(body: str) -> str:
@@ -133,6 +145,115 @@ def write_jsonl(path: pathlib.Path, rows: list[dict]) -> None:
             target.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def heading_sections(contents: str) -> list[tuple[str, str]]:
+    """Return ``(heading text, section text)`` for each ATX heading of a document.
+
+    A section runs to the next heading of the same or a higher level, so a quote is
+    credited only to the heading it actually sits under. Fenced code is skipped, so
+    a shell comment cannot masquerade as a heading, and the hashes must be followed
+    by a space, as CommonMark requires, so a bare ``#123`` PR reference cannot
+    either.
+    """
+    lines = contents.splitlines()
+    fence: str | None = None
+    headings: list[tuple[int, str, int]] = []
+    for index, line in enumerate(lines):
+        marker = line.lstrip()[:3]
+        if marker in {"```", "~~~"}:
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+            continue
+        if fence is not None:
+            continue
+        match = ATX_HEADING.fullmatch(line)
+        if match is None:
+            continue
+        text = re.sub(r"[ \t]+#+\Z", "", match.group(2) or "").strip()
+        headings.append((len(match.group(1)), text, index))
+
+    sections = []
+    for position, (level, text, start) in enumerate(headings):
+        end = next(
+            (other_start for other_level, _, other_start in headings[position + 1:]
+             if other_level <= level),
+            len(lines),
+        )
+        sections.append((text, "\n".join(lines[start + 1:end])))
+    return sections
+
+
+def parse_provenance(proposal: dict) -> list[tuple[str | None, int]]:
+    """Parse ``provenance`` into ``(repo, number)`` pull-request references.
+
+    Free text is rejected outright: provenance is the link between the PR being
+    migrated and the roadmap it is being attributed to, so every entry has to name
+    a pull request that ``verify_provenance`` can resolve and check.
+    """
+    pr = proposal["pr"]
+    provenance = proposal["provenance"]
+    if not isinstance(provenance, list) or not provenance:
+        raise ValueError(f"#{pr}: provenance must be a nonempty list of PR references")
+    refs: list[tuple[str | None, int]] = []
+    for item in provenance:
+        match = PROVENANCE_REF.fullmatch(item.strip()) if isinstance(item, str) else None
+        if match is None:
+            raise ValueError(
+                f"#{pr}: provenance entry {item!r} is not a #N or pull-request URL"
+            )
+        number = int(match.group("number"))
+        if number == pr:
+            raise ValueError(f"#{pr}: provenance cannot cite the PR being migrated")
+        if (match.group("repo"), number) not in refs:
+            refs.append((match.group("repo"), number))
+    return refs
+
+
+def verify_provenance(
+    repo: str,
+    record: dict,
+    areas: set[str],
+    target_files: list[str],
+) -> None:
+    """Check that the cited PRs really tie the migrated PR to the roadmap area.
+
+    Each one must be a merged PR of this repository that the production classifier,
+    or the label that classifier already applied, attributes to the same area; and
+    at least one must have touched a file the migrated PR also changes. Without the
+    overlap the citation would say nothing about *this* PR.
+    """
+    pr = record["pr"]
+    area = record["roadmap"]
+    expected = roadmap_label.area_label(area)
+    target = set(target_files)
+    overlapping = []
+    for ref_repo, number in parse_provenance(record):
+        if ref_repo is not None and ref_repo != repo:
+            raise ValueError(f"#{pr}: provenance #{number} is not a {repo} pull request")
+        try:
+            state = pr_state(repo, number)
+        except RuntimeError as exc:
+            raise ValueError(f"#{pr}: provenance #{number} does not resolve: {exc}") from exc
+        if state.get("state") != "MERGED":
+            raise ValueError(f"#{pr}: provenance #{number} is not merged")
+        files = changed_files(state)
+        label = roadmap_label.classify(
+            state.get("title") or "", state.get("body") or "", files, areas)
+        if label != expected and expected not in roadmap_labels(state):
+            raise ValueError(
+                f"#{pr}: provenance #{number} is not attributed to {area} "
+                f"(classifier says {label})"
+            )
+        if target & set(files):
+            overlapping.append(number)
+    if not overlapping:
+        raise ValueError(
+            f"#{pr}: no provenance PR touches a file this PR changes, so the "
+            f"citation does not connect it to {area}"
+        )
+
+
 def validate_evidence(
     proposal: dict,
     areas: set[str],
@@ -151,11 +272,7 @@ def validate_evidence(
     for name in ("roadmap_file", "roadmap_heading", "roadmap_quote"):
         if not isinstance(proposal[name], str) or not proposal[name].strip():
             raise ValueError(f"#{pr}: {name} must be nonempty")
-    provenance = proposal["provenance"]
-    if not isinstance(provenance, list) or not provenance or not all(
-        isinstance(item, str) and item.strip() for item in provenance
-    ):
-        raise ValueError(f"#{pr}: provenance must be a nonempty string list")
+    parse_provenance(proposal)
 
     relative = pathlib.PurePosixPath(proposal["roadmap_file"])
     if relative.is_absolute() or ".." in relative.parts:
@@ -171,15 +288,12 @@ def validate_evidence(
         raise ValueError(f"#{pr}: roadmap_file does not exist: {relative}")
     contents = path.read_text(encoding="utf-8")
     heading = proposal["roadmap_heading"].strip()
-    heading_lines = {
-        line.lstrip("#").strip()
-        for line in contents.splitlines()
-        if line.startswith("#")
-    }
-    if heading not in heading_lines:
+    sections = [text for name, text in heading_sections(contents) if name == heading]
+    if not sections:
         raise ValueError(f"#{pr}: roadmap_heading is not an exact Markdown heading")
-    if proposal["roadmap_quote"].strip() not in contents:
-        raise ValueError(f"#{pr}: roadmap_quote is not present in roadmap_file")
+    quote = proposal["roadmap_quote"].strip()
+    if not any(quote in section for section in sections):
+        raise ValueError(f"#{pr}: roadmap_quote is not under the cited roadmap_heading")
     return pr, area
 
 
@@ -200,6 +314,7 @@ def prepare_record(
         raise ValueError(f"#{pr}: infrastructure/empty diff is outside migration scope")
     if roadmap_label.is_pin_only(files):
         raise ValueError(f"#{pr}: pin-only diff is outside migration scope")
+    verify_provenance(repo, proposal, areas, files)
     old_labels = roadmap_labels(state)
     expected = roadmap_label.area_label(area)
     if old_labels not in ([roadmap_label.NONE_LABEL], [expected]):
@@ -280,7 +395,8 @@ def restore_record(repo: str, record: dict, areas: set[str]) -> None:
 
 def apply_record(repo: str, record: dict, areas: set[str]) -> None:
     pr = record["pr"]
-    check_current(repo, record, areas, applied=False)
+    before = check_current(repo, record, areas, applied=False)
+    verify_provenance(repo, record, areas, changed_files(before))
     expected = roadmap_label.area_label(record["roadmap"])
     try:
         patch_body(repo, pr, record["new_body"])
@@ -358,7 +474,8 @@ def main(argv: list[str] | None = None) -> int:
         pr = record["pr"]
         try:
             if args.command in {"check", "dry-run"}:
-                check_current(args.repo, record, areas, applied=False)
+                state = check_current(args.repo, record, areas, applied=False)
+                verify_provenance(args.repo, record, areas, changed_files(state))
             elif args.command == "apply":
                 apply_record(args.repo, record, areas)
             else:
