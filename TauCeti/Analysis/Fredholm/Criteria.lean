@@ -42,7 +42,7 @@ namespace TauCeti
 open Module
 
 variable {K E F : Type*}
-variable [NontriviallyNormedField K] [IsRCLikeNormedField K] [CompleteSpace K]
+variable [NontriviallyNormedField K] [IsRCLikeNormedField K]
 variable [NormedAddCommGroup E] [NormedSpace K E] [CompleteSpace E]
 variable [NormedAddCommGroup F] [NormedSpace K F] [CompleteSpace F]
 
@@ -51,10 +51,22 @@ variable {T : E →L[K] F}
 /-- A surjective continuous linear map with finite-dimensional kernel is Fredholm. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_surjective (hT : Function.Surjective T)
     [FiniteDimensional K (LinearMap.ker (T : E →ₗ[K] F))] :
-    ContinuousLinearMap.IsFredholm T := by
-  apply ContinuousLinearMap.IsFredholm.of_finite_ker_coker T inferInstance
-  rw [LinearMap.range_eq_top.mpr hT]
-  infer_instance
+    ContinuousLinearMap.IsFredholm T where
+  isStrictMap := by
+    letI : CompleteSpace T.range :=
+      (show IsClosed (T.range : Set F) by
+        rw [LinearMap.range_eq_top.mpr hT]
+        exact isClosed_univ).completeSpace_coe
+    rw [Topology.isStrictMap_iff_isQuotientMap_rangeFactorization]
+    exact T.rangeRestrict.isQuotientMap Set.rangeFactorization_surjective
+  isClosed_range := by
+    rw [LinearMap.range_eq_top.mpr hT]
+    exact isClosed_univ
+  finite_ker := inferInstance
+  finite_coker := by
+    rw [LinearMap.range_eq_top.mpr hT]
+    infer_instance
+  closedComplemented_ker := Submodule.ClosedComplemented.of_finiteDimensional T.ker
 
 /-- For a surjective continuous linear map, Fredholmness is equivalent to finite-dimensionality of
 the kernel. -/
@@ -66,17 +78,27 @@ lemma isFredholm_iff_finite_ker_of_surjective (hT : Function.Surjective T) :
     letI := hker
     exact ContinuousLinearMap.IsFredholm.of_surjective hT
 
+omit [IsRCLikeNormedField K] in
 /-- An injective continuous linear map with closed range and finite-dimensional cokernel is
 Fredholm. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_injective (hT : Function.Injective T)
-    (_hclosed : IsClosed (LinearMap.range (T : E →ₗ[K] F) : Set F))
+    (hclosed : IsClosed (LinearMap.range (T : E →ₗ[K] F) : Set F))
     [FiniteDimensional K (F ⧸ LinearMap.range (T : E →ₗ[K] F))] :
-    ContinuousLinearMap.IsFredholm T := by
-  apply ContinuousLinearMap.IsFredholm.of_finite_ker_coker T
-  · rw [LinearMap.ker_eq_bot.mpr hT]
+    ContinuousLinearMap.IsFredholm T where
+  isStrictMap := by
+    letI : CompleteSpace T.range := hclosed.completeSpace_coe
+    rw [Topology.isStrictMap_iff_isQuotientMap_rangeFactorization]
+    exact T.rangeRestrict.isQuotientMap Set.rangeFactorization_surjective
+  isClosed_range := hclosed
+  finite_ker := by
+    rw [LinearMap.ker_eq_bot.mpr hT]
     infer_instance
-  · exact inferInstance
+  finite_coker := inferInstance
+  closedComplemented_ker := by
+    rw [LinearMap.ker_eq_bot.mpr hT]
+    exact Submodule.closedComplemented_bot
 
+omit [IsRCLikeNormedField K] in
 /-- For an injective continuous linear map with closed range, Fredholmness is equivalent to
 finite-dimensionality of the cokernel. -/
 lemma isFredholm_iff_finite_coker_of_injective (hT : Function.Injective T)
@@ -89,7 +111,7 @@ lemma isFredholm_iff_finite_coker_of_injective (hT : Function.Injective T)
     letI := hcoker
     exact ContinuousLinearMap.IsFredholm.of_injective hT hclosed
 
-omit [CompleteSpace F] in
+omit [IsRCLikeNormedField K] [CompleteSpace F] in
 /-- The inclusion of the kernel of an operator of finite rank is Fredholm: the kernel is closed
 and, by the first isomorphism theorem, of finite codimension. -/
 lemma isFredholm_ker_subtypeL (hT : FiniteDimensional K (LinearMap.range (T : E →ₗ[K] F))) :
@@ -106,19 +128,19 @@ lemma isFredholm_ker_subtypeL (hT : FiniteDimensional K (LinearMap.range (T : E 
 
 namespace ContinuousLinearMap
 
-omit [IsRCLikeNormedField K] [CompleteSpace K] [CompleteSpace E] [CompleteSpace F] in
+omit [IsRCLikeNormedField K] [CompleteSpace E] [CompleteSpace F] in
 /-- A surjective continuous linear map has index the dimension of its kernel. -/
 lemma index_of_surjective (T : E →L[K] F) (hT : Function.Surjective T) :
     index T = (finrank K (LinearMap.ker (T : E →ₗ[K] F)) : ℤ) := by
   rw [index_eq_finrank_sub, ← LinearMap.index_eq_finrank_sub, LinearMap.index_of_surjective hT]
 
-omit [IsRCLikeNormedField K] [CompleteSpace K] [CompleteSpace E] [CompleteSpace F] in
+omit [IsRCLikeNormedField K] [CompleteSpace E] [CompleteSpace F] in
 /-- An injective continuous linear map has index the negative of the dimension of its cokernel. -/
 lemma index_of_injective (T : E →L[K] F) (hT : Function.Injective T) :
     index T = -(finrank K (F ⧸ LinearMap.range (T : E →ₗ[K] F)) : ℤ) := by
   rw [index_eq_finrank_sub, ← LinearMap.index_eq_finrank_sub, LinearMap.index_of_injective hT]
 
-omit [IsRCLikeNormedField K] [CompleteSpace K] [CompleteSpace E] [CompleteSpace F] in
+omit [IsRCLikeNormedField K] [CompleteSpace E] [CompleteSpace F] in
 /-- A bijective continuous linear map has Fredholm index zero. This formulation applies directly
 when bijectivity is known before a continuous inverse has been bundled. -/
 lemma index_eq_zero_of_bijective (T : E →L[K] F) (hT : Function.Bijective T) : index T = 0 := by

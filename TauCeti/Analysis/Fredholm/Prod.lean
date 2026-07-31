@@ -90,7 +90,8 @@ lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
   have := hT.finite_coker
   have := hS.finite_coker
   refine ⟨?_, ?_, ?_, ?_, ?_⟩
-  · change Topology.IsStrictMap ⇑((T : E₁ →ₗ[K] F₁).prodMap (S : E₂ →ₗ[K] F₂))
+  · -- `LinearMap.isStrictMap_prodMap` is stated for the underlying linear maps.
+    change Topology.IsStrictMap ⇑((T : E₁ →ₗ[K] F₁).prodMap (S : E₂ →ₗ[K] F₂))
     exact LinearMap.isStrictMap_prodMap hT.isStrictMap hS.isStrictMap
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
     exact hT.isClosed_range.prod hS.isClosed_range

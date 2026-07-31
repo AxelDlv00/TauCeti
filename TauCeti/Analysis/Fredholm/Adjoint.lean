@@ -155,6 +155,7 @@ theorem range_adjoint_eq_orthogonal_ker_of_isClosed_range (T : E →L[𝕜] F)
     calc
       inner 𝕜 x (B y) = inner 𝕜 (x : E) ((T†) (y : F)) := by
         rw [Submodule.coe_inner]
+        -- Domain restriction and codomain corestriction have the same underlying value as `T†`.
         rfl
       _ = inner 𝕜 (T (x : E)) (y : F) := T.adjoint_inner_right x y
       _ = inner 𝕜 ((e x : R) : F) (y : F) := by

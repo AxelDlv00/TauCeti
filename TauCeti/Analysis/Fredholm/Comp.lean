@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import TauCeti.Analysis.Fredholm.ClosedRange
+public import TauCeti.Analysis.Fredholm.Basic
 
 /-!
 # Composition of Fredholm operators

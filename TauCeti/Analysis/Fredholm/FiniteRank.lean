@@ -46,6 +46,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
     refine ContinuousLinearMap.IsFredholm.of_isQuasiInverse (v := S) ?_
     apply hS.congr (Setoid.refl _)
     rw [LinearMap.FiniteRangeSetoid.equiv_iff_hasFiniteRange]
+    -- Unfold the finite-range setoid goal to the range of the perturbation `K`.
     change
       (((T + K : E →L[𝕜] F) : E →ₗ[𝕜] F) - (T : E →ₗ[𝕜] F)).range.FG
     simpa only [ContinuousLinearMap.toLinearMap_add, add_sub_cancel_left]
@@ -53,7 +54,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_finiteDimensional_range
 
 namespace ContinuousLinearMap
 
-omit [CompleteSpace F] in
+omit [IsRCLikeNormedField 𝕜] [CompleteSpace F] in
 /-- Perturbing a Fredholm operator by an operator of finite rank leaves its index unchanged: both
 operators restrict to the same map on the closed, finite-codimensional subspace `ker K`, and
 additivity of the index cancels the index shift of that restriction. -/

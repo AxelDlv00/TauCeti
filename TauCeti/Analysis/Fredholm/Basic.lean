@@ -102,6 +102,7 @@ lemma _root_.ContinuousLinearMap.IsFredholm.smul {T : E →L[𝕜] F}
     (hT : ContinuousLinearMap.IsFredholm T) {c : 𝕜} (hc : c ≠ 0) :
     ContinuousLinearMap.IsFredholm (c • T) where
   isStrictMap := by
+    -- `IsStrictMap` is phrased for functions; unfold the bundled scalar action to match it.
     change Topology.IsStrictMap (fun x ↦ c • T x)
     exact (Homeomorph.smulOfNeZero c hc).comp_isStrictMap_iff.mpr hT.isStrictMap
   isClosed_range := by
@@ -146,6 +147,20 @@ private noncomputable def quotientEquivMap (e : F ≃ₗ[𝕜] G) (p : Submodule
     (F ⧸ p) ≃ₗ[𝕜] G ⧸ p.map (e : F →ₗ[𝕜] G) :=
   Submodule.Quotient.equiv p (p.map (e : F →ₗ[𝕜] G)) e rfl
 
+/-- A continuous linear equivalence carries a complemented submodule to a complemented
+submodule. -/
+private lemma closedComplemented_map_continuousLinearEquiv (e : E ≃L[𝕜] F)
+    (p : Submodule 𝕜 E) (hp : p.ClosedComplemented) :
+    (p.map (e : E →ₗ[𝕜] F)).ClosedComplemented := by
+  obtain ⟨P, hP⟩ := hp
+  let ep := e.submoduleMap p
+  refine ⟨ep.toContinuousLinearMap.comp (P.comp (e.symm : F →L[𝕜] E)), ?_⟩
+  intro y
+  change ep (P (e.symm (y : F))) = y
+  have he : e.symm (y : F) = (ep.symm y : E) := rfl
+  rw [he, hP]
+  exact ep.apply_symm_apply y
+
 /-- The kernel of `T.comp e`, for a continuous linear equivalence `e : G ≃L[𝕜] E`, is the image
 of `ker T` under `e⁻¹`. Transports the kernel along a precomposed equivalence in both
 `comp_equiv` and `index_comp_equiv`. -/
@@ -176,7 +191,8 @@ lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
     (hT : ContinuousLinearMap.IsFredholm T) (e : F ≃L[𝕜] G) :
     ContinuousLinearMap.IsFredholm ((e : F →L[𝕜] G).comp T) := by
   refine ⟨?_, ?_, ?_, ?_, ?_⟩
-  · change Topology.IsStrictMap (fun x ↦ e (T x))
+  · -- Expose function composition so the homeomorphism strictness lemma applies.
+    change Topology.IsStrictMap (fun x ↦ e (T x))
     exact e.toHomeomorph.comp_isStrictMap_iff.mpr hT.isStrictMap
   · rw [coe_equiv_comp, LinearMap.range_comp]
     simpa [Submodule.map_coe] using e.isClosed_image.2 hT.isClosed_range
@@ -191,14 +207,21 @@ lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
 /-- Precomposing a Fredholm operator with a continuous linear equivalence yields a Fredholm
 operator. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.comp_equiv (hT : ContinuousLinearMap.IsFredholm T)
-    (e : G ≃L[𝕜] E) [CompleteSpace 𝕜] :
+    (e : G ≃L[𝕜] E) :
     ContinuousLinearMap.IsFredholm (T.comp (e : G →L[𝕜] E)) := by
-  obtain ⟨S, hS⟩ := hT.exists_isQuasiInverse
-  refine ContinuousLinearMap.IsFredholm.of_isQuasiInverse
-    (v := (e.symm : E →L[𝕜] G).comp S) ?_
-  rw [ContinuousLinearMap.toLinearMap_comp, ContinuousLinearMap.toLinearMap_comp,
-    coe_continuousLinearEquiv e, coe_continuousLinearEquiv e.symm]
-  exact e.toLinearEquiv.isQuasiInverse.comp hS
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · -- Expose function composition so the homeomorphism strictness lemma applies.
+    change Topology.IsStrictMap (fun x ↦ T (e x))
+    exact e.toHomeomorph.isStrictMap_comp_iff.mpr hT.isStrictMap
+  · rw [range_comp_equiv]
+    exact hT.isClosed_range
+  · rw [ker_comp_equiv]
+    have := hT.finite_ker
+    exact (e.symm.submoduleMap _).finiteDimensional
+  · rw [range_comp_equiv]
+    exact hT.finite_coker
+  · rw [ker_comp_equiv]
+    exact closedComplemented_map_continuousLinearEquiv e.symm _ hT.closedComplemented_ker
 
 end CompEquiv
 
