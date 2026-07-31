@@ -84,6 +84,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The nested docs project needs a doc-gen4 revision built for the same Lean version as
+      # TauCeti. Mathlib-only bumps are synchronized automatically below, but a Lean bump also
+      # needs a compatible doc-gen4 revision and must fail here rather than after an 80-minute
+      # documentation build.
+      - name: Verify the docs toolchain matches TauCeti
+        working-directory: ${{ github.workspace }}
+        run: |
+          root_toolchain=$(tr -d '\r\n' < lean-toolchain)
+          docs_toolchain=$(tr -d '\r\n' < docbuild/lean-toolchain)
+          if [ "$root_toolchain" != "$docs_toolchain" ]; then
+            echo "::error title=Stale docs toolchain::docbuild/lean-toolchain must match lean-toolchain; also select a doc-gen4 revision built for that Lean version"
+            printf 'TauCeti: %s\ndocbuild: %s\n' "$root_toolchain" "$docs_toolchain"
+            exit 1
+          fi
+
       - name: Clone the roadmap repository (full history, for its chart)
         working-directory: ${{ github.workspace }}
         run: git clone --quiet https://github.com/TauCetiProject/TauCetiRoadmap.git /tmp/roadmap
@@ -144,6 +159,14 @@ jobs:
       # pushes to TauCeti/ (never on the web/-only pushes that trigger this workflow), so the
       # generated HTML is cached under a run-specific key and reused on web-only runs.
 
+      # The daily dependency updater advances the root Mathlib manifest independently of this
+      # nested project. Copy its exact resolved pins into the nested manifest before computing the
+      # docs cache key. Do not use `lake update` here: TauCeti normally nominates Mathlib's moving
+      # `master` branch, so an independent update could select a commit newer than main's lockfile.
+      - name: Synchronize the docs dependencies with TauCeti
+        working-directory: docbuild
+        run: python3 sync_manifest.py
+
       # Restore-only avoids the automatic post-job re-upload that plain actions/cache does
       # on runs that merely reused the docs. The save below runs only after an actual rebuild.
       - name: Restore the generated API docs
@@ -151,9 +174,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: docbuild/.lake/build/doc
-          key: docs-html-v2-${{ hashFiles('lean-toolchain', 'docbuild/lake-manifest.json') }}-${{ github.run_id }}
+          key: docs-html-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json') }}-${{ github.run_id }}
           restore-keys: |
-            docs-html-v2-${{ hashFiles('lean-toolchain', 'docbuild/lake-manifest.json') }}-
+            docs-html-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json') }}-
 
       # Rebuild on the three-hour schedule / manual dispatch, or whenever no cached docs exist at
       # all (e.g. the first run after this workflow lands) so /docs is never missing for long.
@@ -223,7 +246,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: docbuild/.lake/build/doc
-          key: docs-html-v2-${{ hashFiles('lean-toolchain', 'docbuild/lake-manifest.json') }}-${{ github.run_id }}
+          key: docs-html-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Cache Lake builds (site + examples)
         uses: actions/cache@v4
