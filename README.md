@@ -146,8 +146,8 @@ scheduled for regeneration every three hours from `main` with
 [project website](https://taucetiproject.github.io/TauCeti/).
 
 The moving `docgen` branch points to the newest commit from `main` whose generated API
-documentation was successfully deployed, and every deploy re-points it at what is actually
-published, so it recovers by itself if it ever drifts.
+documentation was successfully deployed, and any deploy from `main` re-points it at what is
+actually published, so it recovers by itself if it ever drifts.
 
 It is best-effort rather than exact: publishing to Pages and updating a git ref cannot be done
 atomically, so the branch briefly names documentation that has just been replaced, and it stays

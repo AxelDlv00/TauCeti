@@ -201,11 +201,14 @@ jobs:
       # deployed, rather than `github.sha` of whichever run happened to deploy it.
       - name: Record the commit the API docs were generated from
         if: steps.docs-plan.outputs.build == 'true'
+        # This job's default working directory is `web/`; like every other step that touches the
+        # docs project, this one runs in `docbuild/` instead.
+        working-directory: docbuild
         env:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          marker=docbuild/.lake/build/doc/SOURCE_SHA
+          marker=.lake/build/doc/SOURCE_SHA
           # The name must be ours alone. If doc-gen4 ever emits anything at that path, silently
           # overwriting it would corrupt the documentation, and trusting it would let a generated
           # file dictate where the docgen branch points.
@@ -330,9 +333,10 @@ jobs:
   # The candidate is the marker carried inside the deployed doc tree, NOT `github.sha`. Those differ
   # whenever a deploy reuses cached documentation, which is the normal path for a `web/`-only push --
   # and taking `github.sha` there would assert that documentation exists for a commit that was never
-  # documented. It also makes the branch self-healing: every successful deploy re-points it at what
-  # is actually published, so a branch that has drifted corrects itself on the next deploy rather
-  # than staying wrong until someone notices.
+  # documented. Following the marker also makes the branch self-healing: any deploy from `main`
+  # re-points it at what is actually published, so a branch that has drifted corrects itself rather
+  # than staying wrong until someone notices. A manual dispatch from another branch still deploys
+  # but is skipped here, so drift persists until the next deploy from `main`.
   #
   # Nothing here keys on whether a rebuild was *planned*: that is decided before anything is built
   # and says nothing about what ended up published, whereas the marker records the outcome, which is
