@@ -82,6 +82,7 @@ theorem orthogonalKerEquivRange_apply (T : E →L[𝕜] F)
     (LinearMap.ker (T : E →ₗ[𝕜] F)).isCompl_orthogonal.symm
   let he : Continuous e :=
     (T.continuous.comp continuous_subtype_val).subtype_mk _
+  -- Expose the `LinearEquiv` underlying the continuous wrapper so its application lemma applies.
   change ((e.toContinuousLinearEquivOfContinuous he x :
     LinearMap.range (T : E →ₗ[𝕜] F)) : F) = T x
   rw [LinearEquiv.coeFn_toContinuousLinearEquivOfContinuous]

@@ -48,7 +48,11 @@ variable [NormedAddCommGroup F] [NormedSpace K F] [CompleteSpace F]
 
 variable {T : E →L[K] F}
 
-/-- A surjective continuous linear map with finite-dimensional kernel is Fredholm. -/
+/-- A surjective continuous linear map with finite-dimensional kernel is Fredholm.
+
+This is proved directly because `IsFredholm.of_finite_ker_coker` currently assumes that the scalar
+field is complete, while surjectivity supplies the completeness of this operator's range without
+that assumption. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_surjective (hT : Function.Surjective T)
     [FiniteDimensional K (LinearMap.ker (T : E →ₗ[K] F))] :
     ContinuousLinearMap.IsFredholm T where
