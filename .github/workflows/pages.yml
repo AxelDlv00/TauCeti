@@ -84,21 +84,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The nested docs project needs a doc-gen4 revision built for the same Lean version as
-      # TauCeti. Mathlib-only bumps are synchronized automatically below, but a Lean bump also
-      # needs a compatible doc-gen4 revision and must fail here rather than after an 80-minute
-      # documentation build.
-      - name: Verify the docs toolchain matches TauCeti
-        working-directory: ${{ github.workspace }}
-        run: |
-          root_toolchain=$(tr -d '\r\n' < lean-toolchain)
-          docs_toolchain=$(tr -d '\r\n' < docbuild/lean-toolchain)
-          if [ "$root_toolchain" != "$docs_toolchain" ]; then
-            echo "::error title=Stale docs toolchain::docbuild/lean-toolchain must match lean-toolchain; also select a doc-gen4 revision built for that Lean version"
-            printf 'TauCeti: %s\ndocbuild: %s\n' "$root_toolchain" "$docs_toolchain"
-            exit 1
-          fi
-
       - name: Clone the roadmap repository (full history, for its chart)
         working-directory: ${{ github.workspace }}
         run: git clone --quiet https://github.com/TauCetiProject/TauCetiRoadmap.git /tmp/roadmap
@@ -196,6 +181,15 @@ jobs:
         if: steps.docs-plan.outputs.build == 'true'
         working-directory: docbuild
         run: lake exe cache get
+
+      # docbuild deliberately has no lean-toolchain file: elan inherits TauCeti's root toolchain,
+      # so there is no second copy to drift. The pinned doc-gen4 source still uses Lean internals,
+      # though, and may need updating after a Lean bump. Compile it on its own first so an
+      # incompatibility fails in minutes rather than near the end of the full documentation build.
+      - name: Verify doc-gen4 is compatible with TauCeti's toolchain
+        if: steps.docs-plan.outputs.build == 'true'
+        working-directory: docbuild
+        run: lake build doc-gen4
 
       # doc-gen4 documents a library's root modules and their closure; TauCeti's root is empty
       # by design, so we regenerate a throwaway aggregator root that imports the whole glob.
