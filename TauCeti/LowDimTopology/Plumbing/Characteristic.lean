@@ -101,11 +101,12 @@ section Form
 
 variable [DecidableEq V] [Fintype V]
 
+-- This is the `p = 2` case of `ZMod.pow_card`, but that lemma lives in
+-- `Mathlib.FieldTheory.Finite.Basic`, whose import closure (finite fields, Galois theory) is far
+-- wider than the elementary parity this file needs; `ZMod 2` has two elements, so `decide` proves
+-- it outright.
 private theorem zmod_two_sq (a : ZMod 2) : a ^ 2 = a := by
-  rw [← a.natCast_zmod_val]
-  have hlt : a.val < 2 := a.val_lt
-  have hval : a.val = 0 ∨ a.val = 1 := by omega
-  rcases hval with hval | hval <;> simp [hval]
+  revert a; decide
 
 omit [DecidableEq V] in
 private theorem adjacency_sum_cast_zmod_two_eq_zero (x : V → ℤ) :
