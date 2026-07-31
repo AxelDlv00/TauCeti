@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Mathlib.Algebra.Group.Subgroup.Lattice
+public import Mathlib.Algebra.Group.Subgroup.Map
 public import Mathlib.GroupTheory.Perm.DomMulAct
 
 /-!
@@ -12,8 +12,9 @@ public import Mathlib.GroupTheory.Perm.DomMulAct
 
 Given `f : α → ι`, the permutations `σ` of `α` with `f (σ a) = f a` for every `a` form a subgroup
 of `Equiv.Perm α`, here called `TauCeti.fiberSubgroup f`.  This file records that subgroup, the
-behaviour of the construction under pairing two maps, the criterion for it to be trivial, and the
-isomorphism restricting a fiber-preserving permutation to each fiber,
+transpositions it contains, the behaviour of the construction under conjugation and pairing two
+maps, the criterion for it to be trivial, and the isomorphism restricting a fiber-preserving
+permutation to each fiber,
 
 `fiberSubgroup f ≃* ∀ i, Equiv.Perm {a // f a = i}`,
 
@@ -51,6 +52,38 @@ theorem mem_fiberSubgroup {f : α → ι} {σ : Equiv.Perm α} :
     σ ∈ fiberSubgroup f ↔ ∀ a, f (σ a) = f a :=
   Iff.rfl
 
+/-- The transposition of two points lying in a common fiber of `f` preserves every fiber of `f`:
+it moves each of the two points to the other, inside their shared fiber, and fixes the rest. -/
+theorem swap_mem_fiberSubgroup [DecidableEq α] {f : α → ι} {x y : α} (h : f x = f y) :
+    Equiv.swap x y ∈ fiberSubgroup f := by
+  rw [mem_fiberSubgroup]
+  intro a
+  rcases eq_or_ne a x with rfl | hax
+  · rw [Equiv.swap_apply_left, h]
+  · rcases eq_or_ne a y with rfl | hay
+    · rw [Equiv.swap_apply_right, h]
+    · rw [Equiv.swap_apply_of_ne_of_ne hax hay]
+
+/-- Conjugation by `e` transports the subgroup preserving the fibers of `f` to the subgroup
+preserving the fibers of `g` when `e` identifies their fiber equivalence relations. -/
+theorem fiberSubgroup_map_conj {f : α → ι} {g : α → κ} (e : Equiv.Perm α)
+    (h : ∀ a b, f a = f b ↔ g (e a) = g (e b)) :
+    (fiberSubgroup f).map (MulAut.conj e).toMonoidHom = fiberSubgroup g := by
+  ext σ
+  rw [Subgroup.mem_map_equiv, mem_fiberSubgroup, mem_fiberSubgroup]
+  constructor
+  · intro hσ a
+    have hfa : f (e.symm (σ a)) = f (e.symm a) := by
+      simpa only [MulAut.conj_symm_apply, Equiv.Perm.coe_mul, Function.comp_apply,
+        Equiv.Perm.coe_inv, Equiv.apply_symm_apply] using hσ (e.symm a)
+    have ha := (h (e.symm (σ a)) (e.symm a)).mp hfa
+    simpa only [MulAut.conj_symm_apply, Equiv.Perm.coe_mul, Function.comp_apply,
+      Equiv.Perm.coe_inv, Equiv.apply_symm_apply] using ha
+  · intro hσ a
+    apply (h _ _).mpr
+    simpa only [MulAut.conj_symm_apply, Equiv.Perm.coe_mul, Function.comp_apply,
+      Equiv.Perm.coe_inv, Equiv.apply_symm_apply] using hσ (e a)
+
 /-- Preserving the fibers of two maps at once is preserving the fibers of the paired map. -/
 theorem fiberSubgroup_inf (f : α → ι) (g : α → κ) :
     fiberSubgroup f ⊓ fiberSubgroup g = fiberSubgroup fun a => (f a, g a) := by
@@ -69,13 +102,7 @@ theorem injective_of_fiberSubgroup_eq_bot {f : α → ι}
   classical
   intro a b hab
   by_contra hne
-  have hswap : Equiv.swap a b ∈ fiberSubgroup f := by
-    intro x
-    rcases eq_or_ne x a with rfl | hxa
-    · simpa using hab.symm
-    · rcases eq_or_ne x b with rfl | hxb
-      · simpa using hab
-      · rw [Equiv.swap_apply_of_ne_of_ne hxa hxb]
+  have hswap : Equiv.swap a b ∈ fiberSubgroup f := swap_mem_fiberSubgroup hab
   rw [h, Subgroup.mem_bot, Equiv.Perm.one_def] at hswap
   exact hne (Equiv.swap_eq_refl_iff.mp hswap)
 

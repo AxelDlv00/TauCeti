@@ -23,7 +23,9 @@ name: Pages
 # state. The per-roadmap chart (scripts/loc_roadmap_graph.py) is regenerated the same
 # way, but from the PR labels rather than git, since roadmap attribution lives in the
 # `roadmap/<Area>` labels; it reads them via gh (hence pull-requests: read below). The
-# daily `schedule` below redeploys the site so the charts track the project as it grows.
+# participation snapshot likewise reads GitHub through gh, but deduplicates the current
+# human actors instead of reconstructing a historical series. The daily `schedule` below
+# redeploys the site so the charts track the project as it grows.
 # (This replaces the old loc-graph workflow, which committed the SVGs to main on a
 # schedule; main now sits behind a merge queue that refuses direct pushes, so generating
 # the charts in this build is the only way they refresh.)
@@ -36,16 +38,20 @@ on:
       - 'docbuild/**'
       - 'scripts/loc_graph.py'
       - 'scripts/loc_roadmap_graph.py'
+      - 'scripts/participant_graph.py'
       - '.github/workflows/pages.yml'
   schedule:
     - cron: "0 6 * * *"   # Daily 06:00 UTC: refresh the lines-of-code charts and the API docs
   workflow_dispatch:
 
 permissions:
+  # These scopes govern this repository. Reads from the other three repositories
+  # rely on their public visibility.
   contents: read
   pages: write
   id-token: write
-  pull-requests: read   # the per-roadmap chart reads PR labels via gh (scripts/loc_roadmap_graph.py)
+  issues: read      # issue participants in this repository
+  pull-requests: read # roadmap labels and PR participants
 
 concurrency:
   group: pages
@@ -62,6 +68,8 @@ jobs:
   # is hygiene so a future PR trigger here could never reintroduce the collision.
   build-site:
     runs-on: ubuntu-latest
+    outputs:
+      docs-rebuilt: ${{ steps.docs-plan.outputs.build }}
     defaults:
       run:
         working-directory: web
@@ -107,6 +115,18 @@ jobs:
             --title "Tau Ceti — lines of Lean per roadmap" \
             --out web/static_files/loc-per-roadmap.svg \
           || echo "::warning::per-roadmap chart generation failed; keeping the committed fallback SVG"
+
+      # A current snapshot rather than a historical series: participants are deduplicated
+      # across PRs, issues, comments/reviews, and default-branch commits in all four repos.
+      # This API scan runs only in the daily/deploy build, never at request time.
+      - name: Regenerate the participation snapshot into static_files
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/participant_graph.py \
+            --out web/static_files/participation.svg \
+          || echo "::warning::participation graph generation failed; keeping the committed fallback SVG"
 
       - name: Install elan
         run: |
@@ -234,3 +254,41 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # A moving source ref for consumers that need to stay in lockstep with the published API
+  # documentation. Advance it only after this run freshly rebuilt the docs and successfully
+  # deployed them. Cached site-only deploys must leave it alone: their docs belong to the
+  # earlier commit already named by this ref.
+  advance-docgen-ref:
+    needs: [build-site, deploy]
+    if: needs.build-site.outputs.docs-rebuilt == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Fast-forward the docgen branch to the documented commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          endpoint="repos/$REPO/git/refs/heads/docgen"
+          current=$(gh api "repos/$REPO/git/matching-refs/heads/docgen" \
+            --jq '.[] | select(.ref == "refs/heads/docgen") | .object.sha')
+
+          if [ -n "$current" ]; then
+            if [ "$current" = "$CANDIDATE" ]; then
+              echo "docgen already points to $CANDIDATE"
+              exit 0
+            fi
+
+            # force=false makes an unexpected rewind or divergent update fail closed.
+            gh api --method PATCH "$endpoint" \
+              -f sha="$CANDIDATE" \
+              -F force=false
+          else
+            gh api --method POST "repos/$REPO/git/refs" \
+              -f ref='refs/heads/docgen' \
+              -f sha="$CANDIDATE"
+          fi
