@@ -78,12 +78,13 @@ theorem orthogonalKerEquivRange_apply (T : E →L[𝕜] F)
     (LinearMap.ker (T : E →ₗ[𝕜] F)).isClosed_orthogonal.completeSpace_coe
   letI : CompleteSpace (LinearMap.range (T : E →ₗ[𝕜] F)) :=
     hT.completeSpace_coe
-  -- Unfold the continuous-equivalence wrapper to the underlying
-  -- `LinearMap.kerComplementEquivRange`, whose application lemma gives the result.
-  change
-    ((LinearMap.kerComplementEquivRange (T : E →ₗ[𝕜] F)
-      (LinearMap.ker (T : E →ₗ[𝕜] F)).isCompl_orthogonal.symm x :
-        LinearMap.range (T : E →ₗ[𝕜] F)) : F) = T x
+  let e := LinearMap.kerComplementEquivRange (T : E →ₗ[𝕜] F)
+    (LinearMap.ker (T : E →ₗ[𝕜] F)).isCompl_orthogonal.symm
+  let he : Continuous e :=
+    (T.continuous.comp continuous_subtype_val).subtype_mk _
+  change ((e.toContinuousLinearEquivOfContinuous he x :
+    LinearMap.range (T : E →ₗ[𝕜] F)) : F) = T x
+  rw [LinearEquiv.coeFn_toContinuousLinearEquivOfContinuous]
   exact LinearMap.kerComplementEquivRange_apply_coe _ _ x
 
 /-- Applying a closed-range operator to the inverse of its orthogonal-kernel restriction
@@ -157,8 +158,10 @@ theorem range_adjoint_eq_orthogonal_ker_of_isClosed_range (T : E →L[𝕜] F)
     calc
       inner 𝕜 x (B y) = inner 𝕜 (x : E) ((T†) (y : F)) := by
         rw [Submodule.coe_inner]
-        -- Domain restriction and codomain corestriction have the same underlying value as `T†`.
-        rfl
+        rw [show (B y : E) = ((T†).domRestrict R) y by
+          exact ContinuousLinearMap.coe_codRestrict_apply _ _ _ y]
+        rw [show ((T†).domRestrict R) y = (T†) (y : F) by
+          exact congrFun (ContinuousLinearMap.coe_domRestrict (T†) R) y]
       _ = inner 𝕜 (T (x : E)) (y : F) := T.adjoint_inner_right x y
       _ = inner 𝕜 ((e x : R) : F) (y : F) := by
         rw [he_apply]

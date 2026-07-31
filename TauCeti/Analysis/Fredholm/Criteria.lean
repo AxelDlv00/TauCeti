@@ -149,13 +149,15 @@ lemma index_eq_zero_of_bijective (T : E →L[K] F) (hT : Function.Bijective T) :
 
 end ContinuousLinearMap
 
+omit [IsRCLikeNormedField K] in
 /-- A bijective continuous linear map is Fredholm. This formulation does not require bundling its
-inverse as a continuous linear equivalence. -/
+inverse as a continuous linear equivalence. The codomain completeness assumption is used by
+Mathlib's bounded-inverse construction `ContinuousLinearEquiv.ofBijective`. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_bijective (hT : Function.Bijective T) :
     ContinuousLinearMap.IsFredholm T := by
-  letI : FiniteDimensional K (LinearMap.ker (T : E →ₗ[K] F)) := by
-    rw [LinearMap.ker_eq_bot.mpr hT.injective]
-    infer_instance
-  exact ContinuousLinearMap.IsFredholm.of_surjective hT.surjective
+  exact ContinuousLinearMap.IsFredholm.of_continuousLinearEquiv
+    (ContinuousLinearEquiv.ofBijective T
+      (LinearMap.ker_eq_bot.mpr hT.injective)
+      (LinearMap.range_eq_top.mpr hT.surjective))
 
 end TauCeti

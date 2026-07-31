@@ -160,12 +160,12 @@ private lemma closedComplemented_map_continuousLinearEquiv (e : E ≃L[𝕜] F)
   let ep := e.submoduleMap p
   refine ⟨ep.toContinuousLinearMap.comp (P.comp (e.symm : F →L[𝕜] E)), ?_⟩
   intro y
-  -- Unfold the transported projection; its value lies in the mapped submodule.
-  change ep (P (e.symm (y : F))) = y
-  -- The inverse of `e.submoduleMap p` is definitionally `e.symm` on underlying vectors.
-  have he : e.symm (y : F) = (ep.symm y : E) := rfl
-  rw [he, hP]
-  exact ep.apply_symm_apply y
+  have h := congrArg ep (hP (ep.symm y))
+  simpa only [ep, ContinuousLinearMap.comp_apply,
+    ContinuousLinearEquiv.coe_coe,
+    ContinuousLinearEquiv.submoduleMap_apply,
+    ContinuousLinearEquiv.submoduleMap_symm_apply,
+    ep.apply_symm_apply] using h
 
 /-- The kernel of `T.comp e`, for a continuous linear equivalence `e : G ≃L[𝕜] E`, is the image
 of `ker T` under `e⁻¹`. Transports the kernel along a precomposed equivalence in both
