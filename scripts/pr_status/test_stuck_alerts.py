@@ -102,9 +102,9 @@ class FailClosedTest(unittest.TestCase):
 
 
 class AutoMergeScopeTest(unittest.TestCase):
-    def test_lakefile_exception_is_exact_author_only(self):
+    def test_lakefile_is_never_in_auto_merge_scope(self):
         files = ["lakefile.toml", "lake-manifest.json"]
-        self.assertTrue(sa.is_automerge_scope(files, "tauceti-review-bot[bot]"))
+        self.assertFalse(sa.is_automerge_scope(files, "tauceti-review-bot[bot]"))
         self.assertFalse(sa.is_automerge_scope(files, "someone-else"))
 
     def test_bot_authorship_does_not_allow_other_infrastructure(self):
