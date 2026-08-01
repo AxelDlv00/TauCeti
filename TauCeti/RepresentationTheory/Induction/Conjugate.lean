@@ -34,8 +34,10 @@ makes `g ↦ conjNormalRep g` a `MulAction` of `G` on `Rep k N`.  This is the ac
 `CategoryTheory.Functor.mapSkeleton` to isomorphism classes, giving the action of `G` on
 `CategoryTheory.Skeleton (FDRep k N)` whose stabilizers are the inertia groups
 (`TauCeti.RepresentationTheory.Induction.Inertia`); those stabilizers are not
-`MulAction.stabilizer G A`, which asks for `{}^g A = A` on the nose.  That the action preserves
-irreducibility (so restricts to `Irr(N)`) is not proved here.
+`MulAction.stabilizer G A`, which asks for `{}^g A = A` on the nose.  Conjugation does preserve
+irreducibility (`TauCeti.isIrreducible_conjRep_iff`, `TauCeti.isIrreducible_conjFDRep_iff`), since
+it identifies the invariant subspaces; the restriction of the action on isomorphism classes to the
+irreducible ones is not carved out here.
 
 ## Main definitions
 
@@ -44,6 +46,8 @@ irreducibility (so restricts to `Irr(N)`) is not proved here.
   representation categories, with `TauCeti.conjRepEquiv` and `TauCeti.conjFDRepEquiv` the
   equivalences `Rep k H ≌ Rep k (sHs⁻¹)` and `FDRep k H ≌ FDRep k (sHs⁻¹)` they underlie.
 * `TauCeti.conjRep`: the conjugate of a representation.
+* `TauCeti.conjRepSubrepresentationOrderIso`: the invariant-subspace correspondence under
+  conjugation.
 * `TauCeti.conjFDRep`: the finite-dimensional version.
 * `TauCeti.conjNormalRepFunctor`, `TauCeti.conjNormalFDRepFunctor`: for a normal subgroup,
   conjugation as an endofunctor, with `TauCeti.conjNormalRepEquiv` and
@@ -66,6 +70,8 @@ irreducibility (so restricts to `Irr(N)`) is not proved here.
   instances.
 * `TauCeti.res_conjRep`, `TauCeti.res_conjFDRep`: the normal-subgroup conjugation is the general
   conjugate representation, read through `MulAut.conj g • N = N`.
+* `TauCeti.isIrreducible_conjRep_iff`, `TauCeti.isIrreducible_conjFDRep_iff`: conjugation
+  preserves irreducibility, because it identifies the invariant subspaces.
 
 ## References
 
@@ -164,6 +170,41 @@ theorem conjRep_ρ_mk [Semiring k] (s : G) {H : Subgroup G} (A : Rep k H)
       (A.ρ ⟨s⁻¹ * (x : G) * s, (mem_conj_smul s H x).mp x.2⟩) := by
   apply (conjRep_ρ s A x).trans
   congr 1
+
+/-- Conjugation identifies the invariant subspaces of a representation with those of its
+conjugate. -/
+def conjRepSubrepresentationOrderIso [Semiring k] (s : G) {H : Subgroup G} (A : Rep.{w} k H) :
+    Subrepresentation (conjRep s A).ρ ≃o Subrepresentation A.ρ := by
+  -- Unfold `conjRep` and `conjRepFunctor` to expose Mathlib's definition of the restricted action.
+  change Subrepresentation (A.ρ.comp (conjSubgroupEquiv s H).toMonoidHom) ≃o
+    Subrepresentation A.ρ
+  exact resSubrepresentationOrderIso (conjSubgroupEquiv s H).toMonoidHom
+    (conjSubgroupEquiv s H).surjective A.ρ
+
+/-- The forward invariant-subspace correspondence preserves the underlying submodule. -/
+@[simp]
+theorem conjRepSubrepresentationOrderIso_apply_toSubmodule [Semiring k] (s : G)
+    {H : Subgroup G} (A : Rep.{w} k H) (S : Subrepresentation (conjRep s A).ρ) :
+    HEq (conjRepSubrepresentationOrderIso s A S).toSubmodule S.toSubmodule := by
+  unfold conjRepSubrepresentationOrderIso
+  exact heq_of_eq (resSubrepresentationOrderIso_apply_toSubmodule
+    (conjSubgroupEquiv s H).toMonoidHom (conjSubgroupEquiv s H).surjective A.ρ S)
+
+/-- The inverse invariant-subspace correspondence preserves the underlying submodule. -/
+@[simp]
+theorem conjRepSubrepresentationOrderIso_symm_apply_toSubmodule [Semiring k] (s : G)
+    {H : Subgroup G} (A : Rep.{w} k H) (S : Subrepresentation A.ρ) :
+    HEq ((conjRepSubrepresentationOrderIso s A).symm S).toSubmodule S.toSubmodule := by
+  unfold conjRepSubrepresentationOrderIso
+  exact heq_of_eq (resSubrepresentationOrderIso_symm_apply_toSubmodule
+    (conjSubgroupEquiv s H).toMonoidHom (conjSubgroupEquiv s H).surjective A.ρ S)
+
+/-- A conjugate representation is irreducible exactly when the original representation is. -/
+@[simp]
+theorem isIrreducible_conjRep_iff [Field k] (s : G) {H : Subgroup G} (A : Rep.{w} k H) :
+    Representation.IsIrreducible (conjRep s A).ρ ↔
+      Representation.IsIrreducible A.ρ :=
+  isIrreducible_comp_equiv_iff (conjSubgroupEquiv s H) A.ρ
 
 section Coherence
 
@@ -311,6 +352,12 @@ def conjFDRep (s : G) {H : Subgroup G} (A : FDRep k H) :
     FDRep k (MulAut.conj s • H : Subgroup G) :=
   (conjFDRepFunctor s H).obj A
 
+/-- Restriction along `conjSubgroupEquiv` sends `A` to `conjFDRep s A`. -/
+@[simp]
+theorem res_obj_eq_conjFDRep (s : G) (H : Subgroup G) (A : FDRep k H) :
+    (Action.res (FGModuleCat k) (conjSubgroupEquiv s H : _ →* _)).obj A = conjFDRep s A := by
+  rfl
+
 /-- Conjugation preserves the underlying module of a finite-dimensional representation. -/
 @[simp]
 theorem conjFDRep_V (s : G) {H : Subgroup G} (A : FDRep k H) :
@@ -437,6 +484,25 @@ theorem finrank_conjFDRep (s : G) {H : Subgroup G} (A : FDRep k H) :
   exact congrArg (fun V : FGModuleCat k => Module.finrank k V) (conjFDRep_V s A)
 
 end FDRepAction
+
+section FDRepIrreducible
+
+variable [Field k]
+
+/-- A conjugate finite-dimensional representation is irreducible exactly when the original
+representation is. -/
+@[simp]
+theorem isIrreducible_conjFDRep_iff (s : G) {H : Subgroup G} (A : FDRep k H) :
+    Representation.IsIrreducible (conjFDRep s A).ρ ↔
+      Representation.IsIrreducible A.ρ := by
+  -- Unfold `conjFDRep` and the `FDRep`-to-`Rep` coercion to expose the restricted action;
+  -- rewriting cannot see through these definitional wrappers.
+  change Representation.IsIrreducible
+      (A.ρ.comp (conjSubgroupEquiv s H).toMonoidHom) ↔
+    Representation.IsIrreducible A.ρ
+  exact isIrreducible_comp_equiv_iff (conjSubgroupEquiv s H) A.ρ
+
+end FDRepIrreducible
 
 section Character
 
