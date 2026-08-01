@@ -259,7 +259,7 @@ def detect_stale_pin():
     }]
 
 
-def is_automerge_scope(files, _author):
+def is_automerge_scope(files):
     """Mirror the path allowlist enforced by pr-build and TauCetiReview."""
     if not files:
         return False
@@ -303,7 +303,7 @@ def detect_stranded_prs():
             continue
         touches_pin = any(
             f in ("lake-manifest.json", "lean-toolchain", "lakefile.toml") for f in files)
-        if not is_automerge_scope(files, pr.get("author")):
+        if not is_automerge_scope(files):
             continue  # a human-owned path legitimately does not auto-merge
         if touches_pin and newest_status(head, "bump-guard")[0] != "success":
             continue
