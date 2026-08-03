@@ -92,6 +92,15 @@ noncomputable def action (Theta : PointRepresentation (R := R) (H := H) (V := V)
   Theta.app A ≫
     eqToHom (GeneralLinear.scalarExtensionAutomorphismsFunctor_obj (V := V) A)
 
+/-- The concrete point action is the natural-transformation component followed by the canonical
+scalar-extension functor-object transport. -/
+theorem action_def (Theta : PointRepresentation (R := R) (H := H) (V := V))
+    (A : CommAlgCat.{max u v w} R) :
+    Theta.action A =
+      Theta.app A ≫
+        eqToHom (GeneralLinear.scalarExtensionAutomorphismsFunctor_obj (V := V) A) := by
+  rfl
+
 /-- Point representations are equal when their concrete actions agree at every value algebra and
 point. -/
 @[ext]
