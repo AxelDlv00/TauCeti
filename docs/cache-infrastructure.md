@@ -50,6 +50,43 @@ https://developers.cloudflare.com/dns/zone-setups/partial-setup/) or Enterprise 
 https://developers.cloudflare.com/dns/zone-setups/subdomain-setup/), hence a domain registered
 in-account.
 
+## Edge cache
+
+`.art` is not one of the extensions Cloudflare caches by default
+(https://developers.cloudflare.com/cache/concepts/default-cache-behavior/), so artifact reads are
+cached by an explicit Cache Rule. Dashboard: Caching, then Cache Rules, on the
+`taucetiproject.org` zone.
+
+Rule expression:
+
+```
+(http.host eq "cache.taucetiproject.org" and starts_with(http.request.uri.path, "/artifacts/"))
+```
+
+Settings: cache eligibility "Eligible for cache"; Edge TTL "Ignore cache-control header and use
+this TTL", one month. Browser TTL left at the default.
+
+The rule is scoped to `/artifacts/` on purpose. Those keys are immutable content hashes, so a long
+TTL is always safe. `/revisions/` is deliberately left uncached: a lookup for a revision that has
+not been published yet returns 404, and a long-cached 404 would hide it from a later build once
+main publishes it. Revision lookups are a handful of requests per build against a thousand or more
+artifact fetches, so nothing is lost by leaving them alone.
+
+Smart Tiered Cache is free on all plans and applied without configuration
+(https://developers.cloudflare.com/cache/how-to/tiered-cache/).
+
+To check the rule is live, request the same artifact twice. Use GET: Cloudflare does not serve HEAD
+from cache, so `curl -I` reports `DYNAMIC` however the rule is configured.
+
+```bash
+U=https://cache.taucetiproject.org/artifacts/TauCetiProject/TauCeti/<hash>.art
+curl -s -o /dev/null -D - "$U" | grep -i cf-cache-status   # MISS on the first request
+curl -s -o /dev/null -D - "$U" | grep -i cf-cache-status   # HIT on the second
+```
+
+`DYNAMIC` on a GET means the expression is not matching; `BYPASS` means something overrides it.
+The hit ratio that actually determines the saving is under Caching, then Analytics.
+
 ## Cost
 
 Egress from R2 is free. Reads are Class B operations: 10M per month free, then $0.36 per million
