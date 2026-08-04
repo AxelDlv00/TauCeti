@@ -45,7 +45,11 @@ def pr(number, created_day, *, state="CLOSED", merged_day=None, author="alice",
 
 
 class MetricsTest(unittest.TestCase):
-    def test_nested_label_timeline_pagination_is_not_truncated(self):
+    def test_outer_pr_page_contains_no_nested_timeline(self):
+        self.assertIn("pullRequests(first:100", stats.PR_PAGE_QUERY)
+        self.assertNotIn("timelineItems", stats.PR_PAGE_QUERY)
+
+    def test_direct_label_timeline_pagination_is_not_truncated(self):
         first_page = {
             "repository": {"pullRequests": {
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
@@ -53,27 +57,57 @@ class MetricsTest(unittest.TestCase):
                     "number": 42, "createdAt": timestamp(1), "mergedAt": None,
                     "closedAt": None, "state": "OPEN", "isDraft": False,
                     "author": {"login": "alice"}, "labels": {"nodes": []},
-                    "timelineItems": {
-                        "pageInfo": {"hasNextPage": True, "endCursor": "events-100"},
-                        "nodes": [{"createdAt": timestamp(2),
-                                   "label": {"name": "awaiting-review"}}],
-                    },
                 }],
             }},
         }
-        second_page = {
+        timeline_page = {
+            "repository": {"pullRequest": {"timelineItems": {
+                "pageInfo": {"hasNextPage": True, "endCursor": "events-100"},
+                "nodes": [{"createdAt": timestamp(2),
+                           "label": {"name": "awaiting-review"}}],
+            }}},
+        }
+        timeline_extra = {
             "repository": {"pullRequest": {"timelineItems": {
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
                 "nodes": [{"createdAt": timestamp(3),
                            "label": {"name": "awaiting-review"}}],
             }}},
         }
-        with patch.object(stats, "graphql", side_effect=[first_page, second_page]):
+        with patch.object(
+            stats, "graphql", side_effect=[first_page, timeline_page, timeline_extra],
+        ):
             prs = stats.fetch_prs("example/project")
         self.assertEqual(
             [event["label"] for event in prs[0]["labeled_events"]],
             ["awaiting-review", "awaiting-review"],
         )
+
+    def test_closed_pr_uses_complete_direct_timeline(self):
+        first_page = {
+            "repository": {"pullRequests": {
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                "nodes": [{
+                    "number": 42, "createdAt": timestamp(1), "mergedAt": None,
+                    "closedAt": timestamp(14), "state": "CLOSED", "isDraft": False,
+                    "author": {"login": "alice"},
+                    "labels": {"nodes": [{"name": "roadmap/PDE"}]},
+                }],
+            }},
+        }
+        direct = {
+            "repository": {"pullRequest": {"timelineItems": {
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                "nodes": [
+                    {"createdAt": timestamp(min(index + 1, 14)),
+                     "label": {"name": "awaiting-review"}}
+                    for index in range(9)
+                ],
+            }}},
+        }
+        with patch.object(stats, "graphql", side_effect=[first_page, direct]):
+            prs = stats.fetch_prs("example/project")
+        self.assertEqual(len(prs[0]["labeled_events"]), 9)
 
     def test_review_cycles_use_label_transitions_and_reach_seven(self):
         prs = [
@@ -103,6 +137,21 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(len(metrics["awaiting_author_hours"]), 1)
         self.assertEqual(len(metrics["in_review_hours"]), 1)
         self.assertEqual(metrics["other_open_prs"], 2)
+
+    def test_generation_rejects_excessive_missing_state_transitions(self):
+        prs = [
+            pr(number, number, state="OPEN", labels=("awaiting-author",))
+            for number in range(1, 4)
+        ]
+        for item in prs:
+            item["labeled_events"] = []
+        data = {
+            "repo": "example/project", "fetched_at": timestamp(15),
+            "prs": prs, "scoreboards": [],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(ValueError, "matching label transitions"):
+                stats.generate(data, Path(temporary))
 
     def test_thousands_of_contributors_are_bounded(self):
         start = datetime(2026, 1, 1, tzinfo=UTC)
@@ -165,6 +214,24 @@ class RenderingTest(unittest.TestCase):
             cycle_svg = (out / "review-cycles-reached.svg").read_text(encoding="utf-8")
             self.assertIn("Review cycle 7", cycle_svg)
             self.assertEqual(metrics["review_cycles"]["max_cycle"], 7)
+
+    def test_render_failure_keeps_previous_asset_set(self):
+        data = {
+            "repo": "example/project", "fetched_at": timestamp(15),
+            "prs": [pr(1, 1, merged_day=2, cycles=1)], "scoreboards": [],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            out = Path(temporary) / "assets"
+            out.mkdir()
+            existing = out / "pr-queue-age.svg"
+            existing.write_text("previous", encoding="utf-8")
+            with patch.object(
+                stats, "render_review_cycles", side_effect=RuntimeError("boom"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "boom"):
+                    stats.generate(data, out)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "previous")
+            self.assertFalse((out / "review-cycles-reached.svg").exists())
 
 
 if __name__ == "__main__":

@@ -47,6 +47,15 @@ MUTED = "#68737e"
 GRID = "#d8dce0"
 SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
 STATE_REVIEW = {"awaiting-review", "review-in-progress"}
+STATE_LABELS = {"awaiting-author", *STATE_REVIEW}
+ASSET_NAMES = [
+    "pr-queue-age.svg",
+    "review-cycles-reached.svg",
+    "rolling-seven-day-history.svg",
+    "cumulative-merges-by-contributor.svg",
+    "cumulative-reviews-by-contributor.svg",
+    "pr-stats.json",
+]
 PALETTE = [
     "#3979c6", "#d26735", "#2f9364", "#8059bd", "#c0446e", "#168b99",
     "#9b7124", "#5268c4", "#6f8b2d", "#b64d3f", "#1473a5", "#9d4f9e",
@@ -118,10 +127,6 @@ query($owner:String!, $name:String!, $cursor:String) {
         number createdAt mergedAt closedAt state isDraft
         author { login }
         labels(first:30) { nodes { name } }
-        timelineItems(first:100, itemTypes:[LABELED_EVENT]) {
-          pageInfo { hasNextPage endCursor }
-          nodes { ... on LabeledEvent { createdAt label { name } } }
-        }
       }
     }
   }
@@ -129,7 +134,7 @@ query($owner:String!, $name:String!, $cursor:String) {
 """
 
 TIMELINE_PAGE_QUERY = r"""
-query($owner:String!, $name:String!, $number:Int!, $cursor:String!) {
+query($owner:String!, $name:String!, $number:Int!, $cursor:String) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$number) {
       timelineItems(first:100, after:$cursor, itemTypes:[LABELED_EVENT]) {
@@ -155,8 +160,43 @@ def graphql(query: str, **variables) -> dict:
     return payload["data"]
 
 
+def normalized_events(events: list[dict]) -> list[dict]:
+    return sorted((
+        {"created_at": event["createdAt"], "label": event["label"]["name"]}
+        for event in events if event.get("label")
+    ), key=lambda event: event["created_at"])
+
+
+def fetch_timeline(owner: str, name: str, number: int) -> list[dict]:
+    """Fetch one authoritative PR timeline, including every pagination page."""
+    cursor = None
+    events = []
+    while True:
+        pull = graphql(
+            TIMELINE_PAGE_QUERY, owner=owner, name=name,
+            number=number, cursor=cursor,
+        )["repository"]["pullRequest"]
+        if pull is None:
+            raise RuntimeError(f"GitHub returned no timeline for PR #{number}")
+        timeline = pull["timelineItems"]
+        events.extend(timeline["nodes"])
+        if not timeline["pageInfo"]["hasNextPage"]:
+            return normalized_events(events)
+        cursor = timeline["pageInfo"]["endCursor"]
+
+
+def fetch_timelines(owner: str, name: str, numbers: list[int]) -> dict[int, list[dict]]:
+    """Fetch timelines independently; batching these connections loses events."""
+    result = {}
+    for index, number in enumerate(numbers, start=1):
+        result[number] = fetch_timeline(owner, name, number)
+        if index % 100 == 0 or index == len(numbers):
+            print(f"fetched {index:,}/{len(numbers):,} PR timelines", file=sys.stderr)
+    return result
+
+
 def fetch_prs(repo: str) -> list[dict]:
-    """Fetch every PR and every labeled event, including nested pagination."""
+    """Fetch every PR and its authoritative, directly queried label timeline."""
     owner, name = split_repo(repo)
     cursor = None
     prs = []
@@ -164,16 +204,7 @@ def fetch_prs(repo: str) -> list[dict]:
         data = graphql(PR_PAGE_QUERY, owner=owner, name=name, cursor=cursor)
         connection = data["repository"]["pullRequests"]
         for raw in connection["nodes"]:
-            timeline = raw.pop("timelineItems")
-            events = timeline["nodes"]
-            event_page = timeline["pageInfo"]
-            while event_page["hasNextPage"]:
-                extra = graphql(
-                    TIMELINE_PAGE_QUERY, owner=owner, name=name,
-                    number=raw["number"], cursor=event_page["endCursor"],
-                )["repository"]["pullRequest"]["timelineItems"]
-                events.extend(extra["nodes"])
-                event_page = extra["pageInfo"]
+            labels = [item["name"] for item in raw["labels"]["nodes"]]
             prs.append({
                 "number": raw["number"],
                 "created_at": raw["createdAt"],
@@ -182,15 +213,25 @@ def fetch_prs(repo: str) -> list[dict]:
                 "state": raw["state"],
                 "is_draft": raw["isDraft"],
                 "author": (raw.get("author") or {}).get("login") or "unknown",
-                "labels": [item["name"] for item in raw["labels"]["nodes"]],
-                "labeled_events": [
-                    {"created_at": event["createdAt"], "label": event["label"]["name"]}
-                    for event in events if event.get("label")
-                ],
+                "labels": labels,
+                "labeled_events": [],
             })
         if not connection["pageInfo"]["hasNextPage"]:
             break
         cursor = connection["pageInfo"]["endCursor"]
+    timelines = fetch_timelines(owner, name, [pr["number"] for pr in prs])
+    for pr in prs:
+        labeled_events = timelines[pr["number"]]
+        current_state_labels = set(pr["labels"]) & STATE_LABELS
+        event_labels = {event["label"] for event in labeled_events}
+        missing_current = current_state_labels - event_labels
+        if pr["state"] == "OPEN" and missing_current:
+            missing = ", ".join(sorted(missing_current))
+            raise RuntimeError(
+                f"PR #{pr['number']} has current state label(s) without "
+                f"matching timeline events: {missing}"
+            )
+        pr["labeled_events"] = labeled_events
     return prs
 
 
@@ -231,10 +272,11 @@ def fetch_snapshot(repo: str) -> dict:
 
 
 def last_labeled(pr: dict, label: str) -> datetime | None:
-    for event in reversed(pr.get("labeled_events") or []):
-        if event["label"] == label:
-            return parse_dt(event["created_at"])
-    return None
+    matches = [
+        parse_dt(event["created_at"])
+        for event in pr.get("labeled_events") or [] if event["label"] == label
+    ]
+    return max(matches, default=None)
 
 
 def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
@@ -259,7 +301,9 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
             # review-in-progress is a claimed awaiting-review cycle, not a new wait.
             start = last_labeled(pr, "awaiting-review")
             if start is None:
-                start = last_labeled(pr, "review-in-progress") or created
+                start = last_labeled(pr, "review-in-progress")
+            if start is None:
+                start = created
                 missing_transition += 1
             review.append(max(0.0, (snapshot - start).total_seconds() / 3600))
         else:
@@ -274,14 +318,21 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
 
 
 def review_cycle_metrics(prs: list[dict]) -> dict:
-    counts = {
+    all_counts = {
         str(pr["number"]): sum(
             event["label"] == "awaiting-review"
             for event in pr.get("labeled_events") or []
         )
         for pr in prs
     }
-    observed = [count for count in counts.values() if count]
+    counts = {number: count for number, count in all_counts.items() if count}
+    observed = list(counts.values())
+    cycle_timestamps = [
+        parse_dt(event["created_at"])
+        for pr in prs for event in pr.get("labeled_events") or []
+        if event["label"] == "awaiting-review"
+    ]
+    epoch = min(cycle_timestamps, default=None)
     maximum = max(observed, default=0)
     reach = [
         {"cycle": cycle, "prs": sum(count >= cycle for count in observed)}
@@ -289,6 +340,7 @@ def review_cycle_metrics(prs: list[dict]) -> dict:
     ]
     return {
         "definition": "number of times the awaiting-review label was applied",
+        "label_epoch": epoch.date().isoformat() if epoch else None,
         "reviewed_prs": len(observed),
         "awaiting_review_transitions": sum(observed),
         "max_cycle": maximum,
@@ -415,12 +467,18 @@ def draw_histogram(
 
 def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
     width, height = 1710, 620
+    fallback_note = ""
+    if metrics["missing_transition_fallbacks"]:
+        fallback_note = (
+            f' · {metrics["missing_transition_fallbacks"]:,} state clocks use PR creation '
+            "because no matching transition was available"
+        )
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Open PR age and current review-state age">',
         f'<rect width="100%" height="100%" fill="{BG}"/>',
         f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:29px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.panel{{font-size:18px;font-weight:680}}.paneltotal{{font-size:15px;font-weight:700;fill:{MUTED}}}.tick{{font-size:11px;fill:{MUTED}}}.value{{font-size:12px;font-weight:750}}.grid{{stroke:{GRID};stroke-width:1}}</style>',
         '<text x="55" y="44" class="title">Open PR age and current review state</text>',
-        f'<text x="55" y="73" class="subtitle">Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the label transition · {metrics["other_open_prs"]:,} PRs outside author/review states appear only in total time open</text>',
+        f'<text x="55" y="73" class="subtitle">Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the label transition · {metrics["other_open_prs"]:,} PRs outside author/review states appear only in total time open{fallback_note}</text>',
     ]
     panels = [
         (metrics["total_open_hours"], "#2f9364", "Total time open"),
@@ -443,6 +501,8 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
     if truncated:
         shown[-1] = dict(shown[-1], label=f"Review cycle {max_rows}+")
     reviewed = metrics["reviewed_prs"]
+    epoch = metrics.get("label_epoch")
+    epoch_note = f" · observed since {epoch}" if epoch else ""
     width = 1250
     height = 116 + max(1, len(shown)) * 52 + 35
     bar_x, bar_width = 235, 780
@@ -451,7 +511,7 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
         f'<rect width="100%" height="100%" fill="{BG}"/>',
         f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:27px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.label{{font-size:14px;font-weight:680}}.value{{font-size:13px;font-weight:750}}.track{{fill:#e3e6e8}}</style>',
         '<text x="45" y="42" class="title">PRs reaching each review cycle</text>',
-        f'<text x="45" y="70" class="subtitle">One cycle = one application of the awaiting-review label · {metrics["awaiting_review_transitions"]:,} transitions across {reviewed:,} reviewed PRs</text>',
+        f'<text x="45" y="70" class="subtitle">One cycle = one application of the awaiting-review label · {metrics["awaiting_review_transitions"]:,} transitions across {reviewed:,} reviewed PRs{epoch_note}</text>',
     ]
     if not shown:
         parts.append('<text x="45" y="125" class="label">No review cycles observed.</text>')
@@ -626,6 +686,15 @@ def generate(
         raise ValueError("snapshot predates the first pull request")
 
     queue = queue_age_metrics(prs, snapshot)
+    state_clock_count = (
+        len(queue["awaiting_author_hours"]) + len(queue["in_review_hours"])
+    )
+    allowed_fallbacks = max(2, 0.05 * state_clock_count)
+    if queue["missing_transition_fallbacks"] > allowed_fallbacks:
+        raise ValueError(
+            "too many open PR state clocks lack matching label transitions: "
+            f"{queue['missing_transition_fallbacks']} of {state_clock_count}"
+        )
     cycles = review_cycle_metrics(prs)
     rolling = rolling_metrics(prs, last_full_day, history_days)
     merge_events = [
@@ -643,20 +712,6 @@ def generate(
         review_events, project_start, last_full_day, contributor_limit,
     )
 
-    render_queue_age(out_dir / "pr-queue-age.svg", queue, snapshot)
-    render_review_cycles(out_dir / "review-cycles-reached.svg", cycles, max_review_cycles)
-    render_rolling(out_dir / "rolling-seven-day-history.svg", rolling)
-    render_cumulative_contributors(
-        out_dir / "cumulative-merges-by-contributor.svg",
-        "Total merged PRs by contributor since project inception", "merged PRs",
-        merge_dates, merge_names, merge_series, merge_totals, len(merge_totals),
-    )
-    render_cumulative_contributors(
-        out_dir / "cumulative-reviews-by-contributor.svg",
-        "Total reviews by contributor since project inception", "reviews",
-        review_dates, review_names, review_series, review_totals, len(review_totals),
-    )
-
     metrics = {
         "schema_version": 1,
         "repo": data.get("repo"),
@@ -664,7 +719,7 @@ def generate(
         "last_full_day": last_full_day.isoformat(),
         "definitions": {
             "review_cycle": cycles["definition"],
-            "review": "one GitHub issue comment containing <!--tauceti-scoreboard-->",
+            "review": "one GitHub issue comment containing <!--tauceti-scoreboard-->, attributed to the posting account",
             "active_author": "distinct PR author opening a PR in the trailing seven-day window",
             "merge_latency": "PR creation timestamp to merge timestamp",
         },
@@ -678,10 +733,34 @@ def generate(
         "merge_totals_by_contributor": dict(merge_totals.most_common()),
         "review_totals_by_contributor": dict(review_totals.most_common()),
     }
-    atomic_write(
-        out_dir / "pr-stats.json",
-        json.dumps(metrics, separators=(",", ":")) + "\n",
-    )
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".pr-stats-stage-", dir=out_dir.parent,
+    ) as temporary:
+        staging = Path(temporary)
+        render_queue_age(staging / "pr-queue-age.svg", queue, snapshot)
+        render_review_cycles(
+            staging / "review-cycles-reached.svg", cycles, max_review_cycles,
+        )
+        render_rolling(staging / "rolling-seven-day-history.svg", rolling)
+        render_cumulative_contributors(
+            staging / "cumulative-merges-by-contributor.svg",
+            "Total merged PRs by contributor since project inception", "merged PRs",
+            merge_dates, merge_names, merge_series, merge_totals, len(merge_totals),
+        )
+        render_cumulative_contributors(
+            staging / "cumulative-reviews-by-contributor.svg",
+            "Review scoreboards posted by contributor since project inception",
+            "review scoreboards", review_dates, review_names, review_series,
+            review_totals, len(review_totals),
+        )
+        atomic_write(
+            staging / "pr-stats.json",
+            json.dumps(metrics, separators=(",", ":")) + "\n",
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name in ASSET_NAMES:
+            os.replace(staging / name, out_dir / name)
     return metrics
 
 
@@ -713,6 +792,7 @@ def main() -> int:
     print(
         f"wrote five charts to {args.out_dir}: "
         f"{len(metrics['queue']['total_open_hours'])} open PRs; "
+        f"{metrics['queue']['missing_transition_fallbacks']} state-clock fallbacks; "
         f"{metrics['review_cycles']['awaiting_review_transitions']} review transitions; "
         f"{len(metrics['merge_totals_by_contributor'])} merge contributors; "
         f"{len(metrics['review_totals_by_contributor'])} review contributors"

@@ -20,9 +20,13 @@ It requires an authenticated `gh` CLI. In GitHub Actions, set `GH_TOKEN` to
   subsequent `review-in-progress` label remains part of that same clock.
 - **Review cycle N** means that `awaiting-review` has been applied to the PR at least N
   times. This must come from label events: scoreboard comments are edited in place and
-  counting comments undercounts later rounds.
-- **One review** in the contributor history is one issue comment containing
-  `<!--tauceti-scoreboard-->`, attributed to the GitHub login that posted it.
+  counting comments undercounts later rounds. The chart states the earliest date on
+  which that label is observed, since PRs predating the review-state labels cannot be
+  reconstructed from those transitions.
+- **One review scoreboard** in the contributor history is one issue comment containing
+  `<!--tauceti-scoreboard-->`, attributed to the GitHub login that posted it. This is a
+  count of posted scoreboards, not reconstructed review rounds; scoreboards edited in
+  place remain one comment.
 - Seven-day metrics use complete UTC calendar days. Merge latency is PR creation to
   merge time among PRs merged in that trailing window.
 
@@ -51,10 +55,19 @@ limits can be adjusted with `--history-days`, `--contributor-limit`, and
 
 ## Scaling
 
-GitHub pagination is explicit at both levels: all PR pages are fetched, and any PR
-with more than 100 label events has its nested timeline paginated separately. Issue
-comments are filtered by `gh` before reaching Python, so full scoreboard bodies do not
-accumulate in memory.
+GitHub pagination is explicit at both levels. PR metadata is fetched separately from
+label history because GitHub can silently truncate a timeline nested inside the outer
+PR connection—even when it reports no next page. Timelines are therefore queried one
+at a time through authoritative direct `pullRequest(number:)` connections; batching
+those direct connections can also lose events. Any timeline with more than 100 label
+events is paginated separately. The current repository uses about 1,900 of GitHub's
+5,000-point hourly GraphQL budget per run. Excessive missing state transitions stop
+generation rather than publishing a mislabelled clock. Issue comments are filtered by
+`gh` before reaching Python, so full scoreboard bodies do not accumulate in memory.
+
+All six outputs are rendered in a staging directory and promoted only after every
+chart and the JSON payload succeeds. A failed scheduled fetch therefore keeps the
+previous coherent asset set.
 
 Contributor charts plot up to 24 contributors and one aggregate `Other` series.
 Only those bounded series are expanded by day. `pr-stats.json` still records the exact
@@ -70,5 +83,6 @@ The tests are hermetic and use only the standard library:
 python3 scripts/test_pr_stats_graphs.py
 ```
 
-They cover nested timeline pagination, cycle reach beyond six, the requested queue
-panel order, SVG/XML validity, and a synthetic 2,500-contributor history.
+They cover direct timeline pagination, fail-closed state clocks,
+all-or-nothing rendering, cycle reach beyond six, the requested queue panel order,
+SVG/XML validity, and a synthetic 2,500-contributor history.
