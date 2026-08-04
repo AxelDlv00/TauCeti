@@ -72,11 +72,16 @@ not been published yet returns 404, and a long-cached 404 would hide it from a l
 main publishes it. Revision lookups are a handful of requests per build against a thousand or more
 artifact fetches, so nothing is lost by leaving them alone.
 
-Smart Tiered Cache is free on all plans and applied without configuration
-(https://developers.cloudflare.com/cache/how-to/tiered-cache/).
+Tiered Cache is a separate per-zone toggle and is not part of the rule above: Cloudflare documents
+it as something you enable, under Caching, then Tiered Cache
+(https://developers.cloudflare.com/cache/how-to/tiered-cache/). Smart topology is available on
+every plan and needs no further configuration once Tiered Cache is on. Check the toggle on the
+`taucetiproject.org` zone rather than assuming it; the Cache Rule above is what does the work
+either way.
 
-To check the rule is live, request the same artifact twice. Use GET: Cloudflare does not serve HEAD
-from cache, so `curl -I` reports `DYNAMIC` however the rule is configured.
+To check the rule is live, request the same artifact twice. Use GET: Cloudflare caches responses to
+`GET` only (https://developers.cloudflare.com/cache/concepts/default-cache-behavior/), so `curl -I`
+can report `DYNAMIC` on a correctly configured rule.
 
 ```bash
 U=https://cache.taucetiproject.org/artifacts/TauCetiProject/TauCeti/<hash>.art
@@ -97,7 +102,7 @@ Measured 2026-08-04:
 | | |
 |---|---|
 | Artifacts fetched per build | 1,224 |
-| Mean artifact size | 14 KiB, so about 17 MiB per fetch |
+| Mean artifact size | 14 KiB, so about 17 MiB per build across those 1,224 fetches |
 | `pr-build` runs per day | 734 |
 | Class B reads | about 27M per month |
 | Billable after the 10M free tier | about 17M, so roughly **$6 per month** |
@@ -120,13 +125,12 @@ gh api -X GET repos/TauCetiProject/TauCeti/actions/workflows/pr-build.yml/runs \
 Then reads per month is roughly `artifacts x runs_per_day x 30`, and the bill is
 `max(0, reads - 10e6) / 1e6 x $0.36`.
 
-A custom domain puts Cloudflare Cache in front of the bucket
-(https://developers.cloudflare.com/r2/buckets/public-buckets/#caching), so a cache rule on
-`cache.taucetiproject.org` would cut that bill: a request answered at the edge never reaches R2
-and so is never billed as a Class B operation. Note that `.art` is not a default-cached extension
-(https://developers.cloudflare.com/cache/concepts/default-cache-behavior/), so this needs an
-explicit rule; scope it to `/artifacts/`, whose keys are immutable content hashes, and leave
-`/revisions/` uncached so a 404 for a not-yet-published revision is never cached.
+That arithmetic charges every artifact fetch as a Class B read, so it is the bill without the edge
+cache, and an upper bound on the real one. A custom domain puts Cloudflare Cache in front of the
+bucket (https://developers.cloudflare.com/r2/buckets/public-buckets/#caching), and the Cache Rule
+under [Edge cache](#edge-cache) is what claims that saving: a request answered at the edge never
+reaches R2 and so is never billed as a Class B operation. The hit ratio under Caching, then
+Analytics says how much of the 27M is still reaching the bucket.
 
 ## Related
 
