@@ -36,24 +36,19 @@ Lake appends the scope.
 
 ## Why a custom domain
 
-The read path was on `https://pub-1825e93d….r2.dev`, which Cloudflare documents as rate-limited
-and "should only be used for development purposes"
-(https://developers.cloudflare.com/r2/buckets/public-buckets/). At roughly 1,200 artifacts per
-build across about 730 builds a day, throttling (HTTP 429, Cloudflare error 1015, listed at
-https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/)
-was routine and left the local cache holding mappings whose artifacts never arrived. Combined with
-https://github.com/leanprover/lean4/issues/14670 that turned successful builds red: 28 of 40
-consecutive build failures had no Lean error at all.
+Cloudflare rate-limits `r2.dev` public bucket URLs and documents them as development-only
+(https://developers.cloudflare.com/r2/buckets/public-buckets/); exceeding the limit returns HTTP 429
+with Cloudflare error 1015
+(https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/).
+An R2 custom domain carries no such limit, so reads go through `cache.taucetiproject.org`. The
+bucket's `r2.dev` URL is disabled, so there is nothing to silently fall back to.
 
-`cache.taucetiproject.org` is an R2 custom domain on the bucket and carries no such limit. The
-`r2.dev` URL was disabled on 2026-08-04 so nothing can silently fall back to it.
-
-Setting up a custom domain requires the zone to live in the same Cloudflare account as the bucket
+A custom domain requires the zone in the same Cloudflare account as the bucket
 (https://developers.cloudflare.com/r2/buckets/public-buckets/#add-your-domain-to-cloudflare).
-Attaching only a subdomain while keeping DNS elsewhere needs a Business plan (partial CNAME setup,
+Attaching only a subdomain while keeping DNS elsewhere needs Business (partial CNAME setup,
 https://developers.cloudflare.com/dns/zone-setups/partial-setup/) or Enterprise (subdomain zone,
-https://developers.cloudflare.com/dns/zone-setups/subdomain-setup/), which is why the domain was
-bought in-account rather than carved out of an existing one.
+https://developers.cloudflare.com/dns/zone-setups/subdomain-setup/), hence a domain registered
+in-account.
 
 ## Cost
 
