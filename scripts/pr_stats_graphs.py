@@ -433,7 +433,7 @@ def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
             color, title, len(values),
         )
     parts.append("</svg>")
-    atomic_write(path, "\n".join(parts))
+    atomic_write(path, "".join(parts) + "\n")
 
 
 def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
@@ -466,7 +466,7 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
         parts.append(f'<rect x="{bar_x}" y="{y}" width="{max(2, bar_width*fraction):.1f}" height="36" rx="7" fill="{color}"/>')
         parts.append(f'<text x="{bar_x+bar_width+22}" y="{y+25}" class="value">{count:,} · {fraction:.1%}</text>')
     parts.append("</svg>")
-    atomic_write(path, "\n".join(parts))
+    atomic_write(path, "".join(parts) + "\n")
 
 
 def render_rolling(path: Path, rolling: list[dict]) -> None:
@@ -516,7 +516,7 @@ def render_rolling(path: Path, rolling: list[dict]) -> None:
             parts.append(f'<text x="{x:.1f}" y="{bottom+18}" text-anchor="middle" class="tick">{day:%b} {day.day}</text>')
             last_tick_x = x
     parts.append("</svg>")
-    atomic_write(path, "\n".join(parts))
+    atomic_write(path, "".join(parts) + "\n")
 
 
 def color_for(name: str, other: bool = False) -> str:
@@ -605,7 +605,7 @@ def render_cumulative_contributors(
         parts.append(f'<text x="{x:.1f}" y="{bottom+24}" text-anchor="middle" class="tick">{day:%b} {day.day}</text>')
         last_tick_x = x
     parts.append("</svg>")
-    atomic_write(path, "\n".join(parts))
+    atomic_write(path, "".join(parts) + "\n")
 
 
 def generate(
@@ -678,7 +678,10 @@ def generate(
         "merge_totals_by_contributor": dict(merge_totals.most_common()),
         "review_totals_by_contributor": dict(review_totals.most_common()),
     }
-    atomic_write(out_dir / "pr-stats.json", json.dumps(metrics, indent=2) + "\n")
+    atomic_write(
+        out_dir / "pr-stats.json",
+        json.dumps(metrics, separators=(",", ":")) + "\n",
+    )
     return metrics
 
 
