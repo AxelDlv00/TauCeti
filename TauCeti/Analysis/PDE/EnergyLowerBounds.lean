@@ -27,7 +27,7 @@ finite-dimensional jet fibre is fed into Lax--Milgram.
 The lower-bound theorems below take a single principal coefficient `A`, drift coefficient
 `b₀`, and mass coefficient `c₀`, together with their pointwise bounds. Callers holding a
 field-level `UniformlyEllipticOn Ω a λ Λ` hypothesis should use the pointwise specializations
-in `TauCeti.Analysis.PDE.Uniform.EllipticEnergy`, which supply the principal lower bound at a
+in `TauCeti.Analysis.PDE.Ellipticity.Energy`, which supply the principal lower bound at a
 chosen point `x ∈ Ω`.
 
 Symmetry of the same zero-drift integrand is recorded in
