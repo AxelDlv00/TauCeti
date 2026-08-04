@@ -413,6 +413,12 @@ jobs:
           # (Lake/Config/Cache.lean, `if s.didError then failure`), so it can log
           # "failed to download some artifacts" and still exit 0. An attempt therefore counts
           # as clean only if it exits 0 AND logs no failure diagnostic.
+          # SIMPLIFY ON THE BUMP TO v4.34.0: that stale read is fixed by
+          # https://github.com/leanprover/lean4/pull/14651 ("fix: lake: gracefully handle curl
+          # and IO errors during transfer"), which missed v4.33.0-rc2 by hours and was not
+          # backported. From v4.34.0-rc1 on, drop FAIL_RE and trust `rc` alone.
+          # The purge below outlives that bump: it is for
+          # https://github.com/leanprover/lean4/issues/14670, still open.
           FAIL_RE='failed to download|output lookup failed|curl exited with code'
           # A revision with no cached build at all is deterministic: retrying cannot change it,
           # and there is nothing partial to discard.
