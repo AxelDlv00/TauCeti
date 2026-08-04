@@ -6,6 +6,7 @@ module
 
 public import Mathlib.GroupTheory.GroupAction.Period
 public import Mathlib.NumberTheory.ModularForms.Cusps
+public import Mathlib.NumberTheory.ModularForms.SlashActions
 
 /-!
 # The integer cusp width of a finite-index subgroup
@@ -23,6 +24,7 @@ the integer cusp width is a positive integer multiple of the strict width at `�
   multiples of the width.
 * `TauCeti.Subgroup.quotient_T_pow_integerCuspWidth_injective`.
 * `TauCeti.Subgroup.exists_pos_nat_integerCuspWidth_eq_mul_strictWidthInfty`.
+* `TauCeti.ModularForm.slash_T_zpow_apply`: slashing by a power of `T` is an integer shift.
 
 ## References
 
@@ -32,9 +34,9 @@ the integer cusp width is a positive integer multiple of the strict width at `�
 
 public noncomputable section
 
-open Matrix Matrix.SpecialLinearGroup Subgroup
+open Matrix Matrix.SpecialLinearGroup Subgroup UpperHalfPlane
 
-open scoped MatrixGroups
+open scoped MatrixGroups ModularForm
 
 namespace TauCeti
 
@@ -57,6 +59,29 @@ lemma ModularGroup.mapGL_T_pow_eq_upperRightHom {S : Type*} [CommRing S] (n : �
 /-- The coercion of `SL(2, ℤ)` into `GL(2, ℝ)` agrees with `mapGL ℝ`. -/
 lemma Matrix.SpecialLinearGroup.coe_GL_eq_mapGL (g : SL(2, ℤ)) :
     (g : GL (Fin 2) ℝ) = mapGL ℝ g := rfl
+
+/-- The Möbius action of `upperRightHom x = [1, x; 0, 1]` on `ℍ` is the shift `x +ᵥ ·`. -/
+lemma Matrix.GeneralLinearGroup.upperRightHom_smul (x : ℝ) (τ : ℍ) :
+    _root_.Matrix.GeneralLinearGroup.upperRightHom x • τ = x +ᵥ τ := by
+  ext1
+  rw [coe_smul_of_det_pos (by simp)]
+  simp [num, denom, _root_.Matrix.GeneralLinearGroup.upperRightHom_apply, add_comm]
+
+/-- Slashing a function `g : ℍ → ℂ` by the shift matrix `[1, x; 0, 1]` is the shift
+`τ ↦ g (x +ᵥ τ)`. -/
+lemma ModularForm.slash_upperRightHom_apply (k : ℤ) (x : ℝ) (g : ℍ → ℂ) (τ : ℍ) :
+    (g ∣[k] (_root_.Matrix.GeneralLinearGroup.upperRightHom x : GL (Fin 2) ℝ)) τ =
+      g (x +ᵥ τ) := by
+  rw [_root_.ModularForm.slash_apply, Matrix.GeneralLinearGroup.upperRightHom_smul]
+  simp [σ, denom, _root_.Matrix.GeneralLinearGroup.val_det_apply,
+    _root_.Matrix.GeneralLinearGroup.upperRightHom_apply]
+
+/-- Acting on a function `g : ℍ → ℂ` by `T ^ j` via the weight `k` slash action is the shift
+`τ ↦ g ((j : ℝ) +ᵥ τ)`. -/
+lemma ModularForm.slash_T_zpow_apply (k j : ℤ) (g : ℍ → ℂ) (τ : ℍ) :
+    (g ∣[k] (ModularGroup.T ^ j : SL(2, ℤ))) τ = g ((j : ℝ) +ᵥ τ) := by
+  rw [_root_.ModularForm.SL_slash, Matrix.SpecialLinearGroup.coe_GL_eq_mapGL,
+    ModularGroup.mapGL_T_zpow_eq_upperRightHom, ModularForm.slash_upperRightHom_apply]
 
 
 section IntegerCuspWidth
