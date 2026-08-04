@@ -215,23 +215,6 @@ lemma completeLinearSystem_eq_singleton_zero_iff_divisorClass_eq_zero_of_isWeigh
       exact (S.mem_completeLinearSystem_iff_eq_zero_and_divisorClass_eq_zero_of_weightedDegree_zero
         hw h hD).mpr ⟨rfl, hclass⟩
 
-/-- When principal divisors have unweighted degree zero, every member of `|D|` has the same
-unweighted degree as `D`. The constant-weight-one case of
-`weightedDegree_eq_of_mem_completeLinearSystem`, kept as a `degree`-shaped lemma for the
-unweighted theory. -/
-lemma degree_eq_of_mem_completeLinearSystem (h : S.IsUnweightedDegreeZero)
-    {D E : WeilDivisor X} (hE : E ∈ S.completeLinearSystem D) : degree E = degree D := by
-  simpa only [weightedDegree_one_eq_degree] using
-    S.weightedDegree_eq_of_mem_completeLinearSystem (w := fun _ : X => (1 : ℤ)) h hE
-
-/-- With unweighted-degree-zero principal divisors, a divisor of negative degree has empty
-complete linear system. The constant-weight-one case of
-`completeLinearSystem_eq_empty_of_weightedDegree_neg`. -/
-lemma completeLinearSystem_eq_empty_of_degree_neg (h : S.IsUnweightedDegreeZero)
-    {D : WeilDivisor X} (hD : degree D < 0) : S.completeLinearSystem D = ∅ :=
-  S.completeLinearSystem_eq_empty_of_weightedDegree_neg (w := fun _ : X => (1 : ℤ))
-    (fun _ => zero_le_one) h (by simpa only [weightedDegree_one_eq_degree D] using hD)
-
 /-- A complete linear system is nonempty exactly when the divisor class of `D` contains an
 effective divisor. -/
 lemma nonempty_completeLinearSystem_iff {D : WeilDivisor X} : (S.completeLinearSystem D).Nonempty ↔
