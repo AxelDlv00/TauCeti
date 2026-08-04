@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.NumberTheory.Multiquadratic.CandidateGenusField.GaloisGroup
-public import TauCeti.NumberTheory.Multiquadratic.CandidateGenusField.RelativeDegree
+public import TauCeti.NumberTheory.Multiquadratic.CandidateGenusField.Relative.Degree
 public import TauCeti.NumberTheory.Multiquadratic.Galois.Relative
 
 /-!
