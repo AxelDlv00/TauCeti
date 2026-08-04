@@ -37,26 +37,33 @@ Lake appends the scope.
 ## Why a custom domain
 
 The read path was on `https://pub-1825e93d….r2.dev`, which Cloudflare documents as rate-limited
-and "should only be used for development purposes". At roughly 1,200 artifacts per build across
-about 730 builds a day, throttling (HTTP 429, Cloudflare error 1015) was routine and left the
-local cache holding mappings whose artifacts never arrived. Combined with
+and "should only be used for development purposes"
+(https://developers.cloudflare.com/r2/buckets/public-buckets/). At roughly 1,200 artifacts per
+build across about 730 builds a day, throttling (HTTP 429, Cloudflare error 1015, listed at
+https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/)
+was routine and left the local cache holding mappings whose artifacts never arrived. Combined with
 https://github.com/leanprover/lean4/issues/14670 that turned successful builds red: 28 of 40
 consecutive build failures had no Lean error at all.
 
 `cache.taucetiproject.org` is an R2 custom domain on the bucket and carries no such limit. The
 `r2.dev` URL was disabled on 2026-08-04 so nothing can silently fall back to it.
 
-Setting up a custom domain requires the zone to live in the same Cloudflare account as the bucket.
-Attaching only a subdomain while keeping DNS elsewhere needs a Business plan (partial CNAME setup)
-or Enterprise (subdomain zone), which is why the domain was bought in-account rather than carved
-out of an existing one.
+Setting up a custom domain requires the zone to live in the same Cloudflare account as the bucket
+(https://developers.cloudflare.com/r2/buckets/public-buckets/#add-your-domain-to-cloudflare).
+Attaching only a subdomain while keeping DNS elsewhere needs a Business plan (partial CNAME setup,
+https://developers.cloudflare.com/dns/zone-setups/partial-setup/) or Enterprise (subdomain zone,
+https://developers.cloudflare.com/dns/zone-setups/subdomain-setup/), which is why the domain was
+bought in-account rather than carved out of an existing one.
 
 ## Cost
 
-Egress from R2 is free. Reads are Class B operations: 10M per month free, then $0.36 per million.
-At current volume the project sits near 27M reads per month, so roughly $6 per month beyond the
-free tier. A Cloudflare cache rule on `cache.taucetiproject.org` would cut that, since edge hits
-are not Class B operations.
+Egress from R2 is free. Reads are Class B operations: 10M per month free, then $0.36 per million
+(https://developers.cloudflare.com/r2/pricing/, standard storage, prices read 2026-08-04). At
+current volume the project sits near 27M reads per month, so roughly $6 per month beyond the free
+tier. A custom domain puts Cloudflare Cache in front of the bucket
+(https://developers.cloudflare.com/r2/buckets/public-buckets/#caching), so a cache rule on
+`cache.taucetiproject.org` would cut that bill: a request answered at the edge never reaches R2
+and so is never billed as a Class B operation.
 
 ## Related
 
