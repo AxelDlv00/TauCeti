@@ -26,7 +26,7 @@ zero-drift uniformly elliptic operator with symmetric principal coefficient, use
 `UniformlyEllipticOn.min_diagonal_lower_bound_mul_norm_sq_le_energyIntegrand_self` for the
 diagonal lower bound and the `energyIntegrand_zero_drift_flip_eq_*` lemmas for symmetry; for
 nonsymmetric coefficients, the symmetric-part API in
-`TauCeti.Analysis.PDE.Uniform.Ellipticity` preserves the ellipticity constants before applying
+`TauCeti.Analysis.PDE.Ellipticity.Basic` preserves the ellipticity constants before applying
 the same symmetry lemmas.
 
 ## Main declarations
