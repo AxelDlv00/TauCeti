@@ -3,13 +3,14 @@
 
 The live data path uses GitHub's GraphQL API for every pull request and its label
 timeline, plus the repository issue-comments REST endpoint for posted Tau Ceti
-scoreboards.  A normalized snapshot can be written with ``--dump-data`` and replayed
-with ``--data``; tests and local chart work therefore need no network.
+scoreboards, keeping only those posted on a fetched pull request and carrying the review
+engine's meta block for it.  A normalized snapshot can be written with ``--dump-data``
+and replayed with ``--data``; tests and local chart work therefore need no network.
 
 Generated files:
 
 * ``pr-queue-age.svg`` — total open age, awaiting-author age, then in-review age;
-* ``review-cycles-reached.svg`` — PRs reaching each ``awaiting-review`` cycle;
+* ``review-cycles-reached.svg`` — PRs reaching each review cycle;
 * ``rolling-seven-day-history.svg`` — merge throughput, authors, and latency;
 * ``cumulative-merges-by-contributor.svg``;
 * ``cumulative-reviews-by-contributor.svg``;
@@ -46,8 +47,18 @@ TEXT = "#25313d"
 MUTED = "#68737e"
 GRID = "#d8dce0"
 SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
+# A canonical scoreboard is the review engine's own comment: besides the public marker it
+# carries the machine-readable meta block, declares kind "scoreboard", and names the pull
+# request it was posted on.  Requiring all three rejects comments that merely quote the
+# marker or paste another PR's scoreboard.  scripts/pr_status/core.py parses the same block
+# when it derives a single PR's review state.
+SCOREBOARD_META_MARKER = "<!--tauceti-meta:v1"
+SCOREBOARD_META_KIND = '"kind":"scoreboard"'
 STATE_REVIEW = {"awaiting-review", "review-in-progress"}
 STATE_LABELS = {"awaiting-author", *STATE_REVIEW}
+# States in which the PR has left the review queue: the author owns it, or CI is judging a
+# new commit before review resumes.
+STATE_AUTHOR = {"awaiting-author", "awaiting-CI"}
 ASSET_NAMES = [
     "pr-queue-age.svg",
     "review-cycles-reached.svg",
@@ -235,22 +246,46 @@ def fetch_prs(repo: str) -> list[dict]:
     return prs
 
 
-def fetch_scoreboards(repo: str) -> list[dict]:
-    # Filter at gh/jq before returning data to Python. Scoreboard bodies can be large;
-    # retaining them all would make memory proportional to review prose, not metrics.
+def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Counter]:
+    """Canonical review scoreboards posted on this repository's pull requests.
+
+    The repository issue-comments endpoint also serves ordinary issues and accepts comments
+    from anyone, so a comment counts only when its issue number is one of the fetched pull
+    requests and its body carries the engine's meta block naming that same PR.  Both checks
+    run at gh/jq: scoreboard bodies can be large, and retaining them all would make memory
+    proportional to review prose, not to the metric.  The rejection tally is returned so the
+    published payload can state how many marker comments were discarded and why.
+    """
+    # json.dumps writes each needle as a jq string literal; the meta block's own quotes would
+    # otherwise close the literal and break the program.
+    marker, meta, kind, tag = (
+        json.dumps(text) for text in
+        (SCOREBOARD_MARKER, SCOREBOARD_META_MARKER, SCOREBOARD_META_KIND, '"pr":')
+    )
     raw = run_gh([
         "api", "--paginate",
         f"repos/{repo}/issues/comments?per_page=100",
-        "--jq", f'.[] | select((.body // "") | contains("{SCOREBOARD_MARKER}"))'
-                ' | {issue_url, created_at, updated_at, user: .user.login}',
+        "--jq", f'.[] | select((.body // "") | contains({marker}))'
+                ' | . as $comment | ($comment.issue_url | split("/") | last) as $number'
+                ' | {number: $number, created_at, updated_at, user: .user.login,'
+                f'    canonical: (($comment.body | contains({meta}))'
+                f'      and ($comment.body | contains({kind}))'
+                f'      and ($comment.body | contains({tag} + $number)))}}',
     ])
     scoreboards = []
+    rejected = Counter()
     for line in raw.splitlines():
         comment = json.loads(line)
-        issue_url = comment.get("issue_url") or ""
         try:
-            pr_number = int(issue_url.rsplit("/", 1)[1])
-        except (IndexError, ValueError):
+            pr_number = int(comment["number"])
+        except (KeyError, TypeError, ValueError):
+            rejected["unparsable_issue_number"] += 1
+            continue
+        if pr_number not in pr_numbers:
+            rejected["not_a_pull_request"] += 1
+            continue
+        if not comment.get("canonical"):
+            rejected["no_canonical_scoreboard_meta"] += 1
             continue
         scoreboards.append({
             "pr": pr_number,
@@ -258,16 +293,19 @@ def fetch_scoreboards(repo: str) -> list[dict]:
             "updated_at": comment["updated_at"],
             "user": comment.get("user") or "unknown",
         })
-    return scoreboards
+    return scoreboards, rejected
 
 
 def fetch_snapshot(repo: str) -> dict:
+    prs = fetch_prs(repo)
+    scoreboards, rejected = fetch_scoreboards(repo, {pr["number"] for pr in prs})
     return {
         "schema_version": 1,
         "repo": repo,
         "fetched_at": iso_z(datetime.now(timezone.utc)),
-        "prs": fetch_prs(repo),
-        "scoreboards": fetch_scoreboards(repo),
+        "prs": prs,
+        "scoreboards": scoreboards,
+        "rejected_scoreboard_comments": dict(sorted(rejected.items())),
     }
 
 
@@ -277,6 +315,29 @@ def last_labeled(pr: dict, label: str) -> datetime | None:
         for event in pr.get("labeled_events") or [] if event["label"] == label
     ]
     return max(matches, default=None)
+
+
+def review_cycle_starts(pr: dict) -> list[datetime]:
+    """When each of the PR's review cycles began, from its label timeline.
+
+    The pipeline swaps ``awaiting-review`` for ``review-in-progress`` while a round is being
+    judged and reconciliation can restore ``awaiting-review`` afterwards, so counting label
+    applications splits one cycle into several.  A cycle instead begins where the PR *enters*
+    the review states from an author or CI state (or from no state at all) and lasts until it
+    leaves for one; consecutive review labels stay inside the same cycle.  Labeled events
+    alone are enough: the pipeline replaces one state label with another, and a bare removal,
+    as on merge, never opens a cycle.
+    """
+    starts = []
+    in_review = False
+    for event in sorted(pr.get("labeled_events") or [], key=lambda item: item["created_at"]):
+        if event["label"] in STATE_REVIEW:
+            if not in_review:
+                starts.append(parse_dt(event["created_at"]))
+            in_review = True
+        elif event["label"] in STATE_AUTHOR:
+            in_review = False
+    return starts
 
 
 def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
@@ -298,10 +359,10 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
                 missing_transition += 1
             author.append(max(0.0, (snapshot - start).total_seconds() / 3600))
         elif labels & STATE_REVIEW:
-            # review-in-progress is a claimed awaiting-review cycle, not a new wait.
-            start = last_labeled(pr, "awaiting-review")
-            if start is None:
-                start = last_labeled(pr, "review-in-progress")
+            # The clock runs from the current cycle's start: claiming it as review-in-progress,
+            # or having awaiting-review restored afterwards, is not a fresh wait.
+            starts = review_cycle_starts(pr)
+            start = starts[-1] if starts else None
             if start is None:
                 start = created
                 missing_transition += 1
@@ -318,31 +379,22 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
 
 
 def review_cycle_metrics(prs: list[dict]) -> dict:
-    all_counts = {
-        str(pr["number"]): sum(
-            event["label"] == "awaiting-review"
-            for event in pr.get("labeled_events") or []
-        )
-        for pr in prs
+    starts = {pr["number"]: review_cycle_starts(pr) for pr in prs}
+    counts = {
+        str(number): len(cycles) for number, cycles in starts.items() if cycles
     }
-    counts = {number: count for number, count in all_counts.items() if count}
     observed = list(counts.values())
-    cycle_timestamps = [
-        parse_dt(event["created_at"])
-        for pr in prs for event in pr.get("labeled_events") or []
-        if event["label"] == "awaiting-review"
-    ]
-    epoch = min(cycle_timestamps, default=None)
+    epoch = min((cycle for cycles in starts.values() for cycle in cycles), default=None)
     maximum = max(observed, default=0)
     reach = [
         {"cycle": cycle, "prs": sum(count >= cycle for count in observed)}
         for cycle in range(1, maximum + 1)
     ]
     return {
-        "definition": "number of times the awaiting-review label was applied",
+        "definition": "number of times the PR entered review from an author or CI state",
         "label_epoch": epoch.date().isoformat() if epoch else None,
         "reviewed_prs": len(observed),
-        "awaiting_review_transitions": sum(observed),
+        "total_cycles": sum(observed),
         "max_cycle": maximum,
         "reach": reach,
         "cycles_by_pr": counts,
@@ -511,7 +563,7 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
         f'<rect width="100%" height="100%" fill="{BG}"/>',
         f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:27px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.label{{font-size:14px;font-weight:680}}.value{{font-size:13px;font-weight:750}}.track{{fill:#e3e6e8}}</style>',
         '<text x="45" y="42" class="title">PRs reaching each review cycle</text>',
-        f'<text x="45" y="70" class="subtitle">One cycle = one application of the awaiting-review label · {metrics["awaiting_review_transitions"]:,} transitions across {reviewed:,} reviewed PRs{epoch_note}</text>',
+        f'<text x="45" y="70" class="subtitle">One cycle = one entry into review from an author or CI state · {metrics["total_cycles"]:,} cycles across {reviewed:,} reviewed PRs{epoch_note}</text>',
     ]
     if not shown:
         parts.append('<text x="45" y="125" class="label">No review cycles observed.</text>')
@@ -719,7 +771,7 @@ def generate(
         "last_full_day": last_full_day.isoformat(),
         "definitions": {
             "review_cycle": cycles["definition"],
-            "review": "one GitHub issue comment containing <!--tauceti-scoreboard-->, attributed to the posting account",
+            "review": "one canonical <!--tauceti-scoreboard--> comment on a pull request of this repository, identified by the tauceti-meta:v1 block naming that PR, attributed to the posting account",
             "active_author": "distinct PR author opening a PR in the trailing seven-day window",
             "merge_latency": "PR creation timestamp to merge timestamp",
         },
@@ -732,6 +784,7 @@ def generate(
         "cumulative_reviews_plotted": review_series,
         "merge_totals_by_contributor": dict(merge_totals.most_common()),
         "review_totals_by_contributor": dict(review_totals.most_common()),
+        "rejected_scoreboard_comments": data.get("rejected_scoreboard_comments") or {},
     }
     out_dir.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
@@ -793,7 +846,7 @@ def main() -> int:
         f"wrote five charts to {args.out_dir}: "
         f"{len(metrics['queue']['total_open_hours'])} open PRs; "
         f"{metrics['queue']['missing_transition_fallbacks']} state-clock fallbacks; "
-        f"{metrics['review_cycles']['awaiting_review_transitions']} review transitions; "
+        f"{metrics['review_cycles']['total_cycles']} review cycles; "
         f"{len(metrics['merge_totals_by_contributor'])} merge contributors; "
         f"{len(metrics['review_totals_by_contributor'])} review contributors"
     )

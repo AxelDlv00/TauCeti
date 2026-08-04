@@ -60,7 +60,7 @@ private def prGraphs : Html := {{
       <img class="loc-graph" src="static/review-cycles-reached.svg"
            alt="Pull requests reaching each successive review cycle"
            loading="lazy"/>
-      <figcaption>"PRs reaching each review cycle; a cycle begins whenever the " <code>"awaiting-review"</code> " label is applied."</figcaption>
+      <figcaption>"PRs reaching each review cycle; a cycle begins whenever a PR returns to " <code>"awaiting-review"</code> " after its author's turn."</figcaption>
     </figure>
     <figure class="loc-figure">
       <img class="loc-graph" src="static/rolling-seven-day-history.svg"
@@ -78,7 +78,7 @@ private def prGraphs : Html := {{
       <img class="loc-graph" src="static/cumulative-reviews-by-contributor.svg"
            alt="Cumulative review scoreboards by contributor"
            loading="lazy"/>
-      <figcaption>"Cumulative review scoreboards by the GitHub account that posted them; edits to an existing scoreboard do not add another count."</figcaption>
+      <figcaption>"Cumulative canonical review scoreboards by the GitHub account that posted them; edits to an existing scoreboard do not add another count."</figcaption>
     </figure>
   </div>
 }}
@@ -113,8 +113,11 @@ How is the contribution and review pipeline behaving? The first chart separates 
 PR's total age from the clock on its current state. PRs outside the awaiting-author
 and review states appear in total time open but not in the two current-state panels.
 The review-cycle chart counts durable label transitions rather than scoreboard
-comments, because a scoreboard may be edited in place as later rounds complete. Its
-subtitle states when those review-state transitions first appear in project history.
+comments, because a scoreboard may be edited in place as later rounds complete. A
+cycle is one entry into review from an author or CI state, so the pipeline swapping
+`awaiting-review` for `review-in-progress` and back within a single round stays one
+cycle. Its subtitle states when those review-state transitions first appear in project
+history.
 
 The historical charts use complete UTC days. The contributor SVGs show every
 contributor while that remains legible, then cap themselves at 24 named lines and

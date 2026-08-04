@@ -16,17 +16,29 @@ It requires an authenticated `gh` CLI. In GitHub Actions, set `GH_TOKEN` to
 
 - **Total time open** is snapshot time minus PR creation time for every open PR.
 - **Awaiting author** starts when the current `awaiting-author` label was applied.
-- **In review** starts when the current review cycle entered `awaiting-review`; a
-  subsequent `review-in-progress` label remains part of that same clock.
-- **Review cycle N** means that `awaiting-review` has been applied to the PR at least N
-  times. This must come from label events: scoreboard comments are edited in place and
-  counting comments undercounts later rounds. The chart states the earliest date on
-  which that label is observed, since PRs predating the review-state labels cannot be
-  reconstructed from those transitions.
-- **One review scoreboard** in the contributor history is one issue comment containing
-  `<!--tauceti-scoreboard-->`, attributed to the GitHub login that posted it. This is a
-  count of posted scoreboards, not reconstructed review rounds; scoreboards edited in
-  place remain one comment.
+- **In review** starts when the current review cycle began; the pipeline's swap to
+  `review-in-progress`, and any later restoration of `awaiting-review`, remain part of
+  that same clock.
+- **Review cycle N** means the PR has entered the review states (`awaiting-review` or
+  `review-in-progress`) from an author or CI state at least N times. This must come from
+  label events: scoreboard comments are edited in place and counting comments undercounts
+  later rounds. Counting label applications instead would overcount, because the pipeline
+  swaps `awaiting-review` for `review-in-progress` and reconciliation can restore it while
+  one round is still being judged. The chart states the earliest date on which a cycle is
+  observed, since PRs predating the review-state labels cannot be reconstructed from those
+  transitions.
+- **One review scoreboard** in the contributor history is one canonical
+  `<!--tauceti-scoreboard-->` comment on a pull request of this repository, attributed to
+  the GitHub login that posted it. Canonical means the comment carries the review engine's
+  `<!--tauceti-meta:v1 ...-->` block, declares kind `scoreboard`, and names that same PR,
+  so a comment on an ordinary issue, a quoted marker, or another PR's pasted scoreboard is
+  not counted, and neither are the scoreboards from the project's first week, posted before
+  the engine started stamping that block; `pr-stats.json` records how many marker comments
+  were rejected and why.
+  This is a count of posted scoreboards, not reconstructed review rounds; scoreboards
+  edited in place remain one comment. Tau Ceti's review pipeline runs under many
+  participants' own accounts, including outside contributors and the review bot, so
+  attribution deliberately does not filter on `author_association`.
 - Seven-day metrics use complete UTC calendar days. Merge latency is PR creation to
   merge time among PRs merged in that trailing window.
 
@@ -83,6 +95,7 @@ The tests are hermetic and use only the standard library:
 python3 scripts/test_pr_stats_graphs.py
 ```
 
-They cover direct timeline pagination, fail-closed state clocks,
-all-or-nothing rendering, cycle reach beyond six, the requested queue panel order,
-SVG/XML validity, and a synthetic 2,500-contributor history.
+They cover direct timeline pagination, fail-closed state clocks, all-or-nothing
+rendering, cycle reach beyond six, review-label churn inside one cycle, scoreboard
+validation, the requested queue panel order, SVG/XML validity, and a synthetic
+2,500-contributor history.

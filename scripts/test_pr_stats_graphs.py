@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -22,11 +23,16 @@ def timestamp(day: int, hour: int = 0) -> str:
 
 def pr(number, created_day, *, state="CLOSED", merged_day=None, author="alice",
        labels=(), cycles=0, is_draft=False):
-    events = [
-        {"created_at": timestamp(min(created_day + index, 14), 8),
-         "label": "awaiting-review"}
-        for index in range(cycles)
-    ]
+    events = []
+    for index in range(cycles):
+        day = created_day + index
+        if index:
+            # The author's turn between rounds; without it the next label continues one cycle.
+            events.append({"created_at": timestamp(day, 6), "label": "awaiting-author"})
+        events.append({"created_at": timestamp(day, 8), "label": "awaiting-review"})
+        # Claiming the round and having the label restored is churn inside the same cycle.
+        events.append({"created_at": timestamp(day, 9), "label": "review-in-progress"})
+        events.append({"created_at": timestamp(day, 10), "label": "awaiting-review"})
     if "awaiting-author" in labels:
         events.append({"created_at": timestamp(13, 12), "label": "awaiting-author"})
     if "review-in-progress" in labels and not cycles:
@@ -117,12 +123,39 @@ class MetricsTest(unittest.TestCase):
             pr(4, 4, cycles=7),
         ]
         result = stats.review_cycle_metrics(prs)
-        self.assertEqual(result["awaiting_review_transitions"], 10)
+        self.assertEqual(result["total_cycles"], 10)
         self.assertEqual(result["reviewed_prs"], 3)
         self.assertEqual(
             [item["prs"] for item in result["reach"]],
             [3, 2, 1, 1, 1, 1, 1],
         )
+
+    def test_restored_awaiting_review_label_stays_in_the_same_cycle(self):
+        item = pr(1, 1)
+        item["labeled_events"] = [
+            {"created_at": timestamp(2, 1), "label": "awaiting-review"},
+            {"created_at": timestamp(2, 2), "label": "review-in-progress"},
+            # Reconciliation restores the label without the author having acted.
+            {"created_at": timestamp(2, 3), "label": "awaiting-review"},
+            {"created_at": timestamp(2, 4), "label": "awaiting-author"},
+            {"created_at": timestamp(3, 1), "label": "awaiting-CI"},
+            {"created_at": timestamp(3, 2), "label": "awaiting-review"},
+        ]
+        result = stats.review_cycle_metrics([item])
+        self.assertEqual(result["total_cycles"], 2)
+        self.assertEqual(result["cycles_by_pr"], {"1": 2})
+        self.assertEqual(result["label_epoch"], "2026-01-02")
+
+    def test_in_review_clock_survives_the_review_label_swap(self):
+        item = pr(1, 1, state="OPEN", labels=("awaiting-review",))
+        item["labeled_events"] = [
+            {"created_at": timestamp(10, 0), "label": "awaiting-review"},
+            {"created_at": timestamp(12, 0), "label": "review-in-progress"},
+            {"created_at": timestamp(14, 0), "label": "awaiting-review"},
+        ]
+        metrics = stats.queue_age_metrics([item], datetime(2026, 1, 15, tzinfo=UTC))
+        self.assertEqual(metrics["in_review_hours"], [120.0])
+        self.assertEqual(metrics["missing_transition_fallbacks"], 0)
 
     def test_queue_age_order_and_state_clocks(self):
         snapshot = datetime(2026, 1, 15, tzinfo=UTC)
@@ -152,6 +185,30 @@ class MetricsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(ValueError, "matching label transitions"):
                 stats.generate(data, Path(temporary))
+
+    def test_scoreboards_need_a_pull_request_and_matching_meta(self):
+        def comment(number, user, canonical=True):
+            return json.dumps({
+                "number": str(number), "created_at": timestamp(2),
+                "updated_at": timestamp(2), "user": user, "canonical": canonical,
+            })
+
+        raw = "\n".join([
+            comment(7, "reviewer-a"),
+            comment(8, "issue-commenter"),       # an ordinary issue, not a PR
+            comment(9, "marker-quoter", False),  # the public marker without engine meta
+            comment(7, "reviewer-b"),
+        ])
+        with patch.object(stats, "run_gh", return_value=raw):
+            scoreboards, rejected = stats.fetch_scoreboards("example/project", {7, 9})
+        self.assertEqual(
+            [(item["pr"], item["user"]) for item in scoreboards],
+            [(7, "reviewer-a"), (7, "reviewer-b")],
+        )
+        self.assertEqual(
+            dict(rejected),
+            {"not_a_pull_request": 1, "no_canonical_scoreboard_meta": 1},
+        )
 
     def test_thousands_of_contributors_are_bounded(self):
         start = datetime(2026, 1, 1, tzinfo=UTC)
