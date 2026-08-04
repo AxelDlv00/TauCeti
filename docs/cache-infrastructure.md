@@ -15,8 +15,7 @@ Where the build cache lives, who owns it, and which knob feeds which workflow.
 The account ID is not a secret: it is the subdomain of the S3 endpoint below. If the dashboard
 link 404s, the login you used is not a member of that account.
 
-`kim-em/hex-dev` uses the **same Cloudflare account** with a separate bucket, `hex-cache`. See its
-own `docs/cache-infrastructure.md`.
+The account holds other buckets unrelated to this project. Only `tauceti-cache` is ours.
 
 ## Endpoints
 
