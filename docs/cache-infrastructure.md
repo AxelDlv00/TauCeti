@@ -79,9 +79,10 @@ every plan and needs no further configuration once Tiered Cache is on. Check the
 `taucetiproject.org` zone rather than assuming it; the Cache Rule above is what does the work
 either way.
 
-To check the rule is live, request the same artifact twice. Use GET: Cloudflare caches responses to
-`GET` only (https://developers.cloudflare.com/cache/concepts/default-cache-behavior/), so `curl -I`
-can report `DYNAMIC` on a correctly configured rule.
+To check the rule is live, request the same artifact twice. `curl -I` works as well as a GET:
+Cloudflare converts a cacheable `HEAD` into a `GET`, fetching and caching the full response and
+returning only the headers (https://developers.cloudflare.com/cache/concepts/cache-behavior/), so a
+`HEAD` reports the same `cf-cache-status` a `GET` would.
 
 ```bash
 U=https://cache.taucetiproject.org/artifacts/TauCetiProject/TauCeti/<hash>.art
@@ -89,7 +90,7 @@ curl -s -o /dev/null -D - "$U" | grep -i cf-cache-status   # MISS on the first r
 curl -s -o /dev/null -D - "$U" | grep -i cf-cache-status   # HIT on the second
 ```
 
-`DYNAMIC` on a GET means the expression is not matching; `BYPASS` means something overrides it.
+`DYNAMIC` means the expression is not matching; `BYPASS` means something overrides it.
 The hit ratio that actually determines the saving is under Caching, then Analytics.
 
 ## Cost
