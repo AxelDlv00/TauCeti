@@ -816,10 +816,10 @@ def generate(
         for item in data.get("scoreboards") or []
     ]
     merge_dates, merge_names, merge_series, merge_totals = cumulative_chart_series(
-        merge_events, project_start, last_full_day, contributor_limit,
+        merge_events, project_start, snapshot.date(), contributor_limit,
     )
     review_dates, review_names, review_series, review_totals = cumulative_chart_series(
-        review_events, project_start, last_full_day, contributor_limit,
+        review_events, project_start, snapshot.date(), contributor_limit,
     )
 
     metrics = {

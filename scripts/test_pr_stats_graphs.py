@@ -324,17 +324,20 @@ class RenderingTest(unittest.TestCase):
             pr(5, 11, state="OPEN", labels=("review-in-progress",), cycles=2,
                author="dave"),
             pr(6, 12, state="OPEN", labels=("awaiting-CI",), author="erin"),
+            pr(7, 14, merged_day=15, author="frank", cycles=1),
         ]
         data = {
             "schema_version": 1,
             "repo": "example/project",
-            "fetched_at": timestamp(15),
+            "fetched_at": timestamp(15, 20),
             "prs": prs,
             "scoreboards": [
                 {"pr": 1, "created_at": timestamp(2), "updated_at": timestamp(2),
                  "user": "reviewer-a"},
                 {"pr": 2, "created_at": timestamp(5), "updated_at": timestamp(5),
                  "user": "reviewer-b"},
+                {"pr": 7, "created_at": timestamp(15, 12),
+                 "updated_at": timestamp(15, 12), "user": "reviewer-c"},
             ],
         }
         expected = [
@@ -358,6 +361,8 @@ class RenderingTest(unittest.TestCase):
             cycle_svg = (out / "review-cycles-reached.svg").read_text(encoding="utf-8")
             self.assertIn("Review cycle 7", cycle_svg)
             self.assertEqual(metrics["review_cycles"]["max_cycle"], 7)
+            self.assertEqual(metrics["merge_totals_by_contributor"]["frank"], 1)
+            self.assertEqual(metrics["review_totals_by_contributor"]["reviewer-c"], 1)
 
     def test_render_failure_keeps_previous_asset_set(self):
         data = {

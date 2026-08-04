@@ -119,9 +119,10 @@ cycle is one entry into review from an author or CI state, so the pipeline swapp
 cycle. Its subtitle states when those review-state transitions first appear in project
 history.
 
-The historical charts use complete UTC days. The contributor SVGs show every
-contributor while that remains legible, then cap themselves at 24 named lines and
-combine the remaining long tail. Exact totals for every login remain available in
+The rolling historical charts use complete UTC days; cumulative contributor histories
+include the current partial UTC day through the snapshot time. The contributor SVGs
+show every contributor while that remains legible, then cap themselves at 24 named
+lines and combine the remaining long tail. Exact totals for every login remain available in
 the generated [`pr-stats.json`](static/pr-stats.json). Review attribution follows the
 status pipeline's trust boundary: only canonical v1 scoreboards from repository owners,
 members, or collaborators are included.

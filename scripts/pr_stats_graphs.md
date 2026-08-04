@@ -40,7 +40,8 @@ It requires an authenticated `gh` CLI. In GitHub Actions, set `GH_TOKEN` to
   only comments whose author association is `OWNER`, `MEMBER`, or `COLLABORATOR`; an
   external account cannot forge review credit with a pasted marker and metadata block.
 - Seven-day metrics use complete UTC calendar days. Merge latency is PR creation to
-  merge time among PRs merged in that trailing window.
+  merge time among PRs merged in that trailing window. Cumulative contributor histories
+  include events through the snapshot time, including the current partial UTC day.
 
 ## Reproducible and offline runs
 
