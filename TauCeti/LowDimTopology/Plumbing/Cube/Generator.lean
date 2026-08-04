@@ -209,6 +209,15 @@ theorem vertices_upperFace_subset (C : PlumbingCube V) {v : V} (hv : v ∈ C.dir
     simpa [vertices_def, upperFace_base, upperFace_directions] using
       PlumbingGraph.cubeVertices_upperFace_subset (x := C.base) hv
 
+/-- The vertices of a bundled cube split as the union of the vertices of its lower and upper faces
+in any present direction. -/
+theorem vertices_eq_union_faces (C : PlumbingCube V) {v : V} (hv : v ∈ C.directions) :
+    C.vertices = (C.lowerFace v hv).vertices ∪ (C.upperFace v hv).vertices :=
+  by
+    simpa [vertices_def, lowerFace_base, lowerFace_directions, upperFace_base,
+      upperFace_directions] using
+      PlumbingGraph.cubeVertices_eq_union_erase hv C.base
+
 omit [DecidableEq (V → ℤ)] in
 /-- Removing a present direction drops the cubical dimension by one for the lower face. -/
 @[simp]
@@ -324,6 +333,32 @@ theorem characteristicWeight_eraseDirection_le [Fintype V] (P : PlumbingGraph V)
   by
     simpa [characteristicWeight_def, eraseDirection_base, eraseDirection_directions] using
       P.characteristicCubeWeight_mono k (Finset.erase_subset v C.directions) C.base
+
+/-- The lower face's characteristic weight is bounded by the ambient cube weight. -/
+theorem characteristicWeight_lowerFace_le [Fintype V] (P : PlumbingGraph V)
+    (k : P.characteristicVectors) (C : PlumbingCube V) {v : V} (hv : v ∈ C.directions) :
+    characteristicWeight P k (C.lowerFace v hv) ≤ characteristicWeight P k C :=
+  by simpa [lowerFace_def] using characteristicWeight_eraseDirection_le P k C v
+
+/-- The upper face's characteristic weight is bounded by the ambient cube weight. -/
+theorem characteristicWeight_upperFace_le [Fintype V] (P : PlumbingGraph V)
+    (k : P.characteristicVectors) (C : PlumbingCube V) {v : V} (hv : v ∈ C.directions) :
+    characteristicWeight P k (C.upperFace v hv) ≤ characteristicWeight P k C :=
+  by
+    simpa [characteristicWeight_def, upperFace_base, upperFace_directions] using
+      P.characteristicUpperFaceWeight_le (x := C.base) k hv
+
+/-- In any present direction, the characteristic weight of a cube is the maximum of the weights
+of its lower and upper faces. -/
+theorem characteristicWeight_eq_max_faces [Fintype V] (P : PlumbingGraph V)
+    (k : P.characteristicVectors) (C : PlumbingCube V) {v : V} (hv : v ∈ C.directions) :
+    characteristicWeight P k C =
+      max (characteristicWeight P k (C.lowerFace v hv))
+        (characteristicWeight P k (C.upperFace v hv)) :=
+  by
+    simpa [characteristicWeight_def, lowerFace_base, lowerFace_directions, upperFace_base,
+      upperFace_directions] using
+      P.characteristicCubeWeight_eq_max_erase k C.base hv
 
 /-! ### Codimension-two faces
 
