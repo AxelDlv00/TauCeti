@@ -374,8 +374,20 @@ jobs:
       # base-branch revision — backtracking up to --max-revs ancestors — and unpacks them
       # into the local Lake cache ($LAKE_CACHE_DIR). This is trusted, main-built data: no
       # token is in reach and no PR code runs (lakefile.toml is declarative + base-trusted).
-      # Mathlib's oleans are NOT here; they come from `lake exe cache get` above. A miss is
-      # non-fatal — the landrun build just recompiles from scratch, as when the cache is off.
+      # Mathlib's oleans are NOT here; they come from `lake exe cache get` above.
+      #
+      # A TOTAL miss is non-fatal: the landrun build just recompiles from scratch, as when the
+      # cache is off. A PARTIAL fetch is a different matter. `lake cache get` continues past a
+      # failed download and exits nonzero (see `lake cache help get`), leaving input-to-output
+      # mappings whose artifacts never arrived. The landrun build below is offline and has no
+      # cache service configured, so it cannot fetch them: Lake logs a warning per affected
+      # module and correctly rebuilds it from source, but `lake build --iofail` is
+      # `--fail-level=info`, so those warnings fail a build in which every module compiled.
+      # Cloudflare rate-limits the public r2.dev host by design ("should only be used for
+      # development purposes"), so throttled downloads (HTTP 429) make partial fetches routine.
+      #
+      # Hence: retry, then fall back to no cache at all. Retries are cheap because an artifact
+      # already on disk is skipped, so each pass re-fetches only what is still missing.
       - name: Fetch TauCeti's own oleans from the Lake cache (network, no token; no PR code)
         if: ${{ env.INFRA != '1' && env.TAUCETI_CACHE_ENABLED == '1' }}
         env:
@@ -396,8 +408,38 @@ jobs:
           artifactEndpoint = "$PUBLIC_ARTIFACT_ENDPOINT"
           revisionEndpoint = "$PUBLIC_REVISION_ENDPOINT"
           TOML
-          ( cd base && LAKE_CONFIG="$CFG" lake cache get --service tauceti-public --repo TauCetiProject/TauCeti ) \
-            || echo "::warning::lake cache get failed or missed; building TauCeti/ from scratch"
+          # Only a download failure is worth retrying; anything else (no mappings found for any
+          # ancestor revision, a malformed config) will answer the same way next time.
+          rc=0 LOG=""
+          for attempt in 1 2 3; do
+            LOG="$RUNNER_TEMP/cache-get-$attempt.log"
+            if ( cd base && LAKE_CONFIG="$CFG" lake cache get --service tauceti-public \
+                   --repo TauCetiProject/TauCeti ) > "$LOG" 2>&1; then
+              cat "$LOG"; rc=0; break
+            fi
+            rc=1; cat "$LOG"
+            grep -q "failed to download" "$LOG" || break
+            # `[ ... ] && sleep` would abort the step under `bash -e` on the last attempt,
+            # when the test is false and the whole list returns nonzero. Use a plain `if`.
+            if [ "$attempt" != 3 ]; then
+              echo "::notice::lake cache get attempt $attempt hit download failures; retrying"
+              sleep $(( attempt * 15 ))
+            fi
+          done
+          if [ "$rc" != 0 ] && grep -q "failed to download" "$LOG"; then
+            # The cache is partial. Discard it: one the offline build cannot fully resolve is
+            # worse than none, because each unresolvable entry becomes a build failure rather
+            # than a rebuild. Emptying it restores the documented no-cache path exactly.
+            echo "::warning::lake cache get still incomplete after retries; discarding the partial cache and building TauCeti/ from scratch"
+            rm -rf base/.lake/cache
+            {
+              echo "LAKE_ARTIFACT_CACHE="
+              echo "LAKE_RESTORE_ARTIFACTS="
+              echo "LAKE_CACHE_DIR="
+            } >> "$GITHUB_ENV"
+          elif [ "$rc" != 0 ]; then
+            echo "::warning::lake cache get failed or missed; building TauCeti/ from scratch"
+          fi
 
       - name: Build (trusted config + overlaid TauCeti/) under landrun, offline
         id: build
