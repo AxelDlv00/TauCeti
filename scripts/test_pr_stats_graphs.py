@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -71,14 +73,17 @@ class MetricsTest(unittest.TestCase):
                 "pageInfo": {"hasNextPage": True, "endCursor": "events-100"},
                 "nodes": [{"createdAt": timestamp(2),
                            "label": {"name": "awaiting-review"}}],
-            }}},
+            }, "mergedAt": None, "closedAt": None, "state": "OPEN",
+                "isDraft": False, "labels": {"nodes": []}}},
         }
         timeline_extra = {
             "repository": {"pullRequest": {"timelineItems": {
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
                 "nodes": [{"createdAt": timestamp(3),
                            "label": {"name": "awaiting-review"}}],
-            }}},
+            }, "mergedAt": None, "closedAt": None, "state": "OPEN",
+                "isDraft": False,
+                "labels": {"nodes": [{"name": "awaiting-review"}]}}},
         }
         with patch.object(
             stats, "graphql", side_effect=[first_page, timeline_page, timeline_extra],
@@ -88,6 +93,7 @@ class MetricsTest(unittest.TestCase):
             [event["label"] for event in prs[0]["labeled_events"]],
             ["awaiting-review", "awaiting-review"],
         )
+        self.assertEqual(prs[0]["labels"], ["awaiting-review"])
 
     def test_closed_pr_uses_complete_direct_timeline(self):
         first_page = {
@@ -109,11 +115,30 @@ class MetricsTest(unittest.TestCase):
                      "label": {"name": "awaiting-review"}}
                     for index in range(9)
                 ],
-            }}},
+            }, "mergedAt": None, "closedAt": timestamp(14), "state": "CLOSED",
+                "isDraft": False,
+                "labels": {"nodes": [{"name": "roadmap/PDE"}]}}},
         }
-        with patch.object(stats, "graphql", side_effect=[first_page, direct]):
-            prs = stats.fetch_prs("example/project")
+        with patch.object(stats, "LIFECYCLE_EPOCH", datetime(2026, 1, 1, tzinfo=UTC)):
+            with patch.object(stats, "graphql", side_effect=[first_page, direct]):
+                prs = stats.fetch_prs("example/project")
         self.assertEqual(len(prs[0]["labeled_events"]), 9)
+
+    def test_pr_closed_before_lifecycle_epoch_skips_timeline(self):
+        first_page = {
+            "repository": {"pullRequests": {
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                "nodes": [{
+                    "number": 42, "createdAt": timestamp(1), "mergedAt": timestamp(2),
+                    "closedAt": timestamp(2), "state": "MERGED", "isDraft": False,
+                    "author": {"login": "alice"}, "labels": {"nodes": []},
+                }],
+            }},
+        }
+        with patch.object(stats, "graphql", return_value=first_page) as graphql:
+            prs = stats.fetch_prs("example/project")
+        self.assertEqual(prs[0]["labeled_events"], [])
+        self.assertEqual(graphql.call_count, 1)
 
     def test_review_cycles_use_label_transitions_and_reach_seven(self):
         prs = [
@@ -171,6 +196,17 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(len(metrics["in_review_hours"]), 1)
         self.assertEqual(metrics["other_open_prs"], 2)
 
+    def test_current_state_clock_rejects_stale_historical_transition(self):
+        item = pr(1, 1, state="OPEN", labels=("awaiting-review",), cycles=1)
+        item["labeled_events"].append({
+            "created_at": timestamp(3), "label": "ready-to-merge",
+        })
+        metrics = stats.queue_age_metrics(
+            [item], datetime(2026, 1, 5, tzinfo=UTC),
+        )
+        self.assertEqual(metrics["missing_transition_fallbacks"], 1)
+        self.assertEqual(metrics["in_review_hours"], [96.0])
+
     def test_generation_rejects_excessive_missing_state_transitions(self):
         prs = [
             pr(number, number, state="OPEN", labels=("awaiting-author",))
@@ -186,21 +222,19 @@ class MetricsTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "matching label transitions"):
                 stats.generate(data, Path(temporary))
 
-    def test_scoreboards_need_a_pull_request_and_matching_meta(self):
-        def comment(number, user, metas=None):
+    def test_scoreboards_need_trust_pull_request_and_matching_meta(self):
+        def comment(number, user, canonical=True, association="MEMBER"):
             return json.dumps({
                 "number": str(number), "created_at": timestamp(2),
-                "updated_at": timestamp(2), "user": user,
-                "metas": [json.dumps({"kind": "scoreboard", "pr": number})]
-                         if metas is None else metas,
+                "updated_at": timestamp(2), "user": user, "canonical": canonical,
+                "author_association": association,
             })
 
         raw = "\n".join([
             comment(7, "reviewer-a"),
-            comment(8, "issue-commenter"),      # an ordinary issue, not a PR
-            comment(9, "marker-quoter", []),    # the public marker without engine meta
-            # A thread comment carries the meta block of a different kind.
-            comment(9, "thread-poster", [json.dumps({"kind": "thread", "pr": 9})]),
+            comment(8, "issue-commenter"),       # an ordinary issue, not a PR
+            comment(9, "marker-quoter", False),  # the public marker without engine meta
+            comment(7, "forger", association="NONE"),
             comment(7, "reviewer-b"),
         ])
         with patch.object(stats, "run_gh", return_value=raw):
@@ -211,7 +245,8 @@ class MetricsTest(unittest.TestCase):
         )
         self.assertEqual(
             dict(rejected),
-            {"not_a_pull_request": 1, "no_canonical_scoreboard_meta": 2},
+            {"not_a_pull_request": 1, "no_canonical_scoreboard_meta": 1,
+             "untrusted_author": 1},
         )
 
     def test_scoreboard_meta_pr_number_is_matched_exactly(self):
@@ -224,6 +259,43 @@ class MetricsTest(unittest.TestCase):
                 ["not json", json.dumps({"kind": "scoreboard", "pr": 18, "round": 2})], 18,
             )
         )
+
+    @unittest.skipUnless(shutil.which("jq"), "jq is not installed")
+    def test_scoreboard_jq_program_executes_and_validates_metadata(self):
+        def fixture(number, user, association, meta):
+            body = f'<!--tauceti-scoreboard-->\n<!--tauceti-meta:v1 {json.dumps(meta)} -->'
+            return {
+                "issue_url": f"https://api.github.com/repos/example/project/issues/{number}",
+                "created_at": timestamp(2), "updated_at": timestamp(3),
+                "user": {"login": user}, "author_association": association,
+                "body": body,
+            }
+
+        comments = [
+            fixture(7, "trusted", "MEMBER",
+                    {"kind": "scoreboard", "pr": 7, "states": {"api": "green"}}),
+            fixture(7, "wrong-pr", "MEMBER", {"kind": "scoreboard", "pr": 8}),
+            fixture(7, "string-pr", "MEMBER", {"kind": "scoreboard", "pr": "7"}),
+            fixture(7, "wrong-kind", "MEMBER", {"kind": "claim", "pr": 7}),
+            {
+                "issue_url": "https://api.github.com/repos/example/project/issues/7",
+                "created_at": timestamp(2), "updated_at": timestamp(3),
+                "user": {"login": "missing-meta"}, "author_association": "MEMBER",
+                "body": "<!--tauceti-scoreboard-->",
+            },
+        ]
+        with patch.object(stats, "run_gh", return_value="") as run:
+            stats.fetch_scoreboards("example/project", {7})
+        query = run.call_args.args[0][-1]
+        result = subprocess.run(
+            ["jq", "-c", query], input=json.dumps(comments), text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+        )
+        rows = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(
+            [row["canonical"] for row in rows], [True, False, False, False, False],
+        )
+        self.assertTrue(all(row["author_association"] == "MEMBER" for row in rows))
 
     def test_thousands_of_contributors_are_bounded(self):
         start = datetime(2026, 1, 1, tzinfo=UTC)

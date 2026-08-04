@@ -52,14 +52,17 @@ SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
 # request it was posted on.  Requiring all three rejects comments that merely quote the
 # marker or paste another PR's scoreboard.  scripts/pr_status/core.py parses the same block
 # when it derives a single PR's review state.
-SCOREBOARD_META_MARKER = "<!--tauceti-meta:v1"
-SCOREBOARD_META_END = "-->"
 SCOREBOARD_META_KIND = "scoreboard"
+TRUSTED_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
 STATE_REVIEW = {"awaiting-review", "review-in-progress"}
 STATE_LABELS = {"awaiting-author", *STATE_REVIEW}
 # States in which the PR has left the review queue: the author owns it, or CI is judging a
 # new commit before review resumes.
 STATE_AUTHOR = {"awaiting-author", "awaiting-CI"}
+LIFECYCLE_LABELS = {*STATE_REVIEW, *STATE_AUTHOR, "ready-to-merge"}
+# The lifecycle-label workflow first landed on 2026-07-22. A PR closed before
+# that UTC day cannot contain one of its label events and needs no timeline query.
+LIFECYCLE_EPOCH = datetime(2026, 7, 22, tzinfo=timezone.utc)
 ASSET_NAMES = [
     "pr-queue-age.svg",
     "review-cycles-reached.svg",
@@ -149,6 +152,8 @@ TIMELINE_PAGE_QUERY = r"""
 query($owner:String!, $name:String!, $number:Int!, $cursor:String) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$number) {
+      mergedAt closedAt state isDraft
+      labels(first:30) { nodes { name } }
       timelineItems(first:100, after:$cursor, itemTypes:[LABELED_EVENT]) {
         pageInfo { hasNextPage endCursor }
         nodes { ... on LabeledEvent { createdAt label { name } } }
@@ -179,8 +184,8 @@ def normalized_events(events: list[dict]) -> list[dict]:
     ), key=lambda event: event["created_at"])
 
 
-def fetch_timeline(owner: str, name: str, number: int) -> list[dict]:
-    """Fetch one authoritative PR timeline, including every pagination page."""
+def fetch_timeline(owner: str, name: str, number: int) -> dict:
+    """Fetch one authoritative PR state and timeline, including every event page."""
     cursor = None
     events = []
     while True:
@@ -193,12 +198,19 @@ def fetch_timeline(owner: str, name: str, number: int) -> list[dict]:
         timeline = pull["timelineItems"]
         events.extend(timeline["nodes"])
         if not timeline["pageInfo"]["hasNextPage"]:
-            return normalized_events(events)
+            return {
+                "merged_at": pull["mergedAt"],
+                "closed_at": pull["closedAt"],
+                "state": pull["state"],
+                "is_draft": pull["isDraft"],
+                "labels": [item["name"] for item in pull["labels"]["nodes"]],
+                "labeled_events": normalized_events(events),
+            }
         cursor = timeline["pageInfo"]["endCursor"]
 
 
-def fetch_timelines(owner: str, name: str, numbers: list[int]) -> dict[int, list[dict]]:
-    """Fetch timelines independently; batching these connections loses events."""
+def fetch_timelines(owner: str, name: str, numbers: list[int]) -> dict[int, dict]:
+    """Fetch current state and timelines independently; batching loses events."""
     result = {}
     for index, number in enumerate(numbers, start=1):
         result[number] = fetch_timeline(owner, name, number)
@@ -231,9 +243,17 @@ def fetch_prs(repo: str) -> list[dict]:
         if not connection["pageInfo"]["hasNextPage"]:
             break
         cursor = connection["pageInfo"]["endCursor"]
-    timelines = fetch_timelines(owner, name, [pr["number"] for pr in prs])
+    timeline_numbers = [
+        pr["number"] for pr in prs
+        if pr["closed_at"] is None or parse_dt(pr["closed_at"]) >= LIFECYCLE_EPOCH
+    ]
+    timelines = fetch_timelines(owner, name, timeline_numbers)
     for pr in prs:
-        labeled_events = timelines[pr["number"]]
+        if pr["number"] not in timelines:
+            continue
+        current = timelines[pr["number"]]
+        pr.update(current)
+        labeled_events = current["labeled_events"]
         current_state_labels = set(pr["labels"]) & STATE_LABELS
         event_labels = {event["label"] for event in labeled_events}
         missing_current = current_state_labels - event_labels
@@ -272,27 +292,26 @@ def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Coun
     """Canonical review scoreboards posted on this repository's pull requests.
 
     The repository issue-comments endpoint also serves ordinary issues and accepts comments
-    from anyone, so a comment counts only when its issue number is one of the fetched pull
-    requests and its body carries the engine's meta block naming that same PR.  gh/jq keeps
-    only the meta blocks of a marked comment rather than its body: scoreboard bodies can be
-    large, and retaining them all would make memory proportional to review prose, not to the
-    metric.  The rejection tally is returned so the published payload can state how many
-    marker comments were discarded and why.
+    from anyone. A comment counts only when its issue number is one of the fetched pull
+    requests, its author is repository-associated, and its parsed engine metadata declares
+    a scoreboard for that same PR. Parsing runs at gh/jq, so only compact fields reach Python
+    rather than memory growing with review prose. Rejections are published by reason.
     """
-    # json.dumps writes each needle as a jq string literal; the meta block's own quotes would
-    # otherwise close the literal and break the program.
-    marker, meta, end = (
-        json.dumps(text) for text in
-        (SCOREBOARD_MARKER, SCOREBOARD_META_MARKER, SCOREBOARD_META_END)
-    )
+    marker = json.dumps(SCOREBOARD_MARKER)
     raw = run_gh([
         "api", "--paginate",
         f"repos/{repo}/issues/comments?per_page=100",
         "--jq", f'.[] | select((.body // "") | contains({marker}))'
                 ' | . as $comment | ($comment.issue_url | split("/") | last) as $number'
+                ' | ([try ($comment.body | capture("<!--tauceti-meta:v1\\\\s+'
+                '(?<json>\\\\{[\\\\s\\\\S]*\\\\})\\\\s*-->").json'
+                ' | fromjson) catch null][0] // null) as $meta'
                 ' | {number: $number, created_at, updated_at, user: .user.login,'
-                f'    metas: [$comment.body | split({meta}) | .[1:] | .[]'
-                f'      | split({end}) | .[0]]}}',
+                '    author_association, canonical: (($meta | type == "object")'
+                '      and $meta.kind == "scoreboard"'
+                '      and (($meta.pr | type) == "number")'
+                '      and (($meta.pr | floor) == $meta.pr)'
+                '      and ($meta.pr == ($number | tonumber)))}',
     ])
     scoreboards = []
     rejected = Counter()
@@ -306,7 +325,10 @@ def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Coun
         if pr_number not in pr_numbers:
             rejected["not_a_pull_request"] += 1
             continue
-        if not names_scoreboard_for(comment.get("metas") or [], pr_number):
+        if comment.get("author_association") not in TRUSTED_ASSOCIATIONS:
+            rejected["untrusted_author"] += 1
+            continue
+        if not comment.get("canonical"):
             rejected["no_canonical_scoreboard_meta"] += 1
             continue
         scoreboards.append({
@@ -337,6 +359,14 @@ def last_labeled(pr: dict, label: str) -> datetime | None:
         for event in pr.get("labeled_events") or [] if event["label"] == label
     ]
     return max(matches, default=None)
+
+
+def latest_lifecycle_label(pr: dict) -> str | None:
+    events = [
+        event for event in pr.get("labeled_events") or []
+        if event["label"] in LIFECYCLE_LABELS
+    ]
+    return events[-1]["label"] if events else None
 
 
 def review_cycle_starts(pr: dict) -> list[datetime]:
@@ -375,7 +405,10 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
         if pr.get("is_draft"):
             other += 1
         elif "awaiting-author" in labels:
-            start = last_labeled(pr, "awaiting-author")
+            start = (
+                last_labeled(pr, "awaiting-author")
+                if latest_lifecycle_label(pr) == "awaiting-author" else None
+            )
             if start is None:
                 start = created
                 missing_transition += 1
@@ -384,7 +417,10 @@ def queue_age_metrics(prs: list[dict], snapshot: datetime) -> dict:
             # The clock runs from the current cycle's start: claiming it as review-in-progress,
             # or having awaiting-review restored afterwards, is not a fresh wait.
             starts = review_cycle_starts(pr)
-            start = starts[-1] if starts else None
+            start = (
+                starts[-1]
+                if starts and latest_lifecycle_label(pr) in STATE_REVIEW else None
+            )
             if start is None:
                 start = created
                 missing_transition += 1
@@ -825,8 +861,8 @@ def generate(
         )
         render_cumulative_contributors(
             staging / "cumulative-reviews-by-contributor.svg",
-            "Review scoreboards posted by contributor since project inception",
-            "review scoreboards", review_dates, review_names, review_series,
+            "Trusted v1 review scoreboards by contributor",
+            "trusted v1 review scoreboards", review_dates, review_names, review_series,
             review_totals, len(review_totals),
         )
         atomic_write(

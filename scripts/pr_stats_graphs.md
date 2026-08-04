@@ -36,9 +36,9 @@ It requires an authenticated `gh` CLI. In GitHub Actions, set `GH_TOKEN` to
   the engine started stamping that block; `pr-stats.json` records how many marker comments
   were rejected and why.
   This is a count of posted scoreboards, not reconstructed review rounds; scoreboards
-  edited in place remain one comment. Tau Ceti's review pipeline runs under many
-  participants' own accounts, including outside contributors and the review bot, so
-  attribution deliberately does not filter on `author_association`.
+  edited in place remain one comment. As in the status pipeline, attribution accepts
+  only comments whose author association is `OWNER`, `MEMBER`, or `COLLABORATOR`; an
+  external account cannot forge review credit with a pasted marker and metadata block.
 - Seven-day metrics use complete UTC calendar days. Merge latency is PR creation to
   merge time among PRs merged in that trailing window.
 
@@ -72,10 +72,14 @@ label history because GitHub can silently truncate a timeline nested inside the 
 PR connection—even when it reports no next page. Timelines are therefore queried one
 at a time through authoritative direct `pullRequest(number:)` connections; batching
 those direct connections can also lose events. Any timeline with more than 100 label
-events is paginated separately. The current repository uses about 1,900 of GitHub's
-5,000-point hourly GraphQL budget per run. Excessive missing state transitions stop
-generation rather than publishing a mislabelled clock. Issue comments are filtered by
-`gh` before reaching Python, so full scoreboard bodies do not accumulate in memory.
+events is paginated separately. Each direct response also refreshes that PR's current
+state and labels, avoiding skew between the outer metadata scan and the timeline used
+for its state clock. PRs closed before the lifecycle-label workflow landed on
+2026-07-22 have no such events and skip the timeline query. The current repository uses
+about 1,000 of GitHub's 5,000-point hourly GraphQL budget per run. Excessive missing
+state transitions stop generation rather than publishing a mislabelled clock. Issue
+comments and their v1 metadata are filtered and parsed by `gh` before reaching Python,
+so full scoreboard bodies do not accumulate in memory.
 
 All six outputs are rendered in a staging directory and promoted only after every
 chart and the JSON payload succeeds. A failed scheduled fetch therefore keeps the
@@ -89,13 +93,14 @@ in-memory matrix.
 
 ## Tests
 
-The tests are hermetic and use only the standard library:
+The tests require no Python packages; when the `jq` executable is available they also
+exercise the exact compact scoreboard filter used with `gh`:
 
 ```sh
 python3 scripts/test_pr_stats_graphs.py
 ```
 
 They cover direct timeline pagination, fail-closed state clocks, all-or-nothing
-rendering, cycle reach beyond six, review-label churn inside one cycle, scoreboard
-validation, the requested queue panel order, SVG/XML validity, and a synthetic
-2,500-contributor history.
+rendering, cycle reach beyond six, review-label churn inside one cycle, the real
+scoreboard jq program, the requested queue panel order, SVG/XML validity, and a
+synthetic 2,500-contributor history.

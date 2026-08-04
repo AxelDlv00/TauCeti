@@ -76,9 +76,9 @@ private def prGraphs : Html := {{
     </figure>
     <figure class="loc-figure">
       <img class="loc-graph" src="static/cumulative-reviews-by-contributor.svg"
-           alt="Cumulative review scoreboards by contributor"
+           alt="Cumulative trusted v1 review scoreboards by contributor"
            loading="lazy"/>
-      <figcaption>"Cumulative canonical review scoreboards by the GitHub account that posted them; edits to an existing scoreboard do not add another count."</figcaption>
+      <figcaption>"Cumulative canonical v1 review scoreboards posted by repository-associated accounts; external accounts and edits to existing scoreboards do not add counts."</figcaption>
     </figure>
   </div>
 }}
@@ -122,7 +122,9 @@ history.
 The historical charts use complete UTC days. The contributor SVGs show every
 contributor while that remains legible, then cap themselves at 24 named lines and
 combine the remaining long tail. Exact totals for every login remain available in
-the generated [`pr-stats.json`](static/pr-stats.json).
+the generated [`pr-stats.json`](static/pr-stats.json). Review attribution follows the
+status pipeline's trust boundary: only canonical v1 scoreboards from repository owners,
+members, or collaborators are included.
 
 :::blob prGraphs
 :::
