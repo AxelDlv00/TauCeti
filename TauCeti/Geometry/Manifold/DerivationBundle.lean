@@ -155,6 +155,34 @@ theorem tangentToPointDerivation_injective
   rw [← hderiv v, ← hderiv w]
   exact hfv
 
+/-- **Hadamard's lemma in coordinates.** Subtracting its value at `x` writes a smooth real
+function as a combination of the coordinate functions of any finitely-indexed basis, each taken
+relative to its own value at `x`, with smooth coefficients. At the base point those coefficients
+are the directional derivatives along the basis. -/
+private theorem exists_contMDiffMap_hadamard_coords {E : Type*} [NormedAddCommGroup E]
+    [NormedSpace ℝ E] {ι : Type*} [Fintype ι]
+    (f : C^∞⟮modelWithCornersSelf ℝ E, E; ℝ⟯) (x : E) (b : Module.Basis ι ℝ E) :
+    ∃ a : ι → C^∞⟮modelWithCornersSelf ℝ E, E; ℝ⟯,
+      (∀ i, a i x = fderiv ℝ f x (b i)) ∧
+        ∀ y, f y - f x = ∑ i, a i y * (b.coord i y - b.coord i x) := by
+  refine ⟨fun i ↦ ⟨fun y ↦ hadamardFactor f x y (b i), ?_⟩, fun i ↦ ?_, ?_⟩
+  · have hfac : ContDiff ℝ ∞ (hadamardFactor f x) :=
+      f.contMDiff.contDiff.contDiff_hadamardFactor f x
+    -- Applying a smooth continuous-linear-map-valued function to the constant vector `b i`
+    -- is the available API for smoothness of each scalar Hadamard factor.
+    exact (hfac.clm_apply (show ContDiff ℝ ∞ (fun _ : E ↦ b i) from contDiff_const)).contMDiff
+  · simp
+  · intro y
+    calc
+      f y - f x = hadamardFactor f x y (y - x) :=
+        (f.contMDiff.contDiff.of_le (by norm_num)).sub_eq_hadamardFactor_apply f x y
+      _ = ∑ i, hadamardFactor f x y (b i) * (b.coord i y - b.coord i x) := by
+        rw [← b.sum_repr (y - x), map_sum]
+        apply Finset.sum_congr rfl
+        intro i _
+        rw [map_smul]
+        simp [mul_comm]
+
 private theorem tangentToPointDerivation_surjective_model
     {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E] (x : E) :
     Function.Surjective
@@ -175,16 +203,9 @@ private theorem tangentToPointDerivation_surjective_model
   -- their evaluation here so the rest of the argument can stay in the ordinary smooth-map API.
   change mvfderiv (modelWithCornersSelf ℝ E) f' x v = D f'
   rw [mvfderiv, mfderiv_eq_fderiv]
-  -- Hadamard's lemma factors `f - f(x)` through the coordinate functions. The factors are smooth,
+  -- Hadamard's lemma factors `f - f(x)` through the coordinate functions, with smooth factors,
   -- so this identity lives in the algebra on which the derivation acts.
-  let a (i : Fin (Module.finrank ℝ E)) : C^∞⟮modelWithCornersSelf ℝ E, E; ℝ⟯ :=
-    ⟨fun y ↦ hadamardFactor f' x y (b i), by
-      have hfac : ContDiff ℝ ∞ (hadamardFactor f' x) :=
-        f'.contMDiff.contDiff.contDiff_hadamardFactor f' x
-      -- Applying a smooth continuous-linear-map-valued function to the constant vector `b i`
-      -- is the available API for smoothness of each scalar Hadamard factor.
-      exact (hfac.clm_apply (show ContDiff ℝ ∞ (fun _ : E ↦ b i) from
-        contDiff_const)).contMDiff⟩
+  obtain ⟨a, hax, ha⟩ := exists_contMDiffMap_hadamard_coords f' x b
   let k : C^∞⟮modelWithCornersSelf ℝ E, E; ℝ⟯ :=
     ⟨fun _ ↦ f' x, contDiff_const.contMDiff⟩
   let kcoord (i : Fin (Module.finrank ℝ E)) :
@@ -194,14 +215,7 @@ private theorem tangentToPointDerivation_surjective_model
     ext y
     calc
       (f' - k) y = f' y - f' x := rfl
-      _ = hadamardFactor f' x y (y - x) :=
-        (f'.contMDiff.contDiff.of_le (by norm_num)).sub_eq_hadamardFactor_apply f' x y
-      _ = ∑ i, hadamardFactor f' x y (b i) * (b.coord i y - b.coord i x) := by
-        rw [← b.sum_repr (y - x), map_sum]
-        apply Finset.sum_congr rfl
-        intro i _
-        rw [map_smul]
-        simp [b, mul_comm]
+      _ = ∑ i, a i y * (b.coord i y - b.coord i x) := ha y
       _ = (∑ i, a i * (c i - kcoord i)) y := by
         -- Evaluation of bundled smooth maps is a ring homomorphism, but the pointwise coercion on
         -- the left does not expose that homomorphism to `rw` automatically.
@@ -231,7 +245,7 @@ private theorem tangentToPointDerivation_surjective_model
     change D (a i * (c i - kcoord i)) =
       a i x * D (c i - kcoord i) + (c i x - kcoord i x) * D (a i) at hleibniz
     rw [hleibniz, hsub, hconst]
-    simp [a, kcoord]
+    simp [hax, kcoord]
   calc
     fderiv ℝ f' x v = ∑ i, fderiv ℝ f' x (b i) * D (c i) := by
       -- Unfold the chosen vector `v` across the tangent-space synonym before using linearity.
