@@ -25,9 +25,16 @@ equivalence class of `D`, and the associated projective space is `ℙ(L(D))` for
 Riemann–Roch space `L(D)`. The vector-space structure of `L(D)` is Layer B and needs coherent
 cohomology, so it is deliberately not built here; this file supplies the set `|D|`, its
 description in terms of principal divisors, and the facts that make it well behaved: it depends
-only on the divisor class of `D`, every member shares the class and hence (when principal
-divisors have degree zero) the degree of `D`, a divisor of negative degree has empty linear
-system, and a degree-zero divisor has only the zero effective representative.
+only on the divisor class of `D`, every member shares the class and hence — when principal
+divisors have weighted degree zero — the weighted degree of `D`, a divisor of negative weighted
+degree has empty linear system, and a weighted-degree-zero divisor has only the zero effective
+representative.
+
+Those facts are stated at the weighted level, for a weight `w : X → ℤ`, and are not restated for
+the unweighted `degree`. The unweighted statements are the constant weight `w = fun _ => 1`, where
+`weightedDegree_one_eq_degree` — a `simp` lemma — identifies `weightedDegree (fun _ => 1)` with
+`degree`, so a `degree`-shaped goal is reached from the weighted lemma by supplying that weight and
+normalising with it.
 
 This advances the Tau Ceti Jacobian roadmap, Layer A, "Divisors on a curve" and "Degree":
 `TauCetiRoadmap/JacobianChallenge/README.md`. It reuses Tau Ceti's existing `WeilDivisor` and
