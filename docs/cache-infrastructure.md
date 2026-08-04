@@ -53,12 +53,43 @@ in-account.
 ## Cost
 
 Egress from R2 is free. Reads are Class B operations: 10M per month free, then $0.36 per million
-(https://developers.cloudflare.com/r2/pricing/, standard storage, prices read 2026-08-04). At
-current volume the project sits near 27M reads per month, so roughly $6 per month beyond the free
-tier. A custom domain puts Cloudflare Cache in front of the bucket
+(https://developers.cloudflare.com/r2/pricing/, standard storage, prices read 2026-08-04).
+
+Measured 2026-08-04:
+
+| | |
+|---|---|
+| Artifacts fetched per build | 1,224 |
+| Mean artifact size | 14 KiB, so about 17 MiB per fetch |
+| `pr-build` runs per day | 734 |
+| Class B reads | about 27M per month |
+| Billable after the 10M free tier | about 17M, so roughly **$6 per month** |
+| Egress | about 375 GB per month, free |
+| Storage and Class A writes | a few GB and well inside the 1M free writes, so negligible |
+
+Treat that as a range of roughly $4 to $9. The run count came from one busy day, and the artifact
+count per build varies with how much of the dependency cone a PR invalidates.
+
+To re-estimate, take an artifact count from any `sandboxed-build` job and a day's run count:
+
+```bash
+JOB=$(gh run view --repo TauCetiProject/TauCeti <run-id> \
+        --json jobs -q '.jobs[]|select(.name=="sandboxed-build")|.databaseId' | head -1)
+gh run view --repo TauCetiProject/TauCeti --job "$JOB" --log | grep -c 'downloaded artifact'
+gh api -X GET repos/TauCetiProject/TauCeti/actions/workflows/pr-build.yml/runs \
+  -f created=YYYY-MM-DD -q .total_count
+```
+
+Then reads per month is roughly `artifacts x runs_per_day x 30`, and the bill is
+`max(0, reads - 10e6) / 1e6 x $0.36`.
+
+A custom domain puts Cloudflare Cache in front of the bucket
 (https://developers.cloudflare.com/r2/buckets/public-buckets/#caching), so a cache rule on
 `cache.taucetiproject.org` would cut that bill: a request answered at the edge never reaches R2
-and so is never billed as a Class B operation.
+and so is never billed as a Class B operation. Note that `.art` is not a default-cached extension
+(https://developers.cloudflare.com/cache/concepts/default-cache-behavior/), so this needs an
+explicit rule; scope it to `/artifacts/`, whose keys are immutable content hashes, and leave
+`/revisions/` uncached so a 404 for a not-yet-published revision is never cached.
 
 ## Related
 
