@@ -502,9 +502,13 @@ def rolling_metrics(prs: list[dict], last_full_day: date, history_days: int) -> 
 
 def cumulative_chart_series(
     events: Iterable[tuple[datetime, str]], start: date, end: date, limit: int,
+    cutoff: datetime | None = None,
 ) -> tuple[list[str], list[str], dict[str, list[int]], Counter]:
     """Build bounded plotted series while retaining exact totals for every login."""
-    events = [(timestamp, name) for timestamp, name in events if timestamp.date() <= end]
+    events = [
+        (timestamp, name) for timestamp, name in events
+        if timestamp.date() <= end and (cutoff is None or timestamp <= cutoff)
+    ]
     totals = Counter(name for _, name in events)
     selected = sorted(totals, key=lambda name: (-totals[name], name.casefold()))[:limit]
     selected_set = set(selected)
@@ -816,10 +820,10 @@ def generate(
         for item in data.get("scoreboards") or []
     ]
     merge_dates, merge_names, merge_series, merge_totals = cumulative_chart_series(
-        merge_events, project_start, snapshot.date(), contributor_limit,
+        merge_events, project_start, snapshot.date(), contributor_limit, snapshot,
     )
     review_dates, review_names, review_series, review_totals = cumulative_chart_series(
-        review_events, project_start, snapshot.date(), contributor_limit,
+        review_events, project_start, snapshot.date(), contributor_limit, snapshot,
     )
 
     metrics = {

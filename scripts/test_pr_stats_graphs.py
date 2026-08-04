@@ -326,6 +326,12 @@ class RenderingTest(unittest.TestCase):
             pr(6, 12, state="OPEN", labels=("awaiting-CI",), author="erin"),
             pr(7, 14, merged_day=15, author="frank", cycles=1),
         ]
+        future_merge = pr(8, 14, author="future-author", cycles=1)
+        future_merge.update({
+            "merged_at": timestamp(15, 21), "closed_at": timestamp(15, 21),
+            "state": "MERGED",
+        })
+        prs.append(future_merge)
         data = {
             "schema_version": 1,
             "repo": "example/project",
@@ -338,6 +344,8 @@ class RenderingTest(unittest.TestCase):
                  "user": "reviewer-b"},
                 {"pr": 7, "created_at": timestamp(15, 12),
                  "updated_at": timestamp(15, 12), "user": "reviewer-c"},
+                {"pr": 8, "created_at": timestamp(15, 21),
+                 "updated_at": timestamp(15, 21), "user": "future-reviewer"},
             ],
         }
         expected = [
@@ -363,6 +371,8 @@ class RenderingTest(unittest.TestCase):
             self.assertEqual(metrics["review_cycles"]["max_cycle"], 7)
             self.assertEqual(metrics["merge_totals_by_contributor"]["frank"], 1)
             self.assertEqual(metrics["review_totals_by_contributor"]["reviewer-c"], 1)
+            self.assertNotIn("future-author", metrics["merge_totals_by_contributor"])
+            self.assertNotIn("future-reviewer", metrics["review_totals_by_contributor"])
 
     def test_render_failure_keeps_previous_asset_set(self):
         data = {
