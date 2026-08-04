@@ -187,16 +187,20 @@ class MetricsTest(unittest.TestCase):
                 stats.generate(data, Path(temporary))
 
     def test_scoreboards_need_a_pull_request_and_matching_meta(self):
-        def comment(number, user, canonical=True):
+        def comment(number, user, metas=None):
             return json.dumps({
                 "number": str(number), "created_at": timestamp(2),
-                "updated_at": timestamp(2), "user": user, "canonical": canonical,
+                "updated_at": timestamp(2), "user": user,
+                "metas": [json.dumps({"kind": "scoreboard", "pr": number})]
+                         if metas is None else metas,
             })
 
         raw = "\n".join([
             comment(7, "reviewer-a"),
-            comment(8, "issue-commenter"),       # an ordinary issue, not a PR
-            comment(9, "marker-quoter", False),  # the public marker without engine meta
+            comment(8, "issue-commenter"),      # an ordinary issue, not a PR
+            comment(9, "marker-quoter", []),    # the public marker without engine meta
+            # A thread comment carries the meta block of a different kind.
+            comment(9, "thread-poster", [json.dumps({"kind": "thread", "pr": 9})]),
             comment(7, "reviewer-b"),
         ])
         with patch.object(stats, "run_gh", return_value=raw):
@@ -207,7 +211,18 @@ class MetricsTest(unittest.TestCase):
         )
         self.assertEqual(
             dict(rejected),
-            {"not_a_pull_request": 1, "no_canonical_scoreboard_meta": 1},
+            {"not_a_pull_request": 1, "no_canonical_scoreboard_meta": 2},
+        )
+
+    def test_scoreboard_meta_pr_number_is_matched_exactly(self):
+        # #185's scoreboard pasted onto #18 shares the prefix `"pr":18`, and a string "18"
+        # is not the integer the engine writes; neither may be read as #18's own scoreboard.
+        for meta in ({"kind": "scoreboard", "pr": 185}, {"kind": "scoreboard", "pr": "18"}):
+            self.assertFalse(stats.names_scoreboard_for([json.dumps(meta)], 18), meta)
+        self.assertTrue(
+            stats.names_scoreboard_for(
+                ["not json", json.dumps({"kind": "scoreboard", "pr": 18, "round": 2})], 18,
+            )
         )
 
     def test_thousands_of_contributors_are_bounded(self):

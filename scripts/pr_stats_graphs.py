@@ -53,7 +53,8 @@ SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
 # marker or paste another PR's scoreboard.  scripts/pr_status/core.py parses the same block
 # when it derives a single PR's review state.
 SCOREBOARD_META_MARKER = "<!--tauceti-meta:v1"
-SCOREBOARD_META_KIND = '"kind":"scoreboard"'
+SCOREBOARD_META_END = "-->"
+SCOREBOARD_META_KIND = "scoreboard"
 STATE_REVIEW = {"awaiting-review", "review-in-progress"}
 STATE_LABELS = {"awaiting-author", *STATE_REVIEW}
 # States in which the PR has left the review queue: the author owns it, or CI is judging a
@@ -246,21 +247,43 @@ def fetch_prs(repo: str) -> list[dict]:
     return prs
 
 
+def names_scoreboard_for(metas: Iterable[str], pr_number: int) -> bool:
+    """Whether one of a comment's meta blocks is this PR's own scoreboard block.
+
+    The block is parsed rather than pattern-matched: a substring test for the PR number
+    collides on prefixes, so a comment on #18 carrying #185's metadata would pass.  The kind
+    must be exactly "scoreboard" and the number an integer equal to the PR the comment sits
+    on.  ``True``/``False`` are ints in Python but never a PR number, so they are excluded.
+    """
+    for text in metas:
+        try:
+            meta = json.loads(text)
+        except ValueError:
+            continue
+        if not isinstance(meta, dict) or meta.get("kind") != SCOREBOARD_META_KIND:
+            continue
+        number = meta.get("pr")
+        if isinstance(number, int) and not isinstance(number, bool) and number == pr_number:
+            return True
+    return False
+
+
 def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Counter]:
     """Canonical review scoreboards posted on this repository's pull requests.
 
     The repository issue-comments endpoint also serves ordinary issues and accepts comments
     from anyone, so a comment counts only when its issue number is one of the fetched pull
-    requests and its body carries the engine's meta block naming that same PR.  Both checks
-    run at gh/jq: scoreboard bodies can be large, and retaining them all would make memory
-    proportional to review prose, not to the metric.  The rejection tally is returned so the
-    published payload can state how many marker comments were discarded and why.
+    requests and its body carries the engine's meta block naming that same PR.  gh/jq keeps
+    only the meta blocks of a marked comment rather than its body: scoreboard bodies can be
+    large, and retaining them all would make memory proportional to review prose, not to the
+    metric.  The rejection tally is returned so the published payload can state how many
+    marker comments were discarded and why.
     """
     # json.dumps writes each needle as a jq string literal; the meta block's own quotes would
     # otherwise close the literal and break the program.
-    marker, meta, kind, tag = (
+    marker, meta, end = (
         json.dumps(text) for text in
-        (SCOREBOARD_MARKER, SCOREBOARD_META_MARKER, SCOREBOARD_META_KIND, '"pr":')
+        (SCOREBOARD_MARKER, SCOREBOARD_META_MARKER, SCOREBOARD_META_END)
     )
     raw = run_gh([
         "api", "--paginate",
@@ -268,9 +291,8 @@ def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Coun
         "--jq", f'.[] | select((.body // "") | contains({marker}))'
                 ' | . as $comment | ($comment.issue_url | split("/") | last) as $number'
                 ' | {number: $number, created_at, updated_at, user: .user.login,'
-                f'    canonical: (($comment.body | contains({meta}))'
-                f'      and ($comment.body | contains({kind}))'
-                f'      and ($comment.body | contains({tag} + $number)))}}',
+                f'    metas: [$comment.body | split({meta}) | .[1:] | .[]'
+                f'      | split({end}) | .[0]]}}',
     ])
     scoreboards = []
     rejected = Counter()
@@ -284,7 +306,7 @@ def fetch_scoreboards(repo: str, pr_numbers: set[int]) -> tuple[list[dict], Coun
         if pr_number not in pr_numbers:
             rejected["not_a_pull_request"] += 1
             continue
-        if not comment.get("canonical"):
+        if not names_scoreboard_for(comment.get("metas") or [], pr_number):
             rejected["no_canonical_scoreboard_meta"] += 1
             continue
         scoreboards.append({
