@@ -420,7 +420,7 @@ def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
         f'<rect width="100%" height="100%" fill="{BG}"/>',
         f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:29px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.panel{{font-size:18px;font-weight:680}}.paneltotal{{font-size:15px;font-weight:700;fill:{MUTED}}}.tick{{font-size:11px;fill:{MUTED}}}.value{{font-size:12px;font-weight:750}}.grid{{stroke:{GRID};stroke-width:1}}</style>',
         '<text x="55" y="44" class="title">Open PR age and current review state</text>',
-        f'<text x="55" y="73" class="subtitle">Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the label transition · {metrics["other_open_prs"]:,} CI/ready/draft PRs appear only in total time open</text>',
+        f'<text x="55" y="73" class="subtitle">Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the label transition · {metrics["other_open_prs"]:,} PRs outside author/review states appear only in total time open</text>',
     ]
     panels = [
         (metrics["total_open_hours"], "#2f9364", "Total time open"),
