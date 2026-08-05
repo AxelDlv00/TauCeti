@@ -845,7 +845,7 @@ def generate(
         "last_full_day": last_full_day.isoformat(),
         "definitions": {
             "review_cycle": cycles["definition"],
-            "review": "one canonical <!--tauceti-scoreboard--> comment on a pull request of this repository, identified by the tauceti-meta:v1 block naming that PR, attributed to a current repository collaborator",
+            "review": "one canonical <!--tauceti-scoreboard--> comment on a pull request of this repository, identified by the tauceti-meta:v1 block naming that PR, whose posting login also authors a merged PR in the fetched snapshot",
             "active_author": "distinct PR author opening a PR in the trailing seven-day window",
             "merge_latency": "PR creation timestamp to merge timestamp",
         },
