@@ -25,7 +25,7 @@ def _entry(number, files=("lake-manifest.json",), hours=0.5,
     return {"enqueuedAt": _ago(hours), "state": state,
             "pullRequest": {"number": number, "headRefName": branch,
                             "headRepository": {"nameWithOwner": repo},
-                            "files": {"nodes": [{"path": p} for p in files]}}}
+                            "files": list(files)}}
 
 
 def _ordinary(number, hours=0.5):
@@ -132,11 +132,12 @@ class FailOpenTest(unittest.TestCase):
         self.assertIn("held=false", buf.getvalue())
         self.assertIn("failing open", buf.getvalue())
 
-    def test_a_truncated_file_list_is_not_a_bump(self):
-        # 100 files back may be truncated, hiding a pin change. Guessing would hold on it.
-        big = _entry(2001, files=tuple(f"TauCeti/F{i}.lean" for i in range(100)),
-                     branch="roadmap/huge")
-        self.assertFalse(bl.is_bump(big["pullRequest"]))
+    def test_a_pin_change_is_found_however_long_the_file_list(self):
+        # queue_entries pages the whole list precisely so a pin buried in a large PR still
+        # reserves; a truncated read would classify a bump as ordinary.
+        big = _entry(2001, branch="roadmap/huge",
+                     files=[f"TauCeti/F{i}.lean" for i in range(300)] + ["lean-toolchain"])
+        self.assertTrue(bl.is_bump(big["pullRequest"]))
 
 
 class EmitTest(unittest.TestCase):

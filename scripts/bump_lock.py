@@ -38,21 +38,16 @@ PIN_FILES = {"lake-manifest.json", "lean-toolchain"}
 # the repository hours rather than a day. Past this it is stuck_alerts.py's problem.
 MAX_HOLD_HOURS = 4.0
 
-# A PR whose file list is truncated at 100 is not a bump, so the cap fails open.
 _QUERY = """
-query($owner: String!, $name: String!, $branch: String!) {
+query($owner: String!, $name: String!, $branch: String!, $after: String) {
   repository(owner: $owner, name: $name) {
     mergeQueue(branch: $branch) {
-      entries(first: 20) {
+      entries(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           enqueuedAt
           state
-          pullRequest {
-            number
-            headRefName
-            headRepository { nameWithOwner }
-            files(first: 100) { nodes { path } }
-          }
+          pullRequest { number headRefName headRepository { nameWithOwner } }
         }
       }
     }
@@ -70,21 +65,53 @@ def hours_since(ts, now=None):
     return ((now or now_utc()) - at).total_seconds() / 3600.0
 
 
-def queue_entries():
-    """The merge queue's entries, or [] if the queue is empty or unconfigured. Raises on
-    any transport or shape problem, so the caller can fail open with a stated reason."""
+def _graphql(after=None):
     owner, _, name = REPO.partition("/")
-    out = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={_QUERY}",
-         "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"branch={QUEUE_BRANCH}"],
-        capture_output=True, text=True)
+    cmd = ["gh", "api", "graphql", "-f", f"query={_QUERY}",
+           "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"branch={QUEUE_BRANCH}",
+           "-F", f"after={after}" if after else "-Fafter="]
+    out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         raise RuntimeError(f"gh api graphql failed: {out.stderr.strip()}")
     data = json.loads(out.stdout)
     if data.get("errors"):
         raise RuntimeError(f"GraphQL errors: {json.dumps(data['errors'])}")
-    queue = (data["data"]["repository"] or {}).get("mergeQueue")
-    return queue["entries"]["nodes"] if queue else []
+    return data["data"]["repository"] or {}
+
+
+def changed_files(number):
+    """Every path a PR touches. Paginated: a truncated list could hide the pin change and
+    classify a bump as ordinary, which is the one mistake the lock must not make."""
+    out = subprocess.run(
+        ["gh", "api", "--paginate", f"/repos/{REPO}/pulls/{number}/files?per_page=100",
+         "--jq", ".[].filename"], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(f"gh api pulls/{number}/files failed: {out.stderr.strip()}")
+    return [ln for ln in out.stdout.splitlines() if ln.strip()]
+
+
+def queue_entries():
+    """Every merge-queue entry, each with the PR's complete file list.
+
+    Both are paginated: a bump sitting past the first page of entries, or a pin change past
+    the first page of files, would read as "no bump queued" and let ordinary PRs keep
+    merging under the rebuild. Raises on any transport problem, so the caller fails open.
+    """
+    entries, after = [], None
+    while True:
+        queue = _graphql(after).get("mergeQueue")
+        if not queue:
+            break
+        entries += queue["entries"]["nodes"]
+        page = queue["entries"]["pageInfo"]
+        if not page["hasNextPage"]:
+            break
+        after = page["endCursor"]
+    for e in entries:
+        pr = e.get("pullRequest") or {}
+        if pr.get("number") is not None:
+            pr["files"] = changed_files(pr["number"])
+    return entries
 
 
 def is_bump(pr):
@@ -94,8 +121,7 @@ def is_bump(pr):
     own = (pr.get("headRepository") or {}).get("nameWithOwner")
     if pr.get("headRefName") == LKG_BRANCH and own == REPO:
         return True
-    return any(f.get("path") in PIN_FILES
-               for f in ((pr.get("files") or {}).get("nodes") or []))
+    return any(f in PIN_FILES for f in (pr.get("files") or []))
 
 
 def decide(entries, subject=None, now=None):
