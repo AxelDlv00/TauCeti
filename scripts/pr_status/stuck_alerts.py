@@ -139,7 +139,11 @@ MARKER_RE = re.compile(r"<!--stuck:v1 (" + KEY_RE.pattern + r")-->\s*\Z")
 # catches, which can burn four rebuilds inside one window.
 BUMP_UNLANDED_HOURS = 12
 PIN_STALE_DAYS = 4
-STRANDED_HOURS = 6
+# Must exceed the longest delay the merge path can legitimately impose on a ready PR,
+# or the queue reservation would manufacture its own emergencies. That worst case is now
+# bump_lock.MAX_HOLD_HOURS (4) of reserved queue, plus the hourly merge-sweep that
+# re-drives afterwards, plus one merge-group rebuild: about 6.5h.
+STRANDED_HOURS = 8
 # Evictions since the current readiness, within the window, before a bounce counts as a loop.
 EVICTION_LOOP_MIN = 2
 EVICTION_WINDOW_HOURS = 24
@@ -584,8 +588,9 @@ def detect_stranded_prs():
                 f"https://github.com/{REPO}/pull/{pr['number']} is in-scope, `build` "
                 f"green, and every blocking rubric green at HEAD, yet has sat unmerged "
                 f"for over {STRANDED_HOURS}h while merge-sweep runs hourly.\n\n"
-                f"**Fix:** the merge path is broken — check `auto-merge.yml`, the merge "
-                f"queue, and `merge-sweep.yml` (and the pinned TauCetiReview merge-only "
+                f"**Fix:** the merge path is broken — this window already allows for a "
+                f"full bump reservation (`scripts/bump_lock.py`), so check `auto-merge.yml`, "
+                f"the merge queue, and `merge-sweep.yml` (and the pinned TauCetiReview merge-only "
                 f"/ merge-sweep workflow) for why a ready PR is not being taken."),
         })
     return out

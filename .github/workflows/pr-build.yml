@@ -488,6 +488,8 @@ jobs:
       # Keyed on the pins themselves, so only builds against the same mathlib commit and
       # toolchain ever share, and scoped to pin-bump builds (BUMP=1) so ordinary PRs neither
       # pay for it nor churn the repository's 10 GB cache budget with ~90 entries a day.
+      # Restoring is open to any pin-bump build; SAVING is not — see the save step below for
+      # why that asymmetry is the security boundary.
       - name: Key the bump build cache on the pins being built
         id: bumpkey
         if: ${{ env.INFRA != '1' && env.BUMP == '1' && vars.TAUCETI_BUMP_BUILD_CACHE != 'off' }}
@@ -528,11 +530,29 @@ jobs:
             --env LAKE_NO_CACHE --env LAKE_ARTIFACT_CACHE --env LAKE_RESTORE_ARTIFACTS --env LAKE_CACHE_DIR \
             -- bash -euxo pipefail -c 'cd base && exec bash scripts/sandbox-build.sh'
 
+      # WHO MAY WRITE THIS CACHE is the security question, and the answer is: only the
+      # machine-owned bump branch. Restoring a build directory is only as safe as whatever
+      # produced it, and a `pull_request_target` run writes to the BASE branch's cache scope
+      # — so an unrestricted save would let any PR that proposes a valid forward pin bump
+      # (bump-guard cannot tell one proposer from another) leave artifacts behind for the
+      # real bump to restore. The overlaid TauCeti/ elaborates with base/.lake writable, so
+      # those artifacts are not merely wrong-if-stale, they are attacker-chosen, and Lake
+      # would honour a `.trace` planted next to them.
+      #
+      # `hopscotch/lkg-bump` in this repository closes that off: nothing but the App can push
+      # there, and its TauCeti/ is main's own reviewed content plus whatever bump-autofix
+      # renamed. A merge group only ever RESTORES, never saves. The cost is that a bump
+      # hand-rolled onto an ad-hoc branch gets no reuse — acceptable, since removing the need
+      # for that hand-rolling is what the rest of this machinery is for.
+      #
       # Only from a build that PASSED, so every module in the archive compiled silently under
       # --iofail. `continue-on-error` because two attempts against the same pins can race to
       # reserve the key, and losing that race is a no-op: the other one saved the same thing.
       - name: Save this build for the bump's remaining attempts
         if: ${{ steps.build.outcome == 'success' && env.BUMP == '1'
+                && github.event_name == 'pull_request_target'
+                && github.event.pull_request.head.repo.full_name == github.repository
+                && github.event.pull_request.head.ref == 'hopscotch/lkg-bump'
                 && steps.bumpcache.outputs.cache-hit != 'true'
                 && vars.TAUCETI_BUMP_BUILD_CACHE != 'off' }}
         continue-on-error: true
