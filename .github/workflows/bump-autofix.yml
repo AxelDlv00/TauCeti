@@ -1,45 +1,25 @@
 name: Bump autofix
 
 # Repair the daily mathlib bump instead of waiting a day for a human to type a rename.
+# Bump breakage is almost always a name the new mathlib deprecates, used by code that
+# landed on main after the branch was cut, and the compiler names both halves of the fix.
+# #1986 lost four merge-group rebuilds waiting for exactly that substitution.
 #
-# When a bump's build fails, the failure is almost always a name the new mathlib deprecates
-# and the old one did not, used by TauCeti/ code that landed on main after the bump branch
-# was cut. The compiler names both halves of the fix:
+# WHOSE LOG WE READ IS THE SECURITY QUESTION. `workflow_run` hands this job write
+# credentials even though the triggering run had none, and a build log is a process's
+# stdout, not an authenticated compiler channel — anything elaborating in the sandbox can
+# print a line shaped like a diagnostic. So a merge group's log, carrying other people's
+# PRs, never authors an edit: a merge-group failure only merges main into the bump branch
+# and pushes that, reading no log, and the bump's own build then reproduces the breakage
+# one build later under a trusted trigger, where the renames are applied. Every
+# invocation, dispatch included, re-reads the run from the API and checks its workflow,
+# event, conclusion and head SHA before the App token is minted.
 #
-#   error: TauCeti/.../DiamondOperators.lean:99:8:
-#       `ModularForm.IsGLPos.coe_smul` has been deprecated: Use `FunLike.coe_smul` instead
-#
-# #1986 lost four consecutive merge-group rebuilds -- about six hours of CI -- waiting for
-# someone to make exactly that substitution.
-#
-# WHOSE LOG WE READ IS THE SECURITY QUESTION, and it is why this workflow does two different
-# things. `workflow_run` hands a job the repository's secrets and write credentials even
-# though the run that triggered it had none, and a build log is a process's stdout, not an
-# authenticated compiler channel: anything elaborating in the sandbox can print a line
-# shaped like a diagnostic. A merge group carries other people's PRs, so its log is
-# untrusted and MUST NOT be allowed to author an edit.
-#
-#   * merge-group failure  -> merge current main into the bump branch and push only that.
-#                             No log is read. That resynchronisation is what puts main's
-#                             newcomers in front of the bump's own build, which then
-#                             reproduces the same breakage under a trusted trigger.
-#   * bump-head failure    -> read THAT run's log and apply the renames. Its sources are the
-#                             bump branch's: main's reviewed content plus earlier repairs.
-#
-# So the merge-group path converges on the same fix one build later, without ever letting a
-# batched PR's output steer a privileged write. Every invocation re-reads the run from the
-# API and checks its workflow, event, conclusion and head SHA before the App token is minted.
-#
-# The push is a PROPOSAL, not a verdict: it goes to a PR whose full sandboxed build, audits,
-# lint, bump-guard and review rubrics all still have to pass. A wrong rename stays red
-# exactly as the unrenamed source did, so the worst case is a wasted rebuild.
-#
-# It touches ONLY the machine-owned bump branch (hopscotch/lkg-bump), never main and never a
-# human's PR, and it gives up rather than looping: no renames found, no diff produced, or
-# MAX_AUTOFIXES commits already pushed since the branch was last rewritten, and it stops and
-# leaves the situation to the `stuck-bump` alert (which fires at 12h). That escalation is the
-# intended end state for breakage that is not a mechanical rename -- an unknown identifier, a
-# proof a changed lemma statement broke -- and the run summary says which of those it saw.
+# The push is a proposal: the full build, audits, lint, bump-guard and review rubrics all
+# still have to pass, so a wrong rename stays red as the unrenamed source did. It touches
+# only the machine-owned bump branch, and gives up rather than looping — no renames, no
+# diff, or MAX_AUTOFIXES repairs already on this bump — leaving the rest to the stuck-bump
+# alert, the intended end state for breakage that is not a mechanical rename.
 
 on:
   workflow_run:
@@ -58,24 +38,18 @@ permissions:
   pull-requests: read     # find the open LKG bump PR
 
 concurrency:
-  # Shared with update.yml, which force-pushes this same branch on its daily schedule.
-  # Without one group the two race: a repair can be pushed onto a branch the updater is
-  # about to rewrite, or land after the rewrite against a stale log. `queue: max` matters
-  # as much as the group does -- the default `single` keeps at most ONE run pending and
-  # cancels whatever was pending before, so a second repair queueing up could silently
-  # replace the pending daily update and skip a bump with nothing to show for it.
+  # Shared with update.yml, which force-pushes this branch daily: otherwise a repair can
+  # land on a branch about to be rewritten, or arrive just after against a stale log.
+  # `queue: max` because the default cancels the pending run, which could be that update.
   group: lkg-bump-branch
   cancel-in-progress: false
   queue: max
 
 env:
   LKG_BRANCH: hopscotch/lkg-bump   # keep in sync with update.yml's LKG_BRANCH
-  # Repairs per bump before we stop and let the stuck-bump alert escalate. Counted over the
-  # commits unique to the bump branch (`main..HEAD`), so the budget resets exactly when
-  # update.yml cuts the next bump from main and never counts a repair that has already
-  # merged. Three covers the realistic shape (one round of renames, plus a second for
-  # deprecations only reachable once the first round compiles) without a runaway loop
-  # burning an 85-minute rebuild per attempt.
+  # Counted over `main..HEAD`, so the budget resets when update.yml cuts the next bump and
+  # never counts a repair that already merged. Three covers one round of renames plus a
+  # second for deprecations only reachable once the first compiles.
   MAX_AUTOFIXES: 3
 
 jobs:
@@ -87,11 +61,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # pr-build fails for ordinary PRs too, so this runs often and almost always decides
-      # "not mine". That decision is made FIRST, from the API alone, so the common case costs
-      # a few queries, mints no App token and checks out nothing. Everything the decision
-      # rests on is re-read from the run record rather than taken from the event payload, so
-      # a manual dispatch is held to exactly the same standard as an automatic one.
+      # pr-build fails for ordinary PRs too, so this usually decides "not mine". That is
+      # decided FIRST, from the API alone: no App token, no checkout. Everything is re-read
+      # from the run record, so a dispatch is held to the same standard as an automatic run.
       - name: Identify the failure and decide what may be done about it
         id: subject
         env:
@@ -119,16 +91,15 @@ jobs:
 
           case "$event" in
             pull_request_target)
-              # Only the bump's OWN head build may author an edit: its sources are the bump
-              # branch's, so the diagnostics are the trusted base's own output.
+              # Only the bump's own head build may author an edit.
               [ "$run_head" = "$head" ] || stop "That build is another PR's head, not the bump's."
               mode=rename
               ;;
             merge_group)
-              # Untrusted: the group carries other PRs. Confirm the bump is in it, then do no
-              # more than resynchronise. Both pins are compared, since a toolchain-only bump
-              # leaves the manifest identical to an unrelated group's. An unreadable blob
-              # (the queue deletes its synthetic ref once the group resolves) fails CLOSED.
+              # Untrusted, so confirm the bump is in the group and then only resynchronise.
+              # Both pins: a toolchain-only bump leaves the manifest identical to an
+              # unrelated group's. An unreadable blob fails CLOSED (the queue deletes its
+              # synthetic ref once the group resolves).
               for f in lake-manifest.json lean-toolchain; do
                 g=$(gh api "repos/$REPO/contents/$f?ref=$run_head" --jq '.sha' 2>/dev/null || true)
                 b=$(gh api "repos/$REPO/contents/$f?ref=$head" --jq '.sha' 2>/dev/null || true)
@@ -149,13 +120,11 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: TauCetiProject
-          # Scope the token to this repository and to the one permission a repair needs,
-          # rather than taking the installation's whole surface across every repository.
+          # Scoped to this repository and the one permission a repair needs.
           repositories: TauCeti
           permission-contents: write
 
-      # The trusted copy of the fixer. Kept separate from the working tree below so the
-      # script that rewrites the bump branch is always main's, never the branch's own.
+      # The fixer, kept out of the working tree so it is always main's copy.
       - uses: actions/checkout@v4
         if: steps.subject.outputs.mode != 'none'
         with:
@@ -170,8 +139,7 @@ jobs:
           ref: ${{ env.LKG_BRANCH }}
           path: work
           token: ${{ steps.app-token.outputs.token }}
-          # Full history: the repair merges main into the branch, and a shallow clone has no
-          # merge base to merge across.
+          # Full history: a shallow clone has no merge base to merge main across.
           fetch-depth: 0
 
       - name: Stop if this bump's repair budget is spent
@@ -180,10 +148,8 @@ jobs:
         working-directory: work
         run: |
           set -euo pipefail
-          # Count only what is unique to THIS branch. Searching all reachable history would
-          # also find every repair that has already merged into main -- squash commits keep
-          # the body, marker and all -- so after three repairs ever, every future bump would
-          # start with its budget permanently spent.
+          # Only what is unique to THIS branch: squash commits keep the marker, so counting
+          # all reachable history would exhaust every future bump's budget after three ever.
           git fetch origin main
           spent=$(git log -F --grep='[bump-autofix]' --oneline FETCH_HEAD..HEAD | wc -l)
           echo "repairs on this bump: $spent (cap $MAX_AUTOFIXES)"
@@ -194,20 +160,17 @@ jobs:
             echo "go=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # The two modes do exactly one thing each, and neither does the other's. In particular
-      # the rename pass does NOT merge main first: the line and column in a diagnostic refer
-      # to the tree that was built, so merging under them would move the source out from
-      # beneath the log and every edit would be skipped as stale. Resynchronising is the
-      # merge-group path's whole job, and the build it triggers is what produces a log that
-      # matches the merged tree.
+      # The rename pass deliberately does NOT merge main first: a diagnostic's line and
+      # column refer to the tree that was built, so merging under them would move the source
+      # out from beneath the log and every edit would skip as stale. Resynchronising is the
+      # merge-group path's job, and the build it triggers produces a matching log.
       - name: Bring the bump branch up to main
         id: sync
         if: steps.budget.outputs.go == 'true' && steps.subject.outputs.mode == 'sync'
         run: |
           set -euo pipefail
-          # The bump branch is behind main by whatever landed since it was cut, and the files
-          # a merge-group failure points at are usually exactly those newcomers. A conflict
-          # means this is not the mechanical case and merge-sweep / a human owns it.
+          # The files a merge-group failure points at are usually what landed since the
+          # branch was cut. A conflict means this is not the mechanical case.
           git -C work config user.name  'tauceti-review-bot[bot]'
           git -C work config user.email '290224625+tauceti-review-bot[bot]@users.noreply.github.com'
           before=$(git -C work rev-parse HEAD)
@@ -235,8 +198,7 @@ jobs:
           set -euo pipefail
           git -C work config user.name  'tauceti-review-bot[bot]'
           git -C work config user.email '290224625+tauceti-review-bot[bot]@users.noreply.github.com'
-          # --log-failed is the failing steps only, which is the build; fall back to the whole
-          # log if the run failed somewhere that leaves it empty.
+          # --log-failed is the failing steps only; fall back if that leaves it empty.
           gh run view "$RUN_ID" --repo "$REPO" --log-failed > build.log 2>/dev/null || true
           if [ ! -s build.log ]; then
             gh run view "$RUN_ID" --repo "$REPO" --log > build.log 2>/dev/null || true
@@ -251,9 +213,8 @@ jobs:
             echo "::notice::nothing mechanically fixable in this failure"
             echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # Defence in depth behind the script's own containment check: whatever the log
-          # said, the working tree must have moved only inside the library. Anything else
-          # means a guard failed, and the right response is to touch nothing at all.
+          # Defence in depth behind the script's containment check: if the tree moved
+          # anywhere but the library, a guard failed and we touch nothing.
           if git -C work status --porcelain | grep -qvE '^ M (TauCeti/|TauCeti\.lean$)'; then
             echo "::error::unexpected working-tree change outside TauCeti/; refusing to push"
             git -C work status --porcelain

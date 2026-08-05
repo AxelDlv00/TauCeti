@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Unit tests for the mechanical rename worker in bump_autofix.py.
+"""Unit tests for bump_autofix.py.
 
-The dangerous failure is not "missed a rename" -- pr-build catches that and the bump
-stays red exactly as it was. It is an edit that lands somewhere the compiler did not
-point: a name inside a comment, a longer identifier that merely starts with the
-deprecated one, a line the log is stale about. Those turn a red bump into a differently
-red bump and burn an 85-minute rebuild doing it. So most of what is asserted here is
-what the worker REFUSES to touch.
-
-The log fixture is the real diagnostic from run 30963915259, the merge-group rebuild
-that stranded #1986, including the job/step/timestamp prefix `gh run view --log-failed`
-puts on every line.
+Missing a rename is cheap — the bump stays red as it was. An edit landing where the
+compiler did not point is not: it burns an 85-minute rebuild, or, from a forged log,
+writes outside the library. So most of what is asserted here is what the worker refuses
+to touch. The fixture is the real diagnostic from run 30963915259, which stranded #1986,
+with the prefix `gh run view --log-failed` puts on every line.
 
 Run: python3 scripts/test_bump_autofix.py
 """
@@ -51,8 +46,7 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(len(ba.renames_from_log(REAL_LOG + REAL_LOG)), 2)
 
     def test_paths_outside_tauceti_are_ignored(self):
-        # A mathlib-internal deprecation is not ours to rewrite, and the sandbox has no
-        # writable copy of it anyway.
+        # A mathlib-internal deprecation is not ours to rewrite.
         log = (".lake/packages/mathlib/Mathlib/X.lean:1:0: `A.b` has been "
                "deprecated: Use `C.d` instead\n")
         self.assertEqual(ba.renames_from_log(log), [])
@@ -97,9 +91,8 @@ class ApplyTest(unittest.TestCase):
         self.assertIn("    rw [FunLike.coe_smul, ModularForm.smul_slash]", self._read(rel))
 
     def test_other_occurrences_of_the_name_are_left_alone(self):
-        # Lean emits one diagnostic per occurrence, so a position-anchored edit still
-        # reaches them all -- while a file-wide substitution would also rewrite the name
-        # in prose, which is not source and may be deliberately historical.
+        # One diagnostic per occurrence, so anchoring still reaches them all — and a
+        # file-wide substitution would rewrite the name in prose too.
         rel = "TauCeti/A.lean"
         self._write(rel, "-- Old.name was the old spelling.\nexact Old.name h\n")
         log = "TauCeti/A.lean:2:6: `Old.name` has been deprecated: Use `New.name` instead\n"
@@ -108,9 +101,8 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(self._read(rel), "-- Old.name was the old spelling.\nexact New.name h\n")
 
     def test_unqualified_occurrence_is_replaced_with_the_full_new_name(self):
-        # Inside `namespace ModularForm` the source writes the suffix, but Lean reports
-        # the full name. The replacement is fully qualified because this worker cannot
-        # know which namespaces are open there.
+        # The source may write a suffix; the replacement is fully qualified because the
+        # worker cannot know what is open there.
         rel = "TauCeti/A.lean"
         self._write(rel, "  rw [IsGLPos.coe_smul]\n")
         log = ("TauCeti/A.lean:1:6: `ModularForm.IsGLPos.coe_smul` has been "
@@ -120,8 +112,7 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(self._read(rel), "  rw [FunLike.coe_smul]\n")
 
     def test_refuses_a_partial_token(self):
-        # `Old.named` starts with `Old.name`. Rewriting its prefix would produce
-        # `New.named`, a name nobody asked for, out of an edit that looked like a match.
+        # `Old.named` starts with `Old.name`; rewriting its prefix invents `New.named`.
         rel = "TauCeti/A.lean"
         self._write(rel, "exact Old.named h\n")
         log = "TauCeti/A.lean:1:6: `Old.name` has been deprecated: Use `New.name` instead\n"
@@ -145,7 +136,7 @@ class ApplyTest(unittest.TestCase):
         self.assertIn("not a regular file", skipped[0][1])
 
     def test_two_renames_on_one_line_both_land(self):
-        # Applied right-to-left, so the first edit cannot shift the second one's column.
+        # Right-to-left, so one edit cannot shift the next one's column.
         rel = "TauCeti/A.lean"
         self._write(rel, "rw [A.one, A.two]\n")
         log = ("TauCeti/A.lean:1:4: `A.one` has been deprecated: Use `B.uno` instead\n"
@@ -155,8 +146,7 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(self._read(rel), "rw [B.uno, B.dos]\n")
 
     def test_columns_are_codepoints_not_bytes(self):
-        # Lean reports columns in codepoints and Lean source is full of non-ASCII. Byte
-        # offsets would land mid-name on every line with a `ℂ` or an `↦` before the token.
+        # Byte offsets would land mid-name on any line with a `ℂ` before the token.
         rel = "TauCeti/A.lean"
         self._write(rel, "  fun z : ℂ ↦ Old.name z\n")
         col = len("  fun z : ℂ ↦ ")   # 14 codepoints, 20 bytes
@@ -175,12 +165,8 @@ class ApplyTest(unittest.TestCase):
 
 
 class ContainmentTest(unittest.TestCase):
-    """The log is untrusted input, so a forged line must not steer an edit out of TauCeti/.
-
-    A build's stdout is not an authenticated compiler channel: whatever elaborates in the
-    sandbox can print a line shaped like a diagnostic. The edits this module makes are
-    committed with an App token, so "the path came from the log" is never sufficient.
-    """
+    """A forged log line must not steer an edit out of TauCeti/. The edits are committed
+    with an App token, so "the path came from the log" is never sufficient."""
 
     def setUp(self):
         self.root = tempfile.mkdtemp()
@@ -197,9 +183,8 @@ class ContainmentTest(unittest.TestCase):
         return (f"{path}:1:6: `Old.name` has been deprecated: Use `New.name` instead\n")
 
     def test_a_malformed_name_cannot_insert_without_matching(self):
-        # `_dot_suffixes(".")` used to yield the empty string, and `startswith("")` is true
-        # at every position -- so this forged line spliced the replacement in having matched
-        # no token at all, defeating the position anchor entirely.
+        # `_dot_suffixes(".")` yielded "", and `startswith("")` is true everywhere — so
+        # this spliced the replacement in having matched no token at all.
         self._write("TauCeti/A.lean", "exact foo bar\n")
         log = "TauCeti/A.lean:1:5: `.` has been deprecated: Use `Injected.name` instead\n"
         self.assertEqual(ba.renames_from_log(log), [])
@@ -210,37 +195,30 @@ class ContainmentTest(unittest.TestCase):
 
     def test_names_with_an_empty_component_are_refused(self):
         for bad in ("A..b", ".b", "a."):
-            log = (f"TauCeti/A.lean:1:0: `{bad}` has been deprecated: "
-                   f"Use `New.name` instead\n")
-            self.assertEqual(ba.renames_from_log(log), [], bad)
-            log = (f"TauCeti/A.lean:1:0: `Old.name` has been deprecated: "
-                   f"Use `{bad}` instead\n")
-            self.assertEqual(ba.renames_from_log(log), [], bad)
+            for tmpl in ("`{}` has been deprecated: Use `New.name` instead",
+                         "`Old.name` has been deprecated: Use `{}` instead"):
+                log = "TauCeti/A.lean:1:0: " + tmpl.format(bad) + "\n"
+                self.assertEqual(ba.renames_from_log(log), [], log)
 
     def test_a_column_inside_a_longer_identifier_is_refused(self):
-        # The left boundary matters as much as the right: without it a suffix could match
-        # partway through a name and splice the replacement into its middle.
+        # Without a left boundary a suffix matches partway through a name.
         self._write("TauCeti/A.lean", "exact Prefix.Old.name h\n")
         log = "TauCeti/A.lean:1:13: `Old.name` has been deprecated: Use `New.name` instead\n"
         applied, skipped = ba.apply_renames(self.root, ba.renames_from_log(log))
         self.assertEqual(applied, [])
         self.assertIn("mid-identifier", skipped[0][1])
 
-    def test_dot_dot_never_parses_as_a_path(self):
+    def test_the_grammar_admits_no_traversal(self):
         for path in ("TauCeti/../scripts/Axioms.lean",
                      "TauCeti/../../etc/passwd.lean",
                      "TauCeti/./x.lean"):
             self.assertEqual(ba.renames_from_log(self._log(path)), [], path)
 
-    def test_absolute_and_traversal_paths_are_refused_by_resolution_too(self):
-        # Belt and braces: even handed a path the grammar would never produce, the
-        # resolution step refuses anything that leaves the library.
+    def test_resolution_refuses_independently_of_the_grammar(self):
         for path in ("../scripts/Axioms.lean", "/etc/passwd", "TauCeti/../scripts/x.lean"):
             self.assertIsNone(ba._resolve_under(self.root, path), path)
-
-    def test_a_real_library_path_resolves(self):
-        self.assertIsNotNone(ba._resolve_under(self.root, "TauCeti/A/B.lean"))
-        self.assertIsNotNone(ba._resolve_under(self.root, "TauCeti.lean"))
+        for path in ("TauCeti/A/B.lean", "TauCeti.lean"):
+            self.assertIsNotNone(ba._resolve_under(self.root, path), path)
 
     def test_a_symlink_out_of_the_library_is_not_followed(self):
         self._write("scripts/Axioms.lean", "exact Old.name h\n")
@@ -255,19 +233,14 @@ class ContainmentTest(unittest.TestCase):
 
     def test_applied_files_lists_only_what_was_edited(self):
         self._write("TauCeti/A/B.lean", "exact Old.name h\n")
-        out = os.path.join(self.root, "applied.txt")
-        rc = ba.main(["bump_autofix.py", "--log", self._make_log(), "--root", self.root,
-                      "--applied-files", out])
-        self.assertEqual(rc, 0)
+        log, out = (os.path.join(self.root, n) for n in ("build.log", "applied.txt"))
+        with open(log, "w", encoding="utf-8") as fh:
+            fh.write(self._log("TauCeti/A/B.lean")
+                     + self._log("TauCeti/../scripts/Axioms.lean"))
+        self.assertEqual(0, ba.main(["bump_autofix.py", "--log", log, "--root", self.root,
+                                     "--applied-files", out]))
         with open(out, encoding="utf-8") as fh:
             self.assertEqual(fh.read().split(), ["TauCeti/A/B.lean"])
-
-    def _make_log(self):
-        path = os.path.join(self.root, "build.log")
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(self._log("TauCeti/A/B.lean"))
-            fh.write(self._log("TauCeti/../scripts/Axioms.lean"))
-        return path
 
 
 class SummaryTest(unittest.TestCase):

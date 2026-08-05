@@ -12,14 +12,10 @@ name: Auto-merge
 # comment can only TRIGGER a re-check, never supply a verdict — which is why the triggers below can be
 # loose: an over-trigger is a cheap no-op, never a wrong merge.
 #
-# One thing it does decline: while the daily mathlib bump occupies a merge-queue entry, this workflow
-# enqueues nothing else. The bump's merge-group rebuild takes ~85 minutes (the new pin invalidates every
-# one of TauCeti's oleans) and main merges ~90 PRs a day, so without the reservation about eight more
-# PRs land underneath it, any of which can introduce a fresh use of a name the new mathlib deprecates
-# and redden the group. #1986 lost that race four times against four different main SHAs. The
-# reservation is scripts/bump_lock.py; it never blocks the bump itself, expires after a few hours so a
-# wedged bump cannot freeze the repository, and fails open. Nothing is lost by declining: merge-sweep
-# re-drives every still-green PR on its next hourly pass.
+# One thing it does decline: while a mathlib bump occupies a merge-queue entry, this workflow enqueues
+# nothing else, so nothing lands under its ~85-minute rebuild and nothing is batched into its group.
+# #1986 lost that race four times against four different main SHAs. See scripts/bump_lock.py; nothing
+# is lost by declining, since merge-sweep re-drives every still-green PR hourly.
 
 on:
   # Head is freshly green: re-check whether this PR is now mergeable.
@@ -61,10 +57,8 @@ jobs:
       pr: ${{ steps.r.outputs.pr }}
       bump_held: ${{ steps.lock.outputs.held }}
     steps:
-      # continue-on-error keeps the fail-open contract intact: without it a checkout
-      # hiccup would fail this job, leave `pr` unset, and SKIP the merge below — turning an
-      # infrastructure blip into a silently withheld merge. A missing script is handled in
-      # the lock step, which then reports the queue free.
+      # continue-on-error keeps the fail-open contract: a checkout hiccup must not fail
+      # this job, leave `pr` unset and silently withhold the merge.
       - uses: actions/checkout@v4
         continue-on-error: true
         with:
@@ -86,9 +80,7 @@ jobs:
             echo "pr=$pr" >> "$GITHUB_OUTPUT"
           fi
 
-      # Head-of-line priority for the daily bump. `|| echo held=false` keeps the fail-open
-      # contract even if the interpreter itself cannot start: a lock that cannot be read must
-      # let go, because a lock stuck "held" stops every merge in the repository.
+      # A lock that cannot be read must let go: one stuck "held" stops every merge.
       - id: lock
         env:
           GH_TOKEN: ${{ github.token }}
@@ -103,8 +95,7 @@ jobs:
 
   merge:
     needs: resolve
-    # Declining is safe and temporary: merge-sweep re-drives every still-green PR hourly, and
-    # the reservation expires on its own (scripts/bump_lock.py, MAX_HOLD_HOURS).
+    # Declining is temporary: merge-sweep re-drives hourly and the hold expires on its own.
     if: ${{ needs.resolve.outputs.pr != '' && needs.resolve.outputs.bump_held != 'true' }}
     # Pinned to a TauCetiReview commit; bump deliberately. The reusable workflow receives the App
     # secrets, so a floating @main would be a supply-chain risk.

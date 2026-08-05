@@ -132,11 +132,9 @@ MARKER_RE = re.compile(r"<!--stuck:v1 (" + KEY_RE.pattern + r")-->\s*\Z")
 # --- thresholds --------------------------------------------------------------
 # Each scheduler threshold is ~2-3x the workflow's cadence, generous enough to
 # ride out GitHub's routine scheduled-run delays without false-firing.
-# The bump is a DAILY job, so half a day unlanded is already a missed cycle and the
-# mathlib delta the next attempt has to cross has started growing. The old 24h was
-# tuned for "the bump cannot cross a breaking change", a state that genuinely takes a
-# day to become interesting; it is far too slow for the eviction loop this now also
-# catches, which can burn four rebuilds inside one window.
+# The bump is a DAILY job, so half a day unlanded is a missed cycle. The old 24h was
+# tuned for "cannot cross a breaking change" and is far too slow for an eviction loop,
+# which can burn four rebuilds inside one window.
 BUMP_UNLANDED_HOURS = 12
 PIN_STALE_DAYS = 4
 # Must exceed the longest delay the merge path can legitimately impose on a ready PR,
@@ -227,13 +225,8 @@ newest_status = core.newest_status
 # errors marks exactly its own keys "unknown" and never clears them.
 
 def _bump_shape(head, number):
-    """Why the bump has not landed, as a stable phrase and the repair that follows from it.
-
-    Written to be CONSTANT for as long as the situation is, per the no-live-counters rule
-    above: it names the shape ("the merge queue keeps evicting it") and never the count, so
-    a bump bouncing for a day reconciles to one unedited message rather than an edit per
-    eviction.
-    """
+    """Why the bump has not landed, and the repair that follows. Names the shape and never
+    a count, per the no-live-counters rule above, so an ongoing alert stays byte-identical."""
     state, _ = newest_status(head, "build")
     if state in ("failure", "error"):
         return ("its `build` check is red",
@@ -267,14 +260,9 @@ def _bump_shape(head, number):
 def _unlanded_bump_prs():
     """Open PRs that move a Lake pin and are past the window, cheapest test first.
 
-    Identified by what they DO, not by their branch name. The daily bump lives on
-    LKG_BRANCH, but a wedged one gets re-rolled by hand onto an ad-hoc branch -- #1986,
-    the failure this detector exists for, sat on `bump-mathlib/fix-c003275`, so a
-    branch-name lookup could not see it at all. Draft and held PRs are parked on purpose
-    and never counted.
-
-    The age test comes before the per-PR file listing so the extra API call is paid only
-    for the handful of PRs old enough to alert about.
+    Identified by what they DO, not their branch name: a wedged bump gets re-rolled onto
+    an ad-hoc branch, and #1986 — the failure this exists for — sat on one. The age test
+    precedes the per-PR file listing, so that call is paid only for PRs old enough to alert.
     """
     out = []
     for pr in open_prs():
@@ -301,24 +289,19 @@ def _unlanded_bump_prs():
 def detect_stuck_bump():
     """A pin-moving PR still open after the window, however it is stuck.
 
-    This used to require a RED `build` on the PR head, which made it structurally blind to
-    the way the bump actually strands. In an eviction loop the head is GREEN: what fails is
-    the merge-GROUP commit, a different SHA carrying the batch, so the head status the
-    detector read never went red. #1986 was evicted four times over eight hours and this
-    detector -- the one whose whole job is the bump -- said nothing. It was also looking
-    only at LKG_BRANCH, which #1986 was not on.
+    This used to require a RED `build` on the PR head, which made it blind to the way the
+    bump actually strands: in an eviction loop the head is GREEN, because what fails is the
+    merge-GROUP commit under a different SHA. #1986 was evicted four times over eight hours
+    and this detector said nothing — it was also looking only at LKG_BRANCH, which #1986 is
+    not on.
 
-    Age alone is the reliable signal, and the same reasoning as before still supports it: a
-    healthy bump is opened and merged the same day, and the daily job force-pushes one
-    branch rather than opening a new PR, so `created_at` measures how long the bump has
-    been failing to land and no push can reset it. The build state now only chooses the
-    wording, so an unlanded bump alerts whether its head is red, green, or missing a status.
+    Age alone is the reliable signal: a healthy bump is opened and merged the same day, and
+    the daily job force-pushes one branch rather than opening a new PR, so `created_at`
+    cannot be reset by a push. The build state now only chooses the wording.
 
-    It is NOT suppressed during a first-known-bad freeze. The repair PR that update.yml
-    opens against the bad commit IS the bump while a freeze lasts, and it has to land for
-    the pin to move again; `stale-fkb` covers the incompatibility itself, on a much slower
-    three-day clock. Alerts are idempotent (one message per key), so a situation that is
-    both says so once rather than repeating.
+    Not suppressed during a first-known-bad freeze: the repair PR opened against the bad
+    commit IS the bump then, and still has to land. `stale-fkb` covers the incompatibility
+    itself on a slower clock, and alerts are idempotent, so this says it once.
     """
     out = []
     for pr in _unlanded_bump_prs():

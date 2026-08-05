@@ -11,12 +11,9 @@ name: Merge sweep
 # provider keys and runs no reviewer; the merge decision is the same one auto-merge uses, so the sweep
 # can never merge something the normal gate would refuse.
 #
-# It skips a pass entirely while the daily mathlib bump occupies a merge-queue entry. The sweep is the
-# other door into the queue, so leaving it open would defeat the head-of-line reservation auto-merge.yml
-# honours: an ordinary PR re-enqueued here would either land underneath the bump's 85-minute rebuild or
-# be batched into its merge group. A skipped pass costs at most an hour of latency for everything else,
-# the reservation expires on its own, and the next hourly pass re-drives whatever was waiting. See
-# scripts/bump_lock.py.
+# It skips a pass while a mathlib bump holds a merge-queue entry. The sweep is the other door into the
+# queue, so leaving it open would defeat the reservation auto-merge.yml honours. A skipped pass costs
+# at most an hour, and the next one re-drives whatever was waiting. See scripts/bump_lock.py.
 
 on:
   schedule:
@@ -45,8 +42,7 @@ jobs:
     outputs:
       held: ${{ steps.lock.outputs.held }}
     steps:
-      # See auto-merge.yml: a checkout failure must report the queue free, not skip the
-      # sweep. The lock step below handles the resulting missing script.
+      # See auto-merge.yml: a checkout failure must report the queue free, not skip.
       - uses: actions/checkout@v4
         continue-on-error: true
         with:
