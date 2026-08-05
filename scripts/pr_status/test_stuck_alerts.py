@@ -272,6 +272,103 @@ class ReadyLabelClockTest(unittest.TestCase):
         self.assertGreater(sa.hours_since(applied), sa.STRANDED_HOURS)
 
 
+class StuckBumpTest(unittest.TestCase):
+    """The bump detector must see an EVICTED bump, not only an old red one.
+
+    The eviction shape is the one that stranded #1986: the PR head is green, because what
+    fails is the merge-GROUP commit under a different SHA. A detector gated on a red head
+    status is structurally incapable of seeing it, and said nothing through four rebuilds.
+    """
+
+    def _routes(self, age_hours, build_state="success", removals=(),
+                files=("lake-manifest.json",), head_ref="bump-mathlib/fix-c003275",
+                labels=(), draft=False, fkb=""):
+        import json as _j
+        prs = _j.dumps({"number": 1986, "head": "abc", "draft": draft,
+                        "updated_at": _ago(1), "created_at": _ago(age_hours),
+                        "head_ref": head_ref, "head_repo": "o/r", "author": "a",
+                        "labels": list(labels)}) + "\n"
+        status = (_j.dumps({"state": build_state, "updated_at": _ago(1)})
+                  if build_state else "")
+        tl = "".join(_j.dumps({"at": t}) + "\n" for t in removals)
+        return [(f"labels={sa.FKB_LABEL}", fkb),
+                ("/pulls?state=open", prs),
+                ("/files", "".join(f + "\n" for f in files)),
+                ("/statuses", status),
+                ("removed_from_merge_queue", tl)]
+
+    def test_evicted_bump_with_a_green_head_alerts(self):
+        _install(self, self._routes(20, "success", [_ago(2), _ago(5)]))
+        got = sa.detect_stuck_bump()
+        self.assertEqual([a["key"] for a in got], ["stuck-bump/1986"])
+        self.assertIn("evicting it", got[0]["body"])
+
+    def test_red_build_alerts(self):
+        _install(self, self._routes(20, "failure"))
+        got = sa.detect_stuck_bump()
+        self.assertEqual([a["key"] for a in got], ["stuck-bump/1986"])
+        self.assertIn("red", got[0]["body"])
+
+    def test_green_and_never_taken_alerts(self):
+        _install(self, self._routes(20, "success"))
+        got = sa.detect_stuck_bump()
+        self.assertEqual([a["key"] for a in got], ["stuck-bump/1986"])
+        self.assertIn("nothing has merged it", got[0]["body"])
+
+    def test_missing_build_status_alerts(self):
+        _install(self, self._routes(20, ""))
+        self.assertEqual([a["key"] for a in sa.detect_stuck_bump()], ["stuck-bump/1986"])
+
+    def test_a_fresh_bump_is_not_stuck(self):
+        _install(self, self._routes(sa.BUMP_UNLANDED_HOURS - 1, "failure"))
+        self.assertEqual(sa.detect_stuck_bump(), [])
+
+    def test_fires_at_twelve_hours(self):
+        _install(self, self._routes(sa.BUMP_UNLANDED_HOURS + 0.1, "success", [_ago(2)]))
+        self.assertEqual(len(sa.detect_stuck_bump()), 1)
+
+    def test_a_hand_cut_repair_branch_is_still_the_bump(self):
+        # #1986 sat on `bump-mathlib/fix-c003275`, not on the LKG branch. Identifying the
+        # bump by branch name made the detector blind to exactly the PR it exists for.
+        _install(self, self._routes(20, "success", [_ago(2)],
+                                    head_ref="bump-mathlib/fix-c003275"))
+        self.assertEqual([a["key"] for a in sa.detect_stuck_bump()], ["stuck-bump/1986"])
+
+    def test_the_lkg_branch_needs_no_file_listing(self):
+        _install(self, self._routes(20, "failure", files=(),
+                                    head_ref="hopscotch/lkg-bump"))
+        self.assertEqual(len(sa.detect_stuck_bump()), 1)
+
+    def test_a_pr_that_moves_no_pin_is_not_a_bump(self):
+        _install(self, self._routes(48, "failure", files=("TauCeti/A.lean",),
+                                    head_ref="roadmap/foo"))
+        self.assertEqual(sa.detect_stuck_bump(), [])
+
+    def test_a_held_bump_is_parked_not_stuck(self):
+        _install(self, self._routes(48, "failure", labels=("hold",)))
+        self.assertEqual(sa.detect_stuck_bump(), [])
+
+    def test_draft_is_skipped(self):
+        _install(self, self._routes(48, "failure", draft=True))
+        self.assertEqual(sa.detect_stuck_bump(), [])
+
+    def test_a_first_known_bad_freeze_does_not_silence_it(self):
+        # The repair PR opened against the bad commit IS the bump while a freeze lasts, and
+        # it still has to land for the pin to move; stale-fkb covers the incompatibility.
+        import json as _j
+        _install(self, self._routes(48, "failure", fkb=_j.dumps({"number": 42}) + "\n"))
+        self.assertEqual([a["key"] for a in sa.detect_stuck_bump()], ["stuck-bump/1986"])
+
+    def test_body_carries_no_live_counter(self):
+        # An ONGOING alert must reconcile byte-identically or the watchdog re-edits its own
+        # message every hour. The eviction COUNT changes while the loop runs; the shape does
+        # not, so only the shape may reach the body.
+        _install(self, self._routes(20, "success", [_ago(2)]))
+        one = sa.detect_stuck_bump()[0]["body"]
+        _install(self, self._routes(20, "success", [_ago(2), _ago(4), _ago(6)]))
+        self.assertEqual(one, sa.detect_stuck_bump()[0]["body"])
+
+
 class EvictionLoopTest(unittest.TestCase):
     def _routes(self, removals, labels=("ready-to-merge",), ready_at=None):
         import json as _j

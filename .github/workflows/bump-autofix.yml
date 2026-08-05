@@ -1,0 +1,211 @@
+name: Bump autofix
+
+# Repair the daily mathlib bump instead of waiting a day for a human to type a rename.
+#
+# When a bump's build fails, the failure is almost always a name the new mathlib
+# deprecates and the old one did not, used by TauCeti/ code that landed on main after the
+# bump branch was cut. The compiler names both halves of the fix:
+#
+#   error: TauCeti/.../DiamondOperators.lean:99:8:
+#       `ModularForm.IsGLPos.coe_smul` has been deprecated: Use `FunLike.coe_smul` instead
+#
+# #1986 lost four consecutive merge-group rebuilds -- about six hours of CI -- waiting for
+# someone to make exactly that substitution. This workflow reads the failed run's log,
+# applies the renames it names (scripts/bump_autofix.py, which fixes only the mechanical
+# case and reports the rest), and pushes them to the bump branch, which re-runs pr-build.
+#
+# The push is a PROPOSAL, not a verdict: it goes to a PR whose full sandboxed build,
+# audits, lint, bump-guard and review rubrics all still have to pass. A wrong rename stays
+# red exactly as the unrenamed source did, so the worst case is a wasted rebuild.
+#
+# It touches ONLY the machine-owned bump branch (hopscotch/lkg-bump), never main and never
+# a human's PR, and it gives up rather than looping: no renames found, no diff produced, or
+# MAX_AUTOFIXES commits already pushed today, and it stops and leaves the situation to the
+# `stuck-bump` alert (which fires at 12h). That escalation is the intended end state for
+# breakage that is not a mechanical rename -- an unknown identifier, a proof a changed
+# lemma statement broke -- and the run summary says which of those it saw.
+
+on:
+  workflow_run:
+    workflows: ["pr-build"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: "pr-build run id to read the failing diagnostics from"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read           # read the failed run's log
+  pull-requests: read     # find the open LKG bump PR
+
+concurrency:
+  # One repair at a time, and never cancel one mid-push: a cancelled run could leave the
+  # branch committed but unpushed (harmless) or racing update.yml's daily force-push.
+  group: bump-autofix
+  cancel-in-progress: false
+
+env:
+  LKG_BRANCH: hopscotch/lkg-bump   # keep in sync with update.yml's LKG_BRANCH
+  # Pushes per rolling day before we stop and let the stuck-bump alert escalate. Three is
+  # enough for the realistic shape (one round of renames, plus a second round for
+  # deprecations only reachable once the first round compiles) without a runaway loop
+  # burning an 85-minute rebuild per attempt.
+  MAX_AUTOFIXES: 3
+
+jobs:
+  autofix:
+    if: >
+      github.repository == 'TauCetiProject/TauCeti'
+      && (github.event_name == 'workflow_dispatch'
+          || (github.event.workflow_run.conclusion == 'failure'
+              && (github.event.workflow_run.event == 'merge_group'
+                  || github.event.workflow_run.event == 'pull_request_target')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # pr-build fails for ordinary PRs too, so this runs often and almost always decides
+      # "not mine". That decision is made FIRST, from the API alone, so the common case
+      # costs one query and mints no App token and checks out nothing.
+      - name: Is this failure the bump's?
+        id: subject
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run-id || github.event.workflow_run.id }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$REPO/pulls?state=open&head=TauCetiProject:$LKG_BRANCH" \
+                 --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "No open LKG bump PR; nothing to repair."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          head=$(gh api "repos/$REPO/pulls/$pr" --jq '.head.sha')
+          echo "open bump PR #$pr @ $head; failing run $RUN_ID (event ${RUN_EVENT:-dispatch})"
+          if [ "$RUN_EVENT" = "pull_request_target" ] && [ "$RUN_HEAD" != "$head" ]; then
+            echo "The failing build is another PR's head, not the bump's."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$RUN_EVENT" = "merge_group" ]; then
+            # A merge group only concerns us if the bump is IN it. The pin file is the
+            # cheapest witness: a group carrying the bump has the bump's manifest blob.
+            # `|| true` because the queue's synthetic ref is deleted once the group
+            # resolves; on an unreadable manifest we continue rather than give up, since
+            # the renames still have to be applied for the bump to ever land and pr-build
+            # re-checks everything anyway.
+            group_pin=$(gh api "repos/$REPO/contents/lake-manifest.json?ref=$RUN_HEAD" --jq '.sha' 2>/dev/null || true)
+            bump_pin=$(gh api "repos/$REPO/contents/lake-manifest.json?ref=$head" --jq '.sha' 2>/dev/null || true)
+            if [ -n "$group_pin" ] && [ -n "$bump_pin" ] && [ "$group_pin" != "$bump_pin" ]; then
+              echo "The failing merge group does not carry the bump's mathlib pin."
+              echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          fi
+          { echo "go=true"; echo "pr=$pr"; echo "run_id=$RUN_ID"; } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        if: steps.subject.outputs.go == 'true'
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: TauCetiProject
+
+      # The trusted copy of the fixer. Kept separate from the working tree below so the
+      # script that rewrites the bump branch is always main's, never the branch's own.
+      - uses: actions/checkout@v4
+        if: steps.subject.outputs.go == 'true'
+        with:
+          path: main
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Check out the bump branch
+        if: steps.subject.outputs.go == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LKG_BRANCH }}
+          path: work
+          token: ${{ steps.app-token.outputs.token }}
+          # Full history: the repair merges main into the branch, and a shallow clone has
+          # no merge base to merge across.
+          fetch-depth: 0
+
+      - name: Stop if today's autofix budget is spent
+        id: budget
+        if: steps.subject.outputs.go == 'true'
+        working-directory: work
+        run: |
+          set -euo pipefail
+          spent=$(git log --since=24.hours -F --grep='[bump-autofix]' --oneline | wc -l)
+          echo "autofix commits on $LKG_BRANCH in the last 24h: $spent (cap $MAX_AUTOFIXES)"
+          if [ "$spent" -ge "$MAX_AUTOFIXES" ]; then
+            echo "::warning::autofix budget spent for today; leaving the bump to the stuck-bump alert"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply the renames the failing build named
+        id: fix
+        if: steps.budget.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ steps.subject.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          # --log-failed is the failing steps only, which is the build; fall back to the
+          # whole log if the run failed somewhere that leaves it empty.
+          gh run view "$RUN_ID" --repo "$REPO" --log-failed > build.log 2>/dev/null || true
+          if [ ! -s build.log ]; then
+            gh run view "$RUN_ID" --repo "$REPO" --log > build.log 2>/dev/null || true
+          fi
+          echo "read $(wc -l < build.log) log line(s)"
+          # The bump branch is behind main by whatever landed since it was cut, and the
+          # files the diagnostics point at are usually exactly those newcomers. Merge main
+          # in first so they exist to be edited; a conflict means this is not the
+          # mechanical case and merge-sweep / a human owns it.
+          git -C work config user.name  'tauceti-review-bot[bot]'
+          git -C work config user.email '290224625+tauceti-review-bot[bot]@users.noreply.github.com'
+          git -C work fetch origin main
+          if ! git -C work merge --no-edit FETCH_HEAD; then
+            git -C work merge --abort || true
+            echo "::warning::the bump branch conflicts with main; not a mechanical fix"
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          rc=0
+          python3 main/scripts/bump_autofix.py --log build.log --root work > fix.txt || rc=$?
+          cat fix.txt
+          { echo "### Bump autofix"; echo; echo '```'; cat fix.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" != 0 ]; then
+            echo "::notice::nothing mechanically fixable in this failure"
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git -C work diff --quiet; then
+            echo "::notice::the renames were already applied; nothing to push"
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push the repair
+        if: steps.fix.outputs.changed == 'true'
+        env:
+          BUMP_PR: ${{ steps.subject.outputs.pr }}
+        run: |
+          set -euo pipefail
+          { echo "chore: rename the declarations the new mathlib deprecates"
+            echo
+            cat fix.txt
+            echo
+            echo "Pushed automatically for PR #$BUMP_PR by .github/workflows/bump-autofix.yml."
+            echo "[bump-autofix]"
+          } > "$GITHUB_WORKSPACE/msg.txt"
+          git -C work add -A
+          git -C work commit --file "$GITHUB_WORKSPACE/msg.txt"
+          git -C work push origin "HEAD:$LKG_BRANCH"
+          echo "::notice::pushed a mechanical repair to $LKG_BRANCH for PR #$BUMP_PR"

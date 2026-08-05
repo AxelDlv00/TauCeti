@@ -131,7 +131,9 @@ while it persists.
 
 This is an **emergency channel, not a help queue.** Every alert means a piece of
 infrastructure needs fixing so the wedge cannot recur, not that a human should
-hand-hold one PR. It fires on: a red, stale last-known-good bump PR; a mathlib pin
+hand-hold one PR. It fires on: a last-known-good bump PR still unlanded 12h on,
+however it is stuck (red build, an eviction loop, or a green head nothing takes,
+which is the shape #1986 hid in); a mathlib pin
 that has stopped advancing; an in-scope, fully-green PR the merge path never
 merged; an open `Review stuck: PR #…` issue; a scheduled workflow that is disabled
 or overdue; `main` gone red; and a long-open mathlib-incompatibility issue. It

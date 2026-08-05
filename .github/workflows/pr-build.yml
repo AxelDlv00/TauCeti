@@ -470,6 +470,41 @@ jobs:
             } >> "$GITHUB_ENV"
           fi
 
+      # --- Cross-attempt reuse for the bump's rebuilds ---------------------------------
+      # A pin bump invalidates every one of TauCeti's own oleans at once: the Lake artifact
+      # cache above is keyed on main's revisions, and main has never been built against the
+      # new mathlib, so a bump builds the whole library from scratch — ~85 minutes. That
+      # duration is what makes the bump lose its race with main (see scripts/bump_lock.py),
+      # and it is paid AGAIN on every merge-group rebuild and every re-push.
+      #
+      # Those attempts all compile the same library against the same new pins; only the
+      # TauCeti/ sources differ, by whatever landed on main in between. So they can share a
+      # build directory: Lake recompiles exactly the modules whose inputs changed and reuses
+      # the rest, turning each attempt after the first into minutes instead of an hour and a
+      # half. `lake build --iofail` stays exactly as strict — a module Lake does not rebuild
+      # has byte-identical inputs to a build that already passed --iofail with it silent, so
+      # nothing can hide in the reuse that was not already checked.
+      #
+      # Keyed on the pins themselves, so only builds against the same mathlib commit and
+      # toolchain ever share, and scoped to pin-bump builds (BUMP=1) so ordinary PRs neither
+      # pay for it nor churn the repository's 10 GB cache budget with ~90 entries a day.
+      - name: Key the bump build cache on the pins being built
+        id: bumpkey
+        if: ${{ env.INFRA != '1' && env.BUMP == '1' && vars.TAUCETI_BUMP_BUILD_CACHE != 'off' }}
+        run: |
+          set -euo pipefail
+          rev=$(python3 -c 'import json; d=json.load(open("base/lake-manifest.json")); print(next(p["rev"] for p in d["packages"] if p["name"] == "mathlib"))')
+          tc=$(tr -d ' \t\n\r' < base/lean-toolchain)
+          echo "key=lake-build-v1-${{ runner.os }}-${tc//[!A-Za-z0-9._-]/_}-$rev" >> "$GITHUB_OUTPUT"
+
+      - name: Restore a previous build against these exact pins
+        id: bumpcache
+        if: ${{ env.INFRA != '1' && env.BUMP == '1' && vars.TAUCETI_BUMP_BUILD_CACHE != 'off' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: base/.lake/build
+          key: ${{ steps.bumpkey.outputs.key }}
+
       - name: Build (trusted config + overlaid TauCeti/) under landrun, offline
         id: build
         if: ${{ env.INFRA != '1' }}
@@ -492,6 +527,19 @@ jobs:
             --env PATH --env HOME --env CI \
             --env LAKE_NO_CACHE --env LAKE_ARTIFACT_CACHE --env LAKE_RESTORE_ARTIFACTS --env LAKE_CACHE_DIR \
             -- bash -euxo pipefail -c 'cd base && exec bash scripts/sandbox-build.sh'
+
+      # Only from a build that PASSED, so every module in the archive compiled silently under
+      # --iofail. `continue-on-error` because two attempts against the same pins can race to
+      # reserve the key, and losing that race is a no-op: the other one saved the same thing.
+      - name: Save this build for the bump's remaining attempts
+        if: ${{ steps.build.outcome == 'success' && env.BUMP == '1'
+                && steps.bumpcache.outputs.cache-hit != 'true'
+                && vars.TAUCETI_BUMP_BUILD_CACHE != 'off' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: base/.lake/build
+          key: ${{ steps.bumpkey.outputs.key }}
 
       - name: Report build and bump-guard statuses to the PR head commit
         if: always()

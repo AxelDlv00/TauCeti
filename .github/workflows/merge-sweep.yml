@@ -10,6 +10,13 @@ name: Merge sweep
 # main or flags a conflict. It calls the lightweight TauCetiReview merge-sweep workflow, which mints no
 # provider keys and runs no reviewer; the merge decision is the same one auto-merge uses, so the sweep
 # can never merge something the normal gate would refuse.
+#
+# It skips a pass entirely while the daily mathlib bump occupies a merge-queue entry. The sweep is the
+# other door into the queue, so leaving it open would defeat the head-of-line reservation auto-merge.yml
+# honours: an ordinary PR re-enqueued here would either land underneath the bump's 85-minute rebuild or
+# be batched into its merge group. A skipped pass costs at most an hour of latency for everything else,
+# the reservation expires on its own, and the next hourly pass re-drives whatever was waiting. See
+# scripts/bump_lock.py.
 
 on:
   schedule:
@@ -23,13 +30,36 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read     # read the merge queue for the bump reservation
 
 concurrency:
   group: merge-sweep
   cancel-in-progress: false
 
 jobs:
+  bump-lock:
+    runs-on: ubuntu-latest
+    outputs:
+      held: ${{ steps.lock.outputs.held }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+      - id: lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          out=$(python3 scripts/bump_lock.py) \
+            || out=$'held=false\nreason=bump_lock.py did not run; failing open'
+          echo "$out"
+          echo "$out" >> "$GITHUB_OUTPUT"
+
   sweep:
+    needs: bump-lock
+    if: ${{ needs.bump-lock.outputs.held != 'true' }}
     # Pinned to a TauCetiReview commit; bump deliberately. The reusable workflow receives the App
     # secrets, so a floating @main would be a supply-chain risk.
     uses: TauCetiProject/TauCetiReview/.github/workflows/merge-sweep.yml@eeed9637d7e2af319a04de8120b35f0c52318f0d

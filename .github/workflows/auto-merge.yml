@@ -11,6 +11,15 @@ name: Auto-merge
 # green for any Lake-pin change. The decision is read from the real ledger, so a forged scoreboard
 # comment can only TRIGGER a re-check, never supply a verdict — which is why the triggers below can be
 # loose: an over-trigger is a cheap no-op, never a wrong merge.
+#
+# One thing it does decline: while the daily mathlib bump occupies a merge-queue entry, this workflow
+# enqueues nothing else. The bump's merge-group rebuild takes ~85 minutes (the new pin invalidates every
+# one of TauCeti's oleans) and main merges ~90 PRs a day, so without the reservation about eight more
+# PRs land underneath it, any of which can introduce a fresh use of a name the new mathlib deprecates
+# and redden the group. #1986 lost that race four times against four different main SHAs. The
+# reservation is scripts/bump_lock.py; it never blocks the bump itself, expires after a few hours so a
+# wedged bump cannot freeze the repository, and fails open. Nothing is lost by declining: merge-sweep
+# re-drives every still-green PR on its next hourly pass.
 
 on:
   # Head is freshly green: re-check whether this PR is now mergeable.
@@ -42,7 +51,12 @@ jobs:
         && contains(github.event.comment.body, 'tauceti-meta:v1'))
     outputs:
       pr: ${{ steps.r.outputs.pr }}
+      bump_held: ${{ steps.lock.outputs.held }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
       - id: r
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,9 +73,26 @@ jobs:
             echo "pr=$pr" >> "$GITHUB_OUTPUT"
           fi
 
+      # Head-of-line priority for the daily bump. `|| echo held=false` keeps the fail-open
+      # contract even if the interpreter itself cannot start: a lock that cannot be read must
+      # let go, because a lock stuck "held" stops every merge in the repository.
+      - id: lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.r.outputs.pr }}
+        run: |
+          set -uo pipefail
+          out=$(python3 scripts/bump_lock.py --pr "$PR") \
+            || out=$'held=false\nreason=bump_lock.py did not run; failing open'
+          echo "$out"
+          echo "$out" >> "$GITHUB_OUTPUT"
+
   merge:
     needs: resolve
-    if: ${{ needs.resolve.outputs.pr != '' }}
+    # Declining is safe and temporary: merge-sweep re-drives every still-green PR hourly, and
+    # the reservation expires on its own (scripts/bump_lock.py, MAX_HOLD_HOURS).
+    if: ${{ needs.resolve.outputs.pr != '' && needs.resolve.outputs.bump_held != 'true' }}
     # Pinned to a TauCetiReview commit; bump deliberately. The reusable workflow receives the App
     # secrets, so a floating @main would be a supply-chain risk.
     uses: TauCetiProject/TauCetiReview/.github/workflows/merge-only.yml@eeed9637d7e2af319a04de8120b35f0c52318f0d

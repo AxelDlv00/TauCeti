@@ -13,11 +13,12 @@ alerted" list below.
 
 Detectors (each names the infra failure it implies):
 
-  1. stuck-bump      The last-known-good bump PR (branch hopscotch/lkg-bump) has a
-                     RED `build` check that has stayed red past a grace window. The
-                     daily bump cannot cross a mathlib breaking change on its own;
-                     something needs a fix, e.g. a proof, scripts/lint-env.sh, or a
-                     guard.
+  1. stuck-bump      A PR that moves a Lake pin -- the daily hopscotch/lkg-bump PR, or
+                     a hand-cut repair branch carrying one -- is still open past a
+                     grace window, whatever is holding it up: a red `build`, a merge
+                     queue that keeps evicting it, or a green head nothing takes. The
+                     bump is supposed to land every day without a human, so an
+                     unlanded one is always an infrastructure failure.
   2. stale-pin       main's mathlib pin has not moved in several days. The bump has
                      stopped advancing, e.g. a wedged PR, an unresolved
                      first-known-bad freeze, or update.yml silently broken.
@@ -116,6 +117,10 @@ import zulip as zp  # noqa: E402
 
 REPO = core.REPO
 LKG_BRANCH = "hopscotch/lkg-bump"  # keep in sync with update.yml's LKG_BRANCH
+# Changing either of these is a mathlib bump, whatever the branch is called. Same
+# definition as scripts/bump_lock.py's, and the same two files pr-build's scope guard
+# treats as a Lake-pin bump.
+PIN_FILES = {"lake-manifest.json", "lean-toolchain"}
 
 # Keys we generate use only this alphabet; the marker is anchored to the final
 # line and its key validated against this grammar, so untrusted text that happens
@@ -127,7 +132,12 @@ MARKER_RE = re.compile(r"<!--stuck:v1 (" + KEY_RE.pattern + r")-->\s*\Z")
 # --- thresholds --------------------------------------------------------------
 # Each scheduler threshold is ~2-3x the workflow's cadence, generous enough to
 # ride out GitHub's routine scheduled-run delays without false-firing.
-BUMP_STUCK_HOURS = 24
+# The bump is a DAILY job, so half a day unlanded is already a missed cycle and the
+# mathlib delta the next attempt has to cross has started growing. The old 24h was
+# tuned for "the bump cannot cross a breaking change", a state that genuinely takes a
+# day to become interesting; it is far too slow for the eviction loop this now also
+# catches, which can burn four rebuilds inside one window.
+BUMP_UNLANDED_HOURS = 12
 PIN_STALE_DAYS = 4
 STRANDED_HOURS = 6
 # Evictions since the current readiness, within the window, before a bounce counts as a loop.
@@ -212,34 +222,107 @@ newest_status = core.newest_status
 # prefix (the part before the first "/") names the detector, so a detector that
 # errors marks exactly its own keys "unknown" and never clears them.
 
-def detect_stuck_bump():
-    prs = gh_stream(
-        f"/repos/{REPO}/pulls?state=open&head=TauCetiProject:{LKG_BRANCH}&per_page=5",
-        jq='.[] | {number, head: .head.sha, created_at}', paginate=False)
+def _bump_shape(head, number):
+    """Why the bump has not landed, as a stable phrase and the repair that follows from it.
+
+    Written to be CONSTANT for as long as the situation is, per the no-live-counters rule
+    above: it names the shape ("the merge queue keeps evicting it") and never the count, so
+    a bump bouncing for a day reconciles to one unedited message rather than an edit per
+    eviction.
+    """
+    state, _ = newest_status(head, "build")
+    if state in ("failure", "error"):
+        return ("its `build` check is red",
+                "open the failing build. If it is a deprecation the new mathlib names, "
+                "`bump-autofix.yml` should already have pushed the rename -- find out why "
+                "it did not. Otherwise land the fix the build needs together with the pin "
+                "move, in one PR.")
+    evicted = gh_stream(
+        f"/repos/{REPO}/issues/{number}/timeline?per_page=100",
+        jq='.[] | select(.event == "removed_from_merge_queue") | {at: (.created_at // "")}')
+    if evicted:
+        return ("the merge queue keeps evicting it",
+                "the merge-GROUP build is failing, on a commit that is not this PR's head -- "
+                "which is why the head stayed green. Read the merge-group run, and check that "
+                "the queue reservation (`scripts/bump_lock.py`) is actually keeping main still "
+                "during the rebuild.")
+    if state == "success":
+        return ("`build` is green and nothing has merged it",
+                "the merge path is not taking a ready bump: check `auto-merge.yml`, the merge "
+                "queue, and `merge-sweep.yml` -- including whether the bump reservation is "
+                "wrongly holding against the bump itself.")
+    return (f"its `build` check is `{state or 'missing'}`",
+            "no usable build result: re-run pr-build on the bump PR's head and find out why "
+            "the required status never landed.")
+
+
+def _unlanded_bump_prs():
+    """Open PRs that move a Lake pin and are past the window, cheapest test first.
+
+    Identified by what they DO, not by their branch name. The daily bump lives on
+    LKG_BRANCH, but a wedged one gets re-rolled by hand onto an ad-hoc branch -- #1986,
+    the failure this detector exists for, sat on `bump-mathlib/fix-c003275`, so a
+    branch-name lookup could not see it at all. Draft and held PRs are parked on purpose
+    and never counted.
+
+    The age test comes before the per-PR file listing so the extra API call is paid only
+    for the handful of PRs old enough to alert about.
+    """
     out = []
-    for pr in prs:
-        state, _ = newest_status(pr["head"], "build")
-        # Clock off the PR's age, not the build-status timestamp. A HEALTHY LKG
-        # bump PR merges within hours and a fresh one is created per advance, so an
-        # open LKG PR older than the window is reliably stuck. The build-status
-        # `updated_at` is the wrong clock here: the daily bump force-pushes this
-        # branch, re-running the SAME red build and resetting that timestamp every
-        # day -- which would permanently mask a genuine multi-day wedge (observed
-        # on PR #1057). Requiring the build to be currently red avoids firing on a
-        # PR that has since gone green and is merging.
-        if state in ("failure", "error") and hours_since(pr["created_at"]) >= BUMP_STUCK_HOURS:
-            out.append({
-                "key": f"stuck-bump/{pr['number']}",
-                "title": "Mathlib bump wedged — LKG bump PR build stays red",
-                "body": (
-                    f"The last-known-good bump PR "
-                    f"https://github.com/{REPO}/pull/{pr['number']} has had a red "
-                    f"`build` check and has been open over {BUMP_STUCK_HOURS}h. The daily bump cannot "
-                    f"cross a mathlib breaking change on its own.\n\n"
-                    f"**Fix:** open the failing build, and land whatever fix it needs "
-                    f"together with the pin move in one human-owned PR, so the bump "
-                    f"can resume."),
-            })
+    for pr in open_prs():
+        if pr.get("draft"):
+            continue
+        if HOLD_LABELS.intersection(n.lower() for n in pr.get("labels", [])):
+            continue
+        if hours_since(pr["created_at"]) < BUMP_UNLANDED_HOURS:
+            continue
+        if pr.get("head_ref") == LKG_BRANCH:
+            out.append(pr)
+            continue
+        # Filenames are bare strings, not JSON -- gh_lines, not gh_stream.
+        files = gh_lines(f"/repos/{REPO}/pulls/{pr['number']}/files?per_page=300",
+                         jq='.[].filename')
+        if any(f in PIN_FILES for f in files):
+            out.append(pr)
+    return out
+
+
+def detect_stuck_bump():
+    """A pin-moving PR still open after the window, however it is stuck.
+
+    This used to require a RED `build` on the PR head, which made it structurally blind to
+    the way the bump actually strands. In an eviction loop the head is GREEN: what fails is
+    the merge-GROUP commit, a different SHA carrying the batch, so the head status the
+    detector read never went red. #1986 was evicted four times over eight hours and this
+    detector -- the one whose whole job is the bump -- said nothing. It was also looking
+    only at LKG_BRANCH, which #1986 was not on.
+
+    Age alone is the reliable signal, and the same reasoning as before still supports it: a
+    healthy bump is opened and merged the same day, and the daily job force-pushes one
+    branch rather than opening a new PR, so `created_at` measures how long the bump has
+    been failing to land and no push can reset it. The build state now only chooses the
+    wording, so an unlanded bump alerts whether its head is red, green, or missing a status.
+
+    It is NOT suppressed during a first-known-bad freeze. The repair PR that update.yml
+    opens against the bad commit IS the bump while a freeze lasts, and it has to land for
+    the pin to move again; `stale-fkb` covers the incompatibility itself, on a much slower
+    three-day clock. Alerts are idempotent (one message per key), so a situation that is
+    both says so once rather than repeating.
+    """
+    out = []
+    for pr in _unlanded_bump_prs():
+        shape, fix = _bump_shape(pr["head"], pr["number"])
+        out.append({
+            "key": f"stuck-bump/{pr['number']}",
+            "title": "Mathlib bump has not landed",
+            "body": (
+                f"The mathlib bump "
+                f"https://github.com/{REPO}/pull/{pr['number']} has been open over "
+                f"{BUMP_UNLANDED_HOURS}h without landing: {shape}. The bump is a daily job, "
+                f"so every cycle it misses widens the mathlib delta the next one has to "
+                f"cross.\n\n"
+                f"**Fix:** {fix}"),
+        })
     return out
 
 
@@ -287,7 +370,7 @@ def open_prs():
     """Every open PR against main, with the fields the PR-shaped detectors below need."""
     return gh_stream(
         f"/repos/{REPO}/pulls?state=open&base=main&per_page=100",
-        jq='.[] | {number, head: .head.sha, draft, updated_at, '
+        jq='.[] | {number, head: .head.sha, draft, updated_at, created_at, '
            'head_ref: .head.ref, head_repo: (.head.repo.full_name // ""), '
            'author: .user.login, labels: [.labels[].name]}')
 
