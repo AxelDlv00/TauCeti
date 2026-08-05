@@ -386,8 +386,13 @@ jobs:
       # Cloudflare rate-limits the public r2.dev host by design ("should only be used for
       # development purposes"), so throttled downloads (HTTP 429) make partial fetches routine.
       #
-      # Hence: retry, then fall back to no cache at all. Retries are cheap because an artifact
-      # already on disk is skipped, so each pass re-fetches only what is still missing.
+      # Hence: retry from an EMPTY cache each time, then fall back to no cache at all. Retrying
+      # over the dirty cache a failed attempt left behind does not work: Lake skips any artifact
+      # already on disk, so the retry re-fetches only what is still MISSING and never revisits
+      # what the failed attempt got wrong. It then reports clean and the corruption survives
+      # into the build. Discarding between attempts is what makes a clean verdict mean the
+      # cache is whole; it is affordable because a failing attempt aborts in seconds and a full
+      # refetch is ~30s.
       - name: Fetch TauCeti's own oleans from the Lake cache (network, no token; no PR code)
         if: ${{ env.INFRA != '1' && env.TAUCETI_CACHE_ENABLED == '1' }}
         env:
@@ -438,7 +443,11 @@ jobs:
             # `--retry 3`, so spacing the outer attempts keeps us from adding request rate to
             # an endpoint that is throttling us.
             if [ "$attempt" != 3 ]; then
-              echo "::notice::lake cache get attempt $attempt did not complete cleanly; retrying"
+              echo "::notice::lake cache get attempt $attempt did not complete cleanly; discarding the partial cache and retrying"
+              # Must precede the retry: see the step comment above. Without this, attempt N+1
+              # skips every artifact this attempt already wrote, including the broken ones, and
+              # a clean exit from it says nothing about the entries that made this attempt fail.
+              rm -rf base/.lake/cache
               sleep $(( attempt * 30 ))
             fi
           done
