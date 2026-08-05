@@ -297,6 +297,13 @@ class StuckBumpTest(unittest.TestCase):
                 ("/statuses", status),
                 ("removed_from_merge_queue", tl)]
 
+    def test_a_single_eviction_is_not_a_loop(self):
+        # One removal is routine; the shape must fall back to the build state.
+        _install(self, self._routes(20, "success", [_ago(2)]))
+        got = sa.detect_stuck_bump()
+        self.assertEqual([a["key"] for a in got], ["stuck-bump/1986"])
+        self.assertIn("nothing has merged it", got[0]["body"])
+
     def test_evicted_bump_with_a_green_head_alerts(self):
         _install(self, self._routes(20, "success", [_ago(2), _ago(5)]))
         got = sa.detect_stuck_bump()
@@ -324,7 +331,8 @@ class StuckBumpTest(unittest.TestCase):
         self.assertEqual(sa.detect_stuck_bump(), [])
 
     def test_fires_at_twelve_hours(self):
-        _install(self, self._routes(sa.BUMP_UNLANDED_HOURS + 0.1, "success", [_ago(2)]))
+        _install(self, self._routes(sa.BUMP_UNLANDED_HOURS + 0.1, "success",
+                                    [_ago(2), _ago(3)]))
         self.assertEqual(len(sa.detect_stuck_bump()), 1)
 
     def test_a_hand_cut_repair_branch_is_still_the_bump(self):
@@ -380,7 +388,7 @@ class StuckBumpTest(unittest.TestCase):
         # An ONGOING alert must reconcile byte-identically or the watchdog re-edits its own
         # message every hour. The eviction COUNT changes while the loop runs; the shape does
         # not, so only the shape may reach the body.
-        _install(self, self._routes(20, "success", [_ago(2)]))
+        _install(self, self._routes(20, "success", [_ago(2), _ago(4)]))
         one = sa.detect_stuck_bump()[0]["body"]
         _install(self, self._routes(20, "success", [_ago(2), _ago(4), _ago(6)]))
         self.assertEqual(one, sa.detect_stuck_bump()[0]["body"])

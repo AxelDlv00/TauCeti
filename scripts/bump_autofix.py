@@ -22,7 +22,9 @@ as the unrenamed source did.
 
     bump_autofix.py --log build.log [--root .] [--applied-files F]
 
-Exit 0 if it changed a file, 3 if there was nothing it could fix.
+Exit 0 if it changed a file, 3 if there was nothing it could fix, 2 on an argument error
+(argparse's). `--log` is read and `--applied-files` written wherever they point; it is the
+edited Lean files that are confined beneath `--root`. Runs nothing.
 """
 
 import argparse

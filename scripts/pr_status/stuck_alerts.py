@@ -241,7 +241,10 @@ def _bump_shape(head, number):
         f"/repos/{REPO}/issues/{number}/timeline?per_page=100",
         jq='.[] | select(.event == "removed_from_merge_queue") | {at: (.created_at // "")}')
         if e.get("at") and hours_since(e["at"]) <= EVICTION_WINDOW_HOURS]
-    if evicted:
+    # EVICTION_LOOP_MIN, the same threshold detect_eviction_loops uses: one removal is
+    # routine (merge-sweep re-enqueues), and calling it a loop would send the reader to
+    # merge-group runs that are not the problem.
+    if len(evicted) >= EVICTION_LOOP_MIN:
         return ("the merge queue keeps evicting it",
                 "the merge-GROUP build is failing, on a commit that is not this PR's head -- "
                 "which is why the head stayed green. Read the merge-group run, and check that "
