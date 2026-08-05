@@ -5,8 +5,8 @@ Authors: Chris Birkbeck
 -/
 module
 
-public import Mathlib.NumberTheory.LSeries.Convergence
 public import Mathlib.NumberTheory.ModularForms.LFunction
+public import TauCeti.NumberTheory.LSeries.EntireExtension
 
 /-!
 # Dirichlet series of modular forms
@@ -32,12 +32,13 @@ API and Mathlib's `LSeries` of the `q`-expansion coefficients:
 * `ModularForm.LSeries_qExpansion_coeff_eq`, `CuspForm.LSeries_qExpansion_coeff_eq`:
   on the respective half-planes, `LSeries` of the coefficients is
   `(Γ.strictWidthInfty : ℂ) ^ (-s) * L hk f s` for Mathlib's `ModularForm.L`.
+* `CuspForm.hasEntireExtension_qExpansion_coeff`: the coefficient series of a cusp form
+  of positive weight has an entire extension (the Layer-7 continuation milestone).
 
 The non-cuspidal abscissa bound `k + 1` is weaker than Diamond–Shurman Prop. 5.9.1
-(which gives convergence for `Re s > k` via `aₙ = O(n^{k-1})`); tightening it, and the
-`LSeries.HasEntireExtension` corollary of `CuspForm.differentiable_L` (which needs the
-identification below the proven half-plane), are separate milestones of the roadmap's
-Layer 7.
+(which gives convergence for `Re s > k` via `aₙ = O(n^{k-1})`); tightening it is a
+separate milestone of the roadmap's Layer 7. The entire continuation of the cusp-form
+series is `CuspForm.hasEntireExtension_qExpansion_coeff` below.
 
 Ported from the AINTLIB `LeanModularForms` project
 (`LeanModularForms/Modularforms/LFunction.lean`), rebuilt to consume Mathlib's
@@ -122,5 +123,22 @@ theorem LSeries_qExpansion_coeff_eq (hk : 0 < k) [CuspFormClass F Γ k] (f : F)
     have hk' : (0 : ℝ) < (k : ℝ) := mod_cast hk
     linarith
   exact LSeries_eq_of_hasSum hs0 (hasSum_L hk f hs)
+
+/-- **Entire continuation of the L-series of a cusp form** — the roadmap's Layer-7
+continuation milestone: the Dirichlet series of the `q`-expansion coefficients of a cusp
+form of positive weight has an entire extension, namely
+`s ↦ (Γ.strictWidthInfty : ℂ) ^ (-s) * L hk f s`. -/
+theorem hasEntireExtension_qExpansion_coeff (hk : 0 < k) [CuspFormClass F Γ k] (f : F) :
+    LSeries.HasEntireExtension (fun n ↦ (qExpansion Γ.strictWidthInfty f).coeff n) := by
+  refine LSeries.HasEntireExtension.of_extension_of_eq_on_lt_re (c := (k : ℝ) / 2 + 1)
+    ?_ ?_ (fun {s} hs ↦ (LSeries_qExpansion_coeff_eq hk f hs).symm)
+  · refine (abscissaOfAbsConv_qExpansion_coeff_le f).trans_lt ?_
+    have hcast : (((k : ℝ) / 2 : ℝ) : EReal) + 1 = (((k : ℝ) / 2 + 1 : ℝ) : EReal) := by
+      norm_cast
+    rw [hcast]
+    exact EReal.coe_lt_top _
+  · exact (Differentiable.const_cpow differentiable_neg
+      (Or.inl (Complex.ofReal_ne_zero.mpr Γ.strictWidthInfty_pos.ne'))).mul
+      (differentiable_L hk f)
 
 end CuspForm
