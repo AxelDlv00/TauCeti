@@ -32,7 +32,7 @@ import re
 import subprocess
 import sys
 
-from chart_style import AXIS, BASE_CSS, GRID, MUTED, PALETTE, TEXT, card_rect
+from chart_style import MUTED, PALETTE, TEXT, base_css, card_rect, css_px
 
 AREA_PREFIX = "roadmap/"
 EXCLUDE = {"roadmap/none", "roadmap/Unknown"}
@@ -138,7 +138,7 @@ def render(dates, order, series, totals, title, out):
         v = ymax * i // 5
         y = Y(v)
         yticks.append(f'<line class="grid" x1="{L}" y1="{y:.1f}" x2="{L+pw}" y2="{y:.1f}"/>')
-        yticks.append(f'<text class="ytick" x="{L-12}" y="{y+4:.1f}">{v:,}</text>')
+        yticks.append(f'<text class="tick ytick" x="{L-12}" y="{y+4:.1f}">{v:,}</text>')
 
     xticks, last_x = [], -1e9
     for i, d in enumerate(dates):
@@ -148,7 +148,7 @@ def render(dates, order, series, totals, title, out):
             if i == len(dates) - 1 and xticks and x - last_x < 90:
                 xticks.pop()
             dd = dt.date.fromisoformat(d)
-            xticks.append(f'<text class="xtick" x="{x:.1f}" y="{T+ph+24}">{dd:%b} {dd.day}</text>')
+            xticks.append(f'<text class="tick xtick" x="{x:.1f}" y="{T+ph+24}">{dd:%b} {dd.day}</text>')
             last_x = x
 
     # Legend: swatch + roadmap + final cumulative, biggest first (stack order).
@@ -166,14 +166,12 @@ def render(dates, order, series, totals, title, out):
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img"
      aria-label="{html.escape(title)}: {grand:,} net lines across {len(order)} roadmaps as of {dates[-1]}">
   <style>
-    {BASE_CSS}
-    .grid{{stroke:{GRID};stroke-width:1}}
-    .axis{{stroke:{AXIS};stroke-width:1}}
-    .ytick{{fill:{MUTED};font-size:13px;text-anchor:end}}
-    .xtick{{fill:{MUTED};font-size:13px;text-anchor:middle}}
-    .legendhead{{fill:{MUTED};font-size:12px;font-weight:600}}
-    .legend{{fill:{TEXT};font-size:12.5px}}
-    .legendval{{fill:{MUTED};font-size:12.5px;text-anchor:end;font-variant-numeric:tabular-nums}}
+    {base_css(W)}
+    .ytick{{text-anchor:end}}
+    .xtick{{text-anchor:middle}}
+    .legendhead{{fill:{MUTED};font-size:{css_px(W, 12)};font-weight:600}}
+    .legend{{fill:{TEXT};font-size:{css_px(W, 12.5)}}}
+    .legendval{{fill:{MUTED};font-size:{css_px(W, 12.5)};text-anchor:end;font-variant-numeric:tabular-nums}}
   </style>
   {card_rect(W, H)}
   <text class="title" x="{L}" y="30">{html.escape(title)}</text>

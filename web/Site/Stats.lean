@@ -118,8 +118,8 @@ Infrastructure and refactor PRs, which advance no roadmap, are left out.
 How is the contribution and review pipeline behaving? The first chart separates a
 PR's total age from the clock on its current state. PRs outside the awaiting-author
 and review states appear in total time open but not in the two current-state panels.
-The rolling history uses complete UTC days. The review-cycle chart comes last and
-counts durable label transitions rather than scoreboard comments, because a scoreboard
+The rolling history uses complete UTC days. The review-cycle chart counts durable label
+transitions rather than scoreboard comments, because a scoreboard
 may be edited in place as later rounds complete. A cycle is one entry into review from
 an author or CI state, so the pipeline swapping `awaiting-review` for
 `review-in-progress` and back within a single round stays one cycle. Its subtitle states
@@ -141,10 +141,10 @@ deliberately overlap.
 :::blob participationGraph
 :::
 
-How have merged contributions and reviews accumulated? These histories include the
-current partial UTC day through the snapshot time. They show every contributor while
-that remains legible, then cap themselves at 24 named lines and combine the remaining
-long tail. Exact totals for every login remain available in the generated
+How have merged contributions and reviews accumulated? Unlike the rolling charts above,
+these histories include the current partial UTC day through the snapshot time. They show
+every contributor while that remains legible, then cap themselves at 24 named lines and
+combine the remaining long tail. Exact totals for every login remain available in the generated
 [`pr-stats.json`](static/pr-stats.json). A review is one canonical v1 scoreboard whose
 posting login also authors a merged PR in the fetched snapshot.
 

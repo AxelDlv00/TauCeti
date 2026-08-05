@@ -15,7 +15,7 @@ Styled to sit on the dark navy Tau Ceti site (see web/static_files/style.css).
 
 import subprocess, sys, argparse, datetime as dt, html, math
 
-from chart_style import AXIS, BASE_CSS, GRID, MUTED, card_rect
+from chart_style import base_css, card_rect
 
 
 def git(repo, *args):
@@ -88,7 +88,7 @@ def render(data, title, accent, out):
         v = ymax * i // 5
         y = Y(v)
         yticks.append(f'<line class="grid" x1="{L}" y1="{y:.1f}" x2="{L+pw}" y2="{y:.1f}"/>')
-        yticks.append(f'<text class="ytick" x="{L-12}" y="{y+4:.1f}">{v:,}</text>')
+        yticks.append(f'<text class="tick ytick" x="{L-12}" y="{y+4:.1f}">{v:,}</text>')
 
     # x ticks: walk left to right, label only when >= 78px past the last label
     # (so runs of consecutive days don't collide); always keep first and last.
@@ -101,7 +101,7 @@ def render(data, title, accent, out):
                 xticks.pop()        # drop a label that would crowd the final one
             dd = dt.date.fromisoformat(d)
             lab = f"{dd:%b} {dd.day}"   # avoid the GNU-only %-d
-            xticks.append(f'<text class="xtick" x="{x:.1f}" y="{T+ph+24}">{lab}</text>')
+            xticks.append(f'<text class="tick xtick" x="{x:.1f}" y="{T+ph+24}">{lab}</text>')
             last_x = x
 
     dots = "".join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3"/>' for x, y in pts)
@@ -117,11 +117,9 @@ def render(data, title, accent, out):
     </linearGradient>
   </defs>
   <style>
-    {BASE_CSS}
-    .grid{{stroke:{GRID};stroke-width:1}}
-    .axis{{stroke:{AXIS};stroke-width:1}}
-    .ytick{{fill:{MUTED};font-size:13px;text-anchor:end}}
-    .xtick{{fill:{MUTED};font-size:13px;text-anchor:middle}}
+    {base_css(W)}
+    .ytick{{text-anchor:end}}
+    .xtick{{text-anchor:middle}}
     .line{{fill:none;stroke:{accent};stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}}
     circle{{fill:{accent}}}
   </style>

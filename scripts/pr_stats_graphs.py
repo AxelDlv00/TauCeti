@@ -41,7 +41,7 @@ from datetime import date, datetime, time as day_time, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
-from chart_style import BASE_CSS, BAR_BG, GRID, MUTED, PALETTE, card_rect
+from chart_style import BAR_BG, MUTED, PALETTE, base_css, card_rect, css_px
 
 SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
 # A canonical scoreboard is the review engine's own comment: besides the public marker it
@@ -557,17 +557,24 @@ def nice_axis_max(value: float) -> int:
 
 
 def chart_frame(
-    width: int, height: int, aria_label: str, title: str, subtitle: str, css: str,
+    *, width: int, height: int, left: int, aria_label: str, title: str,
+    subtitle: str | list[str], css: str,
 ) -> list[str]:
     """Start one chart with the site's shared card, typography, and title placement."""
-    return [
+    parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'role="img" aria-label="{html.escape(aria_label)}">',
-        f'<style>{BASE_CSS}{css}</style>',
+        f'<style>{base_css(width)}{css}</style>',
         card_rect(width, height),
-        f'<text x="50" y="36" class="title">{html.escape(title)}</text>',
-        f'<text x="50" y="58" class="subtitle">{html.escape(subtitle)}</text>',
+        f'<text x="{left}" y="44" class="title">{html.escape(title)}</text>',
     ]
+    lines = [subtitle] if isinstance(subtitle, str) else subtitle
+    for index, line in enumerate(lines):
+        parts.append(
+            f'<text x="{left}" y="{72 + index * 22}" class="subtitle">'
+            f'{html.escape(line)}</text>'
+        )
+    return parts
 
 
 def draw_histogram(
@@ -593,7 +600,13 @@ def draw_histogram(
         parts.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" rx="4" fill="{color}"/>')
         if count:
             parts.append(f'<text x="{bx+bar_width/2:.1f}" y="{max(top-10, by-8):.1f}" text-anchor="middle" class="value">{count}</text>')
-        parts.append(f'<text x="{bx+bar_width/2:.1f}" y="{bottom+20}" text-anchor="middle" class="tick">{html.escape(label)}</text>')
+        label_x = bx + bar_width / 2 + 4
+        label_y = bottom + 26
+        parts.append(
+            f'<text x="{label_x:.1f}" y="{label_y}" text-anchor="end" '
+            f'transform="rotate(-32 {label_x:.1f} {label_y})" class="tick bin">'
+            f'{html.escape(label)}</text>'
+        )
 
 
 def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
@@ -604,19 +617,22 @@ def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
             f' · {metrics["missing_transition_fallbacks"]:,} state clocks use PR creation '
             "because no matching transition was available"
         )
-    subtitle = (
+    subtitle = [
         f'Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the '
-        f'label transition · {metrics["other_open_prs"]:,} PRs outside author/review '
-        f'states appear only in total time open{fallback_note}'
-    )
+        'label transition',
+        f'{metrics["other_open_prs"]:,} PRs outside author/review states appear only in '
+        f'total time open{fallback_note}',
+    ]
     parts = chart_frame(
-        width, height, "Open PR age and current review-state age",
-        "Open PR age and current review state", subtitle,
-        f'.panel{{font-size:15px;font-weight:600}}'
-        f'.paneltotal{{font-size:13px;font-weight:650;fill:{MUTED}}}'
-        f'.tick{{font-size:11px;fill:{MUTED}}}'
-        '.value{font-size:12px;font-weight:700}'
-        f'.grid{{stroke:{GRID};stroke-width:1}}',
+        width=width, height=height, left=45,
+        aria_label="Open PR age and current review-state age",
+        title="Open PR age and current review state", subtitle=subtitle,
+        css=(
+            f'.panel{{font-size:{css_px(width, 15)};font-weight:600}}'
+            f'.paneltotal{{font-size:{css_px(width, 13)};font-weight:650;fill:{MUTED}}}'
+            f'.value{{font-size:{css_px(width, 12)};font-weight:700}}'
+            f'.bin{{font-size:{css_px(width, 10.5)}}}'
+        ),
     )
     panels = [
         (metrics["total_open_hours"], PALETTE[0], "Total time open"),
@@ -645,12 +661,13 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
     height = 116 + max(1, len(shown)) * 52 + 35
     bar_x, bar_width = 235, 780
     parts = chart_frame(
-        width, height, "Pull requests reaching each automated review cycle",
-        "PRs reaching each review cycle",
-        f'One cycle = one entry into review from an author or CI state · '
+        width=width, height=height, left=45,
+        aria_label="Pull requests reaching each automated review cycle",
+        title="PRs reaching each review cycle",
+        subtitle=f'One cycle = one entry into review from an author or CI state · '
         f'{metrics["total_cycles"]:,} cycles across {reviewed:,} reviewed PRs{epoch_note}',
-        f'.label{{font-size:14px;font-weight:600}}'
-        '.value{font-size:13px;font-weight:700}'
+        css=f'.label{{font-size:{css_px(width, 14)};font-weight:600}}'
+        f'.value{{font-size:{css_px(width, 13)};font-weight:700}}'
         f'.track{{fill:{BAR_BG}}}',
     )
     if not shown:
@@ -680,14 +697,13 @@ def render_rolling(path: Path, rolling: list[dict]) -> None:
     panel_width, panel_height = 680, 285
     origins = [(65, 125), (785, 125), (65, 475), (785, 475)]
     parts = chart_frame(
-        width, height, "Trailing-seven-day pull request health",
-        "Trailing-seven-day project health",
-        f'Daily UTC windows ending {rolling[0]["date"]}–{rolling[-1]["date"]} · '
+        width=width, height=height, left=55,
+        aria_label="Trailing-seven-day pull request health",
+        title="Trailing-seven-day project health",
+        subtitle=f'Daily UTC windows ending {rolling[0]["date"]}–{rolling[-1]["date"]} · '
         'complete days only',
-        '.panel{font-size:15px;font-weight:600}'
-        '.latest{font-size:24px;font-weight:700}'
-        f'.tick{{font-size:11px;fill:{MUTED}}}'
-        f'.grid{{stroke:{GRID};stroke-width:1}}',
+        css=f'.panel{{font-size:{css_px(width, 15)};font-weight:600}}'
+        f'.latest{{font-size:{css_px(width, 24)};font-weight:700}}',
     )
     for (title, key, color, formatter), (ox, oy) in zip(panels, origins):
         values = [row[key] or 0 for row in rolling]
@@ -772,12 +788,10 @@ def render_cumulative_contributors(
     omitted = total_contributors - min(total_contributors, len([name for name in names if not name.startswith("Other (")]))
     coverage = f"top {len(names) - bool(omitted)} + {omitted:,} others" if omitted else "every contributor"
     parts = chart_frame(
-        width, height, title, title,
-        f'Cumulative {noun} by UTC day, {dates[0]}–{dates[-1]} · logarithmic '
+        width=width, height=height, left=55, aria_label=title, title=title,
+        subtitle=f'Cumulative {noun} by UTC day, {dates[0]}–{dates[-1]} · logarithmic '
         f'count axis · {coverage}; exact totals for all {total_contributors:,} in JSON',
-        f'.tick{{font-size:11px;fill:{MUTED}}}'
-        '.label{font-size:12px;font-weight:600}'
-        f'.grid{{stroke:{GRID};stroke-width:1}}'
+        css=f'.label{{font-size:{css_px(width, 12)};font-weight:600}}'
         '.leader{stroke-width:1;opacity:.55}',
     )
     for tick in log_ticks(maximum):

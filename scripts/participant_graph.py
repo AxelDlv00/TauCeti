@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 
-from chart_style import BASE_CSS, BAR_BG, MUTED, PALETTE, TEXT, card_rect
+from chart_style import BAR_BG, MUTED, PALETTE, TEXT, base_css, card_rect, css_px
 
 REPOSITORIES = [
     ("TauCetiProject/TauCeti", "TauCeti", PALETTE[1]),
@@ -242,11 +242,11 @@ def render(people: dict[str, set[str]], title: str, out: str, as_of: str) -> int
   <title id="participation-title">{html.escape(title)}: {html.escape(subtitle)}</title>
   <desc id="participation-description">{html.escape(breakdown)}. People active in several repositories are counted in each bar.</desc>
   <style>
-    {BASE_CSS}
-    .total{{fill:{TEXT};font-size:42px;font-weight:700}}
-    .label{{fill:{TEXT};font-size:15px;text-anchor:end}}
-    .count{{fill:{TEXT};font-size:16px;font-weight:650}}
-    .note{{fill:{MUTED};font-size:12.5px}}
+    {base_css(W)}
+    .total{{fill:{TEXT};font-size:{css_px(W, 42)};font-weight:700}}
+    .label{{fill:{TEXT};font-size:{css_px(W, 15)};text-anchor:end}}
+    .count{{fill:{TEXT};font-size:{css_px(W, 16)};font-weight:650}}
+    .note{{fill:{MUTED};font-size:{css_px(W, 12.5)}}}
   </style>
   {card_rect(W, H)}
   <text class="title" x="50" y="36">{html.escape(title)}</text>

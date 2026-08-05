@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import chart_style
 import pr_stats_graphs as stats
 
 
@@ -378,10 +379,15 @@ class RenderingTest(unittest.TestCase):
             out = Path(temporary)
             metrics = stats.generate(data, out, contributor_limit=2, history_days=30)
             for name in expected:
-                ET.parse(out / name)
+                root = ET.parse(out / name).getroot()
                 svg = (out / name).read_text(encoding="utf-8")
-                self.assertIn('rx="12" fill="#101936" stroke="#1b2547"', svg)
-                self.assertIn(".title{font-size:19px;font-weight:600}", svg)
+                card = root.find("{http://www.w3.org/2000/svg}rect")
+                self.assertIsNotNone(card)
+                self.assertEqual(card.attrib["fill"], chart_style.BG)
+                self.assertEqual(card.attrib["stroke"], chart_style.PANEL)
+                self.assertGreater(float(card.attrib["rx"]), 0)
+                width = int(root.attrib["viewBox"].split()[2])
+                self.assertIn(chart_style.base_css(width), svg)
             self.assertTrue((out / "pr-stats.json").is_file())
             queue_svg = (out / "pr-queue-age.svg").read_text(encoding="utf-8")
             self.assertLess(queue_svg.index("Total time open"),
@@ -401,19 +407,6 @@ class RenderingTest(unittest.TestCase):
             self.assertNotIn("future-author", metrics["merge_totals_by_contributor"])
             self.assertNotIn("future-reviewer", metrics["review_totals_by_contributor"])
 
-    def test_page_places_participation_before_contributor_histories(self):
-        source = (
-            Path(__file__).parents[1] / "web" / "Site" / "Stats.lean"
-        ).read_text(encoding="utf-8")
-        self.assertLess(
-            source.index('src="static/rolling-seven-day-history.svg"'),
-            source.index('src="static/review-cycles-reached.svg"'),
-        )
-        self.assertLess(
-            source.rindex(":::blob participationGraph"),
-            source.rindex(":::blob contributorGraphs"),
-        )
-
     def test_render_failure_keeps_previous_asset_set(self):
         data = {
             "repo": "example/project", "fetched_at": timestamp(15),
@@ -431,6 +424,23 @@ class RenderingTest(unittest.TestCase):
                     stats.generate(data, out)
             self.assertEqual(existing.read_text(encoding="utf-8"), "previous")
             self.assertFalse((out / "review-cycles-reached.svg").exists())
+
+
+class SiteStatsPageTest(unittest.TestCase):
+    """The page keeps the user-requested narrative and chart order."""
+
+    def test_participation_precedes_contributor_histories(self):
+        source = (
+            Path(__file__).parents[1] / "web" / "Site" / "Stats.lean"
+        ).read_text(encoding="utf-8")
+        self.assertLess(
+            source.index('src="static/rolling-seven-day-history.svg"'),
+            source.index('src="static/review-cycles-reached.svg"'),
+        )
+        self.assertLess(
+            source.rindex(":::blob participationGraph"),
+            source.rindex(":::blob contributorGraphs"),
+        )
 
 
 if __name__ == "__main__":
