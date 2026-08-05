@@ -404,29 +404,6 @@ jobs:
           # Define the public read service in a Lake system config and select it with
           # `--service` (the env-var form of endpoint config is deprecated). Anonymous
           # GETs, so no key here.
-          # Discarding the cache directory must never be what fails this step. `lake cache
-          # get` can return while the curl children it spawned are still writing into
-          # base/.lake/cache, so a plain `rm -rf` unlinks what it saw, then fails at the
-          # final rmdir with "Directory not empty" when a straggler recreates an entry --
-          # and under `bash -e` that reddens the whole build for a purge that was only ever
-          # best-effort. It is not rare: six of eight consecutive pr-build failures on
-          # 2026-08-05 were exactly this. Rename first, which is atomic and frees the path
-          # Lake will use next even while the stragglers keep writing, and let the delete of
-          # the renamed tree fail harmlessly. `purged` is unique per call so a second purge
-          # in the same step cannot collide with the first one's leftovers.
-          purged=0
-          purge_cache() {
-            [ -d base/.lake/cache ] || return 0
-            purged=$(( purged + 1 ))
-            doomed="base/.lake/cache.discarded.$$.$purged"
-            mv base/.lake/cache "$doomed" 2>/dev/null || true
-            rm -rf "$doomed" 2>/dev/null || true
-            rm -rf base/.lake/cache 2>/dev/null || true
-            if [ -e base/.lake/cache ]; then
-              echo "::warning::could not fully discard the partial Lake cache"
-              return 1
-            fi
-          }
           CFG="$RUNNER_TEMP/lake-cache.toml"
           cat > "$CFG" <<TOML
           cache.defaultService = "tauceti-public"
@@ -445,20 +422,32 @@ jobs:
           # https://github.com/leanprover/lean4/pull/14651 ("fix: lake: gracefully handle curl
           # and IO errors during transfer"), which missed v4.33.0-rc2 by hours and was not
           # backported. From v4.34.0-rc1 on, drop FAIL_RE and trust `rc` alone.
-          # The purge below outlives that bump: it is for
-          # https://github.com/leanprover/lean4/issues/14670, still open.
           FAIL_RE='failed to download|output lookup failed|curl exited with code'
-          # A revision with no cached build at all is deterministic: retrying cannot change it,
-          # and there is nothing partial to discard.
+          # A revision with no cached build at all is deterministic: retrying cannot change it.
           MISS_RE='no outputs found'
+          # Each attempt gets its OWN directory, and no attempt ever writes where an earlier
+          # one did. That is what makes a partial fetch safe to abandon: the retry cannot
+          # inherit artifacts whose downloads failed (https://github.com/leanprover/lean4/issues/14670),
+          # and nothing has to be deleted to guarantee it. Deleting was the previous approach
+          # and it cannot be made correct here — `lake cache get` returns while the curl
+          # children it spawned are still writing, so `rm -rf` loses a race at its final rmdir
+          # ("Directory not empty", which under `bash -e` reddened the build before it compiled
+          # anything: six of eight consecutive pr-build failures on 2026-08-05), and a straggler
+          # can recreate the path right after any check that it is gone.
           clean=0
           for attempt in 1 2 3; do
             LOG="$RUNNER_TEMP/cache-get-$attempt.log"
+            DIR="$PWD/base/.lake/cache-$attempt"
             rc=0
-            ( cd base && LAKE_CONFIG="$CFG" lake cache get --service tauceti-public \
+            ( cd base && LAKE_CACHE_DIR="$DIR" LAKE_CONFIG="$CFG" \
+                lake cache get --service tauceti-public \
                 --repo TauCetiProject/TauCeti ) > "$LOG" 2>&1 || rc=$?
             cat "$LOG"
-            if [ "$rc" = 0 ] && ! grep -qE "$FAIL_RE" "$LOG"; then clean=1; break; fi
+            if [ "$rc" = 0 ] && ! grep -qE "$FAIL_RE" "$LOG"; then
+              clean=1; winner=$attempt
+              echo "LAKE_CACHE_DIR=$DIR" >> "$GITHUB_ENV"
+              break
+            fi
             if grep -qE "$MISS_RE" "$LOG"; then break; fi
             # `[ ... ] && sleep` would abort the step under `bash -e` on the last attempt,
             # when the test is false and the whole list returns nonzero. Use a plain `if`.
@@ -466,24 +455,20 @@ jobs:
             # `--retry 3`, so spacing the outer attempts keeps us from adding request rate to
             # an endpoint that is throttling us.
             if [ "$attempt" != 3 ]; then
-              echo "::notice::lake cache get attempt $attempt did not complete cleanly; discarding the partial cache and retrying"
-              # Must precede the retry: see the step comment above. Without this, attempt N+1
-              # skips every artifact this attempt already wrote, including the broken ones, and
-              # a clean exit from it says nothing about the entries that made this attempt fail.
-              # A purge we could not complete makes the retry meaningless, so stop retrying and
-              # fall through to the no-cache path below rather than trusting a half-cleared dir.
-              purge_cache || break
+              echo "::notice::lake cache get attempt $attempt did not complete cleanly; retrying into a fresh directory"
               sleep $(( attempt * 30 ))
             fi
           done
+          # Reclaim the abandoned attempts, never the winner. Best-effort and unverified on
+          # purpose: nothing reads these paths again, so a straggler still writing into one
+          # is harmless and must not fail the step.
+          for a in 1 2 3; do
+            if [ "$a" != "${winner:-}" ]; then rm -rf "base/.lake/cache-$a" 2>/dev/null || true; fi
+          done
           if [ "$clean" != 1 ]; then
-            # Purge on ANY unclean outcome, not just a recognised download failure: an earlier
-            # attempt may have written mappings whose artifacts never arrived, and the last
-            # attempt's log alone does not witness that. A cache the offline build cannot fully
-            # resolve is worse than none, because each unresolvable entry becomes a build
-            # failure rather than a rebuild. Discarding it restores the no-cache path exactly.
-            echo "::warning::lake cache get did not complete cleanly; discarding the cache and building TauCeti/ from scratch"
-            purge_cache || true
+            # A cache the offline build cannot fully resolve is worse than none, because each
+            # unresolvable entry becomes a build failure rather than a rebuild.
+            echo "::warning::lake cache get did not complete cleanly; building TauCeti/ from scratch"
             # Empty is NOT off: Lake parses an empty LAKE_ARTIFACT_CACHE as "unspecified" and
             # then defaults artifact-cache reads to true, and an empty LAKE_CACHE_DIR falls back
             # to the workspace's own .lake/cache. Say false explicitly rather than relying on
