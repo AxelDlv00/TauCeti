@@ -130,7 +130,7 @@ MARKER_RE = re.compile(r"<!--stuck:v1 (" + KEY_RE.pattern + r")-->\s*\Z")
 BUMP_STUCK_HOURS = 24
 PIN_STALE_DAYS = 4
 STRANDED_HOURS = 6
-# Evictions at the current head, within the window, before a bounce counts as a loop.
+# Evictions since the current readiness, within the window, before a bounce counts as a loop.
 EVICTION_LOOP_MIN = 2
 EVICTION_WINDOW_HOURS = 24
 # How long a concluded pr-build may leave its head without a `build` status before that is
@@ -326,12 +326,21 @@ def detect_eviction_loops():
     for pr in open_prs():
         if pr.get("draft") or "ready-to-merge" not in pr.get("labels", []):
             continue
+        # Count only the CURRENT readiness cycle. Evictions from an earlier cycle -- before the
+        # author pushed a fix, or before the label came back -- say nothing about whether this
+        # PR is bouncing now, and counting them would alert on a PR that has since settled.
+        # The label survives enqueue/eviction (see ready_label_applied_at), so a genuine loop
+        # accumulates its removals after this timestamp.
+        applied = ready_label_applied_at(pr["number"])
+        if not applied:
+            continue
         # An OPEN PR that left the queue never merged, so every removal here is an eviction.
         removals = gh_stream(
             f"/repos/{REPO}/issues/{pr['number']}/timeline?per_page=100",
             jq='.[] | select(.event == "removed_from_merge_queue") | {at: (.created_at // "")}')
         recent = [r for r in removals
-                  if r.get("at") and hours_since(r["at"]) < EVICTION_WINDOW_HOURS]
+                  if r.get("at") and hours_since(r["at"]) < EVICTION_WINDOW_HOURS
+                  and parse_ts(r["at"]) > parse_ts(applied)]
         if len(recent) < EVICTION_LOOP_MIN:
             continue
         out.append({
@@ -365,12 +374,20 @@ def detect_missing_required_status():
         head = pr["head"]
         if newest_status(head, "build")[0] is not None:
             continue
-        # Only a CONCLUDED pr-build proves a status should already be there; a build still
-        # running is the ordinary `awaiting-CI` state and must never alert.
-        finished = gh_scalar(
-            f"/repos/{REPO}/actions/workflows/pr-build.yml/runs"
-            f"?head_sha={head}&status=completed&per_page=1",
-            jq='.workflow_runs[0].updated_at // ""')
+        # Only a run that RAN TO A VERDICT proves a status should already be there. A build
+        # still queued or in progress is the ordinary `awaiting-CI` state, and a cancelled run
+        # (a concurrency cancellation when the head is re-dispatched, or a manual cancel) never
+        # reaches its reporting step by design -- neither is a wedge, and alerting on either
+        # would make this detector fire on routine CI churn.
+        runs = gh_stream(
+            f"/repos/{REPO}/actions/workflows/pr-build.yml/runs?head_sha={head}&per_page=20",
+            jq='.workflow_runs[] | {status: (.status // ""), conclusion: (.conclusion // ""), '
+               'updated_at: (.updated_at // "")}', paginate=False)
+        if any(r.get("status") != "completed" for r in runs):
+            continue
+        # Newest run first, so this is the latest run that actually reported a verdict.
+        finished = next((r["updated_at"] for r in runs
+                         if r.get("conclusion") not in ("", "cancelled", "skipped")), "")
         if not finished or hours_since(finished) < MISSING_STATUS_HOURS:
             continue
         out.append({
