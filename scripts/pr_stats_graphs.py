@@ -287,42 +287,21 @@ def names_scoreboard_for(metas: Iterable[str], pr_number: int) -> bool:
     return False
 
 
-def fetch_trusted_collaborators(repo: str) -> set[str]:
-    """Current repository collaborators, using the token-independent trust endpoint.
-
-    ``author_association`` on issue comments is requester-dependent: a GitHub Actions
-    installation token can see an organization member as ``CONTRIBUTOR`` even when a member's
-    user token sees ``MEMBER``.  The collaborators endpoint instead answers the question the
-    chart needs directly and is available to installation tokens with metadata read access.
-    """
-    raw = run_gh([
-        "api", "--paginate",
-        f"repos/{repo}/collaborators?affiliation=all&per_page=100",
-        "--jq", ".[].login",
-    ])
-    collaborators = {line.strip() for line in raw.splitlines() if line.strip()}
-    if not collaborators:
-        raise ValueError(
-            "GitHub returned no repository collaborators; refusing an empty review chart"
-        )
-    return collaborators
-
-
 def fetch_scoreboards(
     repo: str,
     pr_numbers: set[int],
-    trusted_logins: set[str] | None = None,
+    trusted_logins: set[str],
 ) -> tuple[list[dict], Counter]:
     """Canonical review scoreboards posted on this repository's pull requests.
 
     The repository issue-comments endpoint also serves ordinary issues and accepts comments
     from anyone. A comment counts only when its issue number is one of the fetched pull
-    requests, its author is a current repository collaborator, and its parsed engine metadata
-    declares a scoreboard for that same PR. Parsing runs at gh/jq, so only compact fields reach
-    Python rather than memory growing with review prose. Rejections are published by reason.
+    requests, its author has contributed a merged PR, and its parsed engine metadata declares a
+    scoreboard for that same PR. The merged-author set comes from the same PR snapshot, so this
+    works with the read-only Actions token and does not trust requester-dependent
+    ``author_association`` values. Parsing runs at gh/jq, so only compact fields reach Python
+    rather than memory growing with review prose. Rejections are published by reason.
     """
-    if trusted_logins is None:
-        trusted_logins = fetch_trusted_collaborators(repo)
     marker = json.dumps(SCOREBOARD_MARKER)
     raw = run_gh([
         "api", "--paginate",
@@ -369,7 +348,13 @@ def fetch_scoreboards(
 
 def fetch_snapshot(repo: str) -> dict:
     prs = fetch_prs(repo)
-    scoreboards, rejected = fetch_scoreboards(repo, {pr["number"] for pr in prs})
+    trusted_logins = {
+        pr["author"] for pr in prs
+        if pr.get("merged_at") and pr.get("author") != "unknown"
+    }
+    scoreboards, rejected = fetch_scoreboards(
+        repo, {pr["number"] for pr in prs}, trusted_logins,
+    )
     return {
         "schema_version": 1,
         "repo": repo,
