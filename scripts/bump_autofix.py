@@ -20,6 +20,14 @@ and a proof that broke because a lemma's statement changed needs a mathematician
 are reported as unfixed and left for the `stuck-bump` alert; guessing at them would push
 noise onto the bump branch and burn the 85-minute rebuild the alert is trying to save.
 
+THE LOG IS UNTRUSTED INPUT. It is a build process's stdout, not an authenticated compiler
+channel, so anything that elaborates in that build can print a line shaped like a
+diagnostic. `bump-autofix.yml` therefore reads only logs from a build of the machine-owned
+bump branch, and this module independently refuses to let a log line reach outside the
+library: the path grammar (`_PATH`) admits no `..` and no absolute path, and
+`_resolve_under` re-checks containment against the resolved real path. Two independent
+gates, because the edits are committed with an App token.
+
 WHY IT IS SAFE TO BE WRONG. Every edit is a proposal, not a verdict: the push it feeds
 re-runs the full sandboxed build, so a mistaken rename simply stays red exactly as the
 un-renamed source did. The failure mode is a wasted rebuild, never a bad merge. The
@@ -40,6 +48,14 @@ import os
 import re
 import sys
 
+# The path a diagnostic may name. Every path component is restricted to characters a Lean
+# module name can contain, which is what keeps `..` (and `/`, and a leading `/`) out: a log
+# line reading `TauCeti/../scripts/lint-env.sh` must not be able to steer an edit outside
+# the library, and this is the first of two independent places that is enforced (see
+# `_resolve_under`). The whole log is untrusted input -- it is a build's stdout, not an
+# authenticated compiler channel -- so the grammar here is an allowlist, never a filter.
+_PATH = r"TauCeti(?:\.lean|(?:/[A-Za-z0-9_][A-Za-z0-9_'-]*)+\.lean)"
+
 # A Lean diagnostic that names both the deprecated name and its replacement. Anchored on
 # the `TauCeti/...lean:line:col:` prefix rather than on the start of the line, because the
 # log this reads is `gh run view --log-failed` output, whose every line carries a
@@ -47,20 +63,20 @@ import sys
 # the `[^`]*?` between the two backticked names absorb the variants mathlib writes by
 # hand (`use \`X\` instead`, "deprecated: use `X` instead (since ...)").
 RENAME_RE = re.compile(
-    r"(?P<path>TauCeti(?:\.lean|(?:/[^\s:]+)+\.lean)):(?P<line>\d+):(?P<col>\d+): "
+    r"(?P<path>" + _PATH + r"):(?P<line>\d+):(?P<col>\d+): "
     r"`(?P<old>[^`\s]+)` has been deprecated:[^`]*?\buse `(?P<new>[^`\s]+)` instead",
     re.IGNORECASE)
 
 # Every deprecation diagnostic, including the ones with no replacement to substitute.
 # Counted only so the summary can say how much of the breakage was mechanical.
 DEPRECATED_RE = re.compile(
-    r"(?P<path>TauCeti(?:\.lean|(?:/[^\s:]+)+\.lean)):(?P<line>\d+):(?P<col>\d+): "
+    r"(?P<path>" + _PATH + r"):(?P<line>\d+):(?P<col>\d+): "
     r"`(?P<old>[^`\s]+)` has been deprecated")
 
 # A name Lean cannot resolve at all. Not fixable here (no replacement is named), but
 # worth reporting: it is the other half of what a bump breaks.
 UNKNOWN_RE = re.compile(
-    r"(?P<path>TauCeti(?:\.lean|(?:/[^\s:]+)+\.lean)):(?P<line>\d+):(?P<col>\d+): "
+    r"(?P<path>" + _PATH + r"):(?P<line>\d+):(?P<col>\d+): "
     r"unknown (?:identifier|constant) '(?P<old>[^']+)'")
 
 Rename = collections.namedtuple("Rename", "path line col old new")
@@ -121,6 +137,25 @@ def _dot_suffixes(name):
     return [".".join(parts[i:]) for i in range(len(parts))]
 
 
+def _resolve_under(root, path):
+    """The real path `path` names inside `root`, or None if it escapes.
+
+    The SECOND, independent containment check (the first is the path grammar in `_PATH`),
+    because the consequence of getting this wrong is that a forged log line edits a file
+    the App token then commits. It resolves symlinks on both sides and compares the results,
+    so neither `..` nor a symlink planted under `TauCeti/` can reach outside the library.
+    Nothing but `TauCeti/**.lean` and the root `TauCeti.lean` is ever writable from here.
+    """
+    base = os.path.realpath(root)
+    full = os.path.realpath(os.path.join(base, path))
+    if full == os.path.join(base, "TauCeti.lean"):
+        return full
+    library = os.path.join(base, "TauCeti") + os.sep
+    if full.startswith(library) and full.endswith(".lean"):
+        return full
+    return None
+
+
 def apply_renames(root, renames):
     """Rewrite the files under `root`. Returns `(applied, skipped)`.
 
@@ -150,9 +185,12 @@ def apply_renames(root, renames):
     for r in renames:
         by_file[r.path].append(r)
     for path, group in sorted(by_file.items()):
-        full = os.path.join(root, path)
-        if not os.path.isfile(full):
-            skipped += [(r, "file not found in the working tree") for r in group]
+        full = _resolve_under(root, path)
+        if full is None:
+            skipped += [(r, "path escapes TauCeti/ — refusing to edit it") for r in group]
+            continue
+        if os.path.islink(os.path.join(root, path)) or not os.path.isfile(full):
+            skipped += [(r, "not a regular file in the working tree") for r in group]
             continue
         with open(full, encoding="utf-8") as fh:
             lines = fh.read().split("\n")
@@ -201,11 +239,18 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--log", required=True, help="build log to read the diagnostics from")
     ap.add_argument("--root", default=".", help="repository root to rewrite (default: .)")
+    ap.add_argument("--applied-files",
+                    help="write the repo-relative path of each edited file here, one per "
+                         "line, so the caller can stage exactly those and nothing else")
     args = ap.parse_args(argv[1:])
     with open(args.log, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     applied, skipped = apply_renames(args.root, renames_from_log(text))
     print(summary(applied, skipped, unfixable_from_log(text)))
+    if args.applied_files:
+        edited = sorted({r.path for r in applied})
+        with open(args.applied_files, "w", encoding="utf-8") as fh:
+            fh.write("".join(p + "\n" for p in edited))
     return 0 if applied else 3
 
 

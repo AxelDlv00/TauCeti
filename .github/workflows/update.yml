@@ -15,6 +15,13 @@ on:
   - cron: "0 17 * * *"
   workflow_dispatch:
 
+concurrency:
+  # Shared with bump-autofix.yml, which pushes repairs to the same branch. Without one
+  # group the two race: a repair can land on a branch this job is about to force-push over,
+  # or arrive just after the rewrite and be applied against a log for the previous bump.
+  group: lkg-bump-branch
+  cancel-in-progress: false
+
 env:
   LKG_BRANCH: hopscotch/lkg-bump
 

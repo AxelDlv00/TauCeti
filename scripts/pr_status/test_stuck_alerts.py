@@ -359,6 +359,15 @@ class StuckBumpTest(unittest.TestCase):
         _install(self, self._routes(48, "failure", fkb=_j.dumps({"number": 42}) + "\n"))
         self.assertEqual([a["key"] for a in sa.detect_stuck_bump()], ["stuck-bump/1986"])
 
+    def test_a_stale_eviction_does_not_describe_the_present(self):
+        # One bounce a week ago says nothing about a PR that is red today; reporting it as
+        # "the queue keeps evicting it" would send the reader to the wrong runs.
+        _install(self, self._routes(48, "success",
+                                    [_ago(sa.EVICTION_WINDOW_HOURS + 5)]))
+        got = sa.detect_stuck_bump()
+        self.assertEqual([a["key"] for a in got], ["stuck-bump/1986"])
+        self.assertIn("nothing has merged it", got[0]["body"])
+
     def test_body_carries_no_live_counter(self):
         # An ONGOING alert must reconcile byte-identically or the watchdog re-edits its own
         # message every hour. The eviction COUNT changes while the loop runs; the shape does

@@ -142,7 +142,7 @@ class ApplyTest(unittest.TestCase):
         log = "TauCeti/Gone.lean:1:0: `A.b` has been deprecated: Use `C.d` instead\n"
         applied, skipped = ba.apply_renames(self.root, ba.renames_from_log(log))
         self.assertEqual(applied, [])
-        self.assertIn("file not found", skipped[0][1])
+        self.assertIn("not a regular file", skipped[0][1])
 
     def test_two_renames_on_one_line_both_land(self):
         # Applied right-to-left, so the first edit cannot shift the second one's column.
@@ -172,6 +172,72 @@ class ApplyTest(unittest.TestCase):
         log = "TauCeti/A.lean:1:6: `Old.name` has been deprecated: Use `New.name` instead\n"
         ba.apply_renames(self.root, ba.renames_from_log(log))
         self.assertEqual(self._read(rel), "exact New.name h")
+
+
+class ContainmentTest(unittest.TestCase):
+    """The log is untrusted input, so a forged line must not steer an edit out of TauCeti/.
+
+    A build's stdout is not an authenticated compiler channel: whatever elaborates in the
+    sandbox can print a line shaped like a diagnostic. The edits this module makes are
+    committed with an App token, so "the path came from the log" is never sufficient.
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.root, "TauCeti", "A"), exist_ok=True)
+        os.makedirs(os.path.join(self.root, "scripts"), exist_ok=True)
+
+    def _write(self, rel, text):
+        path = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def _log(self, path):
+        return (f"{path}:1:6: `Old.name` has been deprecated: Use `New.name` instead\n")
+
+    def test_dot_dot_never_parses_as_a_path(self):
+        for path in ("TauCeti/../scripts/Axioms.lean",
+                     "TauCeti/../../etc/passwd.lean",
+                     "TauCeti/./x.lean"):
+            self.assertEqual(ba.renames_from_log(self._log(path)), [], path)
+
+    def test_absolute_and_traversal_paths_are_refused_by_resolution_too(self):
+        # Belt and braces: even handed a path the grammar would never produce, the
+        # resolution step refuses anything that leaves the library.
+        for path in ("../scripts/Axioms.lean", "/etc/passwd", "TauCeti/../scripts/x.lean"):
+            self.assertIsNone(ba._resolve_under(self.root, path), path)
+
+    def test_a_real_library_path_resolves(self):
+        self.assertIsNotNone(ba._resolve_under(self.root, "TauCeti/A/B.lean"))
+        self.assertIsNotNone(ba._resolve_under(self.root, "TauCeti.lean"))
+
+    def test_a_symlink_out_of_the_library_is_not_followed(self):
+        self._write("scripts/Axioms.lean", "exact Old.name h\n")
+        os.symlink(os.path.join(self.root, "scripts", "Axioms.lean"),
+                   os.path.join(self.root, "TauCeti", "Escape.lean"))
+        log = self._log("TauCeti/Escape.lean")
+        applied, skipped = ba.apply_renames(self.root, ba.renames_from_log(log))
+        self.assertEqual(applied, [])
+        self.assertEqual(len(skipped), 1)
+        with open(os.path.join(self.root, "scripts", "Axioms.lean"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "exact Old.name h\n")
+
+    def test_applied_files_lists_only_what_was_edited(self):
+        self._write("TauCeti/A/B.lean", "exact Old.name h\n")
+        out = os.path.join(self.root, "applied.txt")
+        rc = ba.main(["bump_autofix.py", "--log", self._make_log(), "--root", self.root,
+                      "--applied-files", out])
+        self.assertEqual(rc, 0)
+        with open(out, encoding="utf-8") as fh:
+            self.assertEqual(fh.read().split(), ["TauCeti/A/B.lean"])
+
+    def _make_log(self):
+        path = os.path.join(self.root, "build.log")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(self._log("TauCeti/A/B.lean"))
+            fh.write(self._log("TauCeti/../scripts/Axioms.lean"))
+        return path
 
 
 class SummaryTest(unittest.TestCase):

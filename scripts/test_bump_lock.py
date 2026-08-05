@@ -105,14 +105,14 @@ class ExpiryTest(unittest.TestCase):
         self.assertTrue(held)
         self.assertIn("#1986", reason)
 
-    def test_missing_enqueue_time_holds_but_is_not_unbounded(self):
-        # No clock means we cannot expire it, so it holds for now -- but only until the
-        # field is readable again. What must never happen is an unexpirable hold, so the
-        # entry is treated as fresh rather than as infinitely old or infinitely young.
+    def test_an_untimeable_entry_does_not_hold(self):
+        # No clock means no expiry, and an unexpirable hold would freeze every merge in the
+        # repository. A hold we cannot bound is one we do not take.
         entry = _entry(1986)
         del entry["enqueuedAt"]
-        held, _ = bl.decide([entry], subject=2000, now=NOW)
-        self.assertTrue(held)
+        held, reason = bl.decide([entry], subject=2000, now=NOW)
+        self.assertFalse(held)
+        self.assertIn("cannot bound the hold", reason)
 
 
 class FailOpenTest(unittest.TestCase):

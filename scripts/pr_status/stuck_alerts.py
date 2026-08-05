@@ -241,9 +241,13 @@ def _bump_shape(head, number):
                 "`bump-autofix.yml` should already have pushed the rename -- find out why "
                 "it did not. Otherwise land the fix the build needs together with the pin "
                 "move, in one PR.")
-    evicted = gh_stream(
+    # Only RECENT evictions describe what is happening now. A PR that bounced once last week
+    # and is red today would otherwise be reported forever as one the queue keeps evicting,
+    # sending the reader to the wrong runs.
+    evicted = [e for e in gh_stream(
         f"/repos/{REPO}/issues/{number}/timeline?per_page=100",
         jq='.[] | select(.event == "removed_from_merge_queue") | {at: (.created_at // "")}')
+        if e.get("at") and hours_since(e["at"]) <= EVICTION_WINDOW_HOURS]
     if evicted:
         return ("the merge queue keeps evicting it",
                 "the merge-GROUP build is failing, on a commit that is not this PR's head -- "

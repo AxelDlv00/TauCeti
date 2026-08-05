@@ -169,11 +169,15 @@ def decide(entries, subject=None, now=None):
     for entry in bumps:
         number = entry["pullRequest"]["number"]
         at = entry.get("enqueuedAt")
-        # An entry whose enqueue time we cannot read still occupies the queue, so it still
-        # holds the lock -- but with no clock we cannot expire it, and an unbounded hold is
-        # the one outcome this module must never produce. Treat it as fresh and let
-        # MAX_HOLD_HOURS be enforced on the next run, when the field is readable.
-        age = hours_since(at, now) if at else 0.0
+        if not at:
+            # No clock means no expiry, and an unbounded hold is the one outcome this module
+            # must never produce -- a bump wedged in the queue would freeze every merge in
+            # the repository. An entry we cannot time is therefore an entry we do not hold
+            # for, which is the same fail-open direction as an unreadable queue.
+            expired = (f"queue entry for PR #{number} has no enqueue time; cannot bound the "
+                       f"hold, so not reserving")
+            continue
+        age = hours_since(at, now)
         if age >= MAX_HOLD_HOURS:
             expired = (f"pin-bump PR #{number} has held the queue for over "
                        f"{MAX_HOLD_HOURS:g}h; releasing the reservation so ordinary merges "

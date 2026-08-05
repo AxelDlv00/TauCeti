@@ -53,7 +53,12 @@ jobs:
       pr: ${{ steps.r.outputs.pr }}
       bump_held: ${{ steps.lock.outputs.held }}
     steps:
+      # continue-on-error keeps the fail-open contract intact: without it a checkout
+      # hiccup would fail this job, leave `pr` unset, and SKIP the merge below — turning an
+      # infrastructure blip into a silently withheld merge. A missing script is handled in
+      # the lock step, which then reports the queue free.
       - uses: actions/checkout@v4
+        continue-on-error: true
         with:
           sparse-checkout: scripts
           persist-credentials: false

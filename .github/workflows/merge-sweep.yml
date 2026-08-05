@@ -42,7 +42,10 @@ jobs:
     outputs:
       held: ${{ steps.lock.outputs.held }}
     steps:
+      # See auto-merge.yml: a checkout failure must report the queue free, not skip the
+      # sweep. The lock step below handles the resulting missing script.
       - uses: actions/checkout@v4
+        continue-on-error: true
         with:
           sparse-checkout: scripts
           persist-credentials: false
