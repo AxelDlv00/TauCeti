@@ -8,10 +8,10 @@ public import Mathlib.RepresentationTheory.Irreducible
 public import Mathlib.RingTheory.SimpleModule.Rank
 
 /-!
-# Two criteria for irreducibility
+# Criteria for irreducibility
 
-This file collects the two ways of recognising an irreducible representation that need no
-information about the group.
+This file collects three ways of recognising an irreducible representation from outside, without
+inspecting its subrepresentations one by one.
 
 A representation on a one-dimensional vector space is irreducible, whatever the group and however
 it acts: a subrepresentation is in particular a subspace, and a line has only the two trivial
@@ -30,11 +30,18 @@ to its image in `ρ` under the inclusion of `σ.toSubmodule`.  In practice the a
 that gets proved -- one exhibits an invariant subspace of the ambient representation and shows it
 has no proper nonzero invariant subspace -- and the irreducibility form is the one that gets used.
 
+At the other extreme, a representation whose algebra map exhausts `End k V` is irreducible, because
+a vector space is a simple module over its own endomorphism ring, so a nonzero vector can be carried
+to any other.  This is the criterion a matrix block of a semisimple group algebra is recognised as
+irreducible by.
+
 ## Main results
 
 * `TauCeti.Representation.isIrreducible_of_finrank_eq_one`: a line is irreducible.
 * `TauCeti.Representation.isIrreducible_toRepresentation_of_isAtom`: an atom of the lattice of
   subrepresentations carries an irreducible representation.
+* `TauCeti.Representation.isIrreducible_of_asAlgebraHom_surjective`: a representation whose
+  algebra map exhausts the endomorphisms is irreducible.
 
 ## References
 
@@ -111,6 +118,20 @@ theorem isIrreducible_toRepresentation_of_isAtom {ρ : Representation k G V}
       exact hmap.symm.trans (congrArg Subrepresentation.toSubmodule heq)
     exact (Submodule.map_injective_of_injective σ.toSubmodule.subtype_injective this).trans
       htop'.symm
+
+/-- **A representation whose algebra map exhausts the endomorphisms is irreducible.** Every nonzero
+vector then generates, because a vector space is a simple module over its endomorphism ring. -/
+theorem isIrreducible_of_asAlgebraHom_surjective [Nontrivial V] (ρ : Representation k G V)
+    (h : Function.Surjective ρ.asAlgebraHom) : ρ.IsIrreducible := by
+  rw [_root_.Representation.irreducible_iff_isSimpleModule_asModule,
+    isSimpleModule_iff_toSpanSingleton_surjective]
+  refine ⟨ρ.asModuleEquiv.toEquiv.nontrivial, fun x hx y => ?_⟩
+  obtain ⟨T, hT⟩ := IsSimpleModule.toSpanSingleton_surjective (Module.End k V)
+    (m := ρ.asModuleEquiv x) (by simpa using hx) (ρ.asModuleEquiv y)
+  rw [LinearMap.toSpanSingleton_apply, Module.End.smul_def] at hT
+  obtain ⟨r, rfl⟩ := h T
+  refine ⟨r, ρ.asModuleEquiv.injective ?_⟩
+  rw [LinearMap.toSpanSingleton_apply, _root_.Representation.asModuleEquiv_map_smul, hT]
 
 end Representation
 
