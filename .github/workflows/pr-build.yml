@@ -434,10 +434,24 @@ jobs:
           # ("Directory not empty", which under `bash -e` reddened the build before it compiled
           # anything: six of eight consecutive pr-build failures on 2026-08-05), and a straggler
           # can recreate the path right after any check that it is gone.
+          #
+          # Abandoned attempts are reclaimed as we go, not just at the end: three partial
+          # caches coexisting would be three times the disk of the old purge-in-place loop,
+          # on a runner that already holds Mathlib's oleans. Because no path is ever reused,
+          # this delete is for DISK ONLY and correctness does not rest on it — so it can fail
+          # freely against a straggler, and the next sweep picks up what it missed.
+          reclaim() {
+            for d in base/.lake/cache-*; do
+              if [ -e "$d" ] && [ "$d" != "$keep" ]; then rm -rf "$d" 2>/dev/null || true; fi
+            done
+          }
           clean=0
+          keep=""
           for attempt in 1 2 3; do
             LOG="$RUNNER_TEMP/cache-get-$attempt.log"
-            DIR="$PWD/base/.lake/cache-$attempt"
+            REL="base/.lake/cache-$attempt"
+            DIR="$PWD/$REL"
+            keep="$REL"; reclaim
             rc=0
             ( cd base && LAKE_CACHE_DIR="$DIR" LAKE_CONFIG="$CFG" \
                 lake cache get --service tauceti-public \
@@ -459,12 +473,9 @@ jobs:
               sleep $(( attempt * 30 ))
             fi
           done
-          # Reclaim the abandoned attempts, never the winner. Best-effort and unverified on
-          # purpose: nothing reads these paths again, so a straggler still writing into one
-          # is harmless and must not fail the step.
-          for a in 1 2 3; do
-            if [ "$a" != "${winner:-}" ]; then rm -rf "base/.lake/cache-$a" 2>/dev/null || true; fi
-          done
+          keep="${winner:+base/.lake/cache-$winner}"; reclaim
+          df -h --output=avail "$PWD" 2>/dev/null | tail -1 \
+            | sed 's/^/disk available after the cache fetch: /' || true
           if [ "$clean" != 1 ]; then
             # A cache the offline build cannot fully resolve is worse than none, because each
             # unresolvable entry becomes a build failure rather than a rebuild.
