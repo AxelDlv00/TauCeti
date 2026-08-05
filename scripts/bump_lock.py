@@ -68,8 +68,11 @@ def hours_since(ts, now=None):
 def _graphql(after=None):
     owner, _, name = REPO.partition("/")
     cmd = ["gh", "api", "graphql", "-f", f"query={_QUERY}",
-           "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"branch={QUEUE_BRANCH}",
-           "-F", f"after={after}" if after else "-Fafter="]
+           "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"branch={QUEUE_BRANCH}"]
+    # Omitted entirely on the first page. A cursor connection wants null there, and `gh`
+    # has no way to spell a null variable — `-F after=` would send the empty string.
+    if after:
+        cmd += ["-F", f"after={after}"]
     out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         raise RuntimeError(f"gh api graphql failed: {out.stderr.strip()}")

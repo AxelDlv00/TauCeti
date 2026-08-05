@@ -140,6 +140,39 @@ class FailOpenTest(unittest.TestCase):
         self.assertTrue(bl.is_bump(big["pullRequest"]))
 
 
+class PaginationTest(unittest.TestCase):
+    """A cursor connection wants null on the first page, and `gh` cannot spell null — so
+    `after` must be omitted rather than sent empty."""
+
+    def _capture(self):
+        calls = []
+
+        class R:
+            returncode = 0
+            stdout = ('{"data": {"repository": {"mergeQueue": {"entries": '
+                      '{"pageInfo": {"hasNextPage": false, "endCursor": null}, '
+                      '"nodes": []}}}}}')
+            stderr = ""
+
+        def run(cmd, **kw):
+            calls.append(cmd)
+            return R()
+
+        self.addCleanup(setattr, bl.subprocess, "run", bl.subprocess.run)
+        bl.subprocess.run = run
+        return calls
+
+    def test_first_page_omits_the_cursor(self):
+        calls = self._capture()
+        bl.queue_entries()
+        self.assertFalse([a for a in calls[0] if a.startswith("after=")], calls[0])
+
+    def test_a_later_page_passes_the_cursor(self):
+        calls = self._capture()
+        bl._graphql("CURSOR1")
+        self.assertIn("after=CURSOR1", calls[0])
+
+
 class EmitTest(unittest.TestCase):
     def test_reason_is_flattened_to_one_line(self):
         # A newline in a GITHUB_OUTPUT value parses the rest as further outputs.
