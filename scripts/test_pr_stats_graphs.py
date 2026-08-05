@@ -301,23 +301,20 @@ class MetricsTest(unittest.TestCase):
         )
         self.assertEqual(rows[0]["user"], "trusted")
 
-    def test_trusted_collaborators_use_repository_metadata_endpoint(self):
-        with patch.object(stats, "run_gh", return_value="reviewer-a\nreviewer-b\n") as run:
-            self.assertEqual(
-                stats.fetch_trusted_collaborators("example/project"),
-                {"reviewer-a", "reviewer-b"},
-            )
-        self.assertEqual(
-            run.call_args.args[0],
-            ["api", "--paginate",
-             "repos/example/project/collaborators?affiliation=all&per_page=100",
-             "--jq", ".[].login"],
+    def test_snapshot_trusts_only_merged_pr_authors(self):
+        prs = [
+            pr(1, 1, merged_day=2, author="merged-author"),
+            pr(2, 2, state="OPEN", author="open-author"),
+            pr(3, 3, merged_day=4, author="unknown"),
+        ]
+        with (
+            patch.object(stats, "fetch_prs", return_value=prs),
+            patch.object(stats, "fetch_scoreboards", return_value=([], {})) as fetch,
+        ):
+            stats.fetch_snapshot("example/project")
+        fetch.assert_called_once_with(
+            "example/project", {1, 2, 3}, {"merged-author"},
         )
-
-    def test_empty_collaborator_response_refuses_empty_review_chart(self):
-        with patch.object(stats, "run_gh", return_value=""):
-            with self.assertRaisesRegex(ValueError, "no repository collaborators"):
-                stats.fetch_trusted_collaborators("example/project")
 
     def test_thousands_of_contributors_are_bounded(self):
         start = datetime(2026, 1, 1, tzinfo=UTC)
