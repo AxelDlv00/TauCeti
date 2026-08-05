@@ -41,11 +41,8 @@ from datetime import date, datetime, time as day_time, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
+from chart_style import BASE_CSS, BAR_BG, GRID, MUTED, PALETTE, card_rect
 
-BG = "#fbfaf7"
-TEXT = "#25313d"
-MUTED = "#68737e"
-GRID = "#d8dce0"
 SCOREBOARD_MARKER = "<!--tauceti-scoreboard-->"
 # A canonical scoreboard is the review engine's own comment: besides the public marker it
 # carries the machine-readable meta block, declares kind "scoreboard", and names the pull
@@ -69,12 +66,6 @@ ASSET_NAMES = [
     "cumulative-merges-by-contributor.svg",
     "cumulative-reviews-by-contributor.svg",
     "pr-stats.json",
-]
-PALETTE = [
-    "#3979c6", "#d26735", "#2f9364", "#8059bd", "#c0446e", "#168b99",
-    "#9b7124", "#5268c4", "#6f8b2d", "#b64d3f", "#1473a5", "#9d4f9e",
-    "#567b53", "#a85f22", "#4e6d91", "#8a6950", "#4f9089", "#7f5c87",
-    "#767d2c", "#b24f72", "#3f7d9a", "#7365a6",
 ]
 HOUR_EDGES = [0, 1, 2, 4, 8, 12, 24, 48, 72, 120, math.inf]
 HOUR_LABELS = [
@@ -565,6 +556,20 @@ def nice_axis_max(value: float) -> int:
     return max(5, math.ceil(value))
 
 
+def chart_frame(
+    width: int, height: int, aria_label: str, title: str, subtitle: str, css: str,
+) -> list[str]:
+    """Start one chart with the site's shared card, typography, and title placement."""
+    return [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'role="img" aria-label="{html.escape(aria_label)}">',
+        f'<style>{BASE_CSS}{css}</style>',
+        card_rect(width, height),
+        f'<text x="50" y="36" class="title">{html.escape(title)}</text>',
+        f'<text x="50" y="58" class="subtitle">{html.escape(subtitle)}</text>',
+    ]
+
+
 def draw_histogram(
     parts: list[str], counts: list[int], x: int, y: int, width: int, height: int,
     color: str, heading: str, total: int,
@@ -599,17 +604,24 @@ def render_queue_age(path: Path, metrics: dict, snapshot: datetime) -> None:
             f' · {metrics["missing_transition_fallbacks"]:,} state clocks use PR creation '
             "because no matching transition was available"
         )
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Open PR age and current review-state age">',
-        f'<rect width="100%" height="100%" fill="{BG}"/>',
-        f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:29px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.panel{{font-size:18px;font-weight:680}}.paneltotal{{font-size:15px;font-weight:700;fill:{MUTED}}}.tick{{font-size:11px;fill:{MUTED}}}.value{{font-size:12px;font-weight:750}}.grid{{stroke:{GRID};stroke-width:1}}</style>',
-        '<text x="55" y="44" class="title">Open PR age and current review state</text>',
-        f'<text x="55" y="73" class="subtitle">Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the label transition · {metrics["other_open_prs"]:,} PRs outside author/review states appear only in total time open{fallback_note}</text>',
-    ]
+    subtitle = (
+        f'Snapshot {snapshot:%Y-%m-%d %H:%M} UTC · current-state clocks begin at the '
+        f'label transition · {metrics["other_open_prs"]:,} PRs outside author/review '
+        f'states appear only in total time open{fallback_note}'
+    )
+    parts = chart_frame(
+        width, height, "Open PR age and current review-state age",
+        "Open PR age and current review state", subtitle,
+        f'.panel{{font-size:15px;font-weight:600}}'
+        f'.paneltotal{{font-size:13px;font-weight:650;fill:{MUTED}}}'
+        f'.tick{{font-size:11px;fill:{MUTED}}}'
+        '.value{font-size:12px;font-weight:700}'
+        f'.grid{{stroke:{GRID};stroke-width:1}}',
+    )
     panels = [
-        (metrics["total_open_hours"], "#2f9364", "Total time open"),
-        (metrics["awaiting_author_hours"], "#d27736", "Awaiting author"),
-        (metrics["in_review_hours"], "#3979c6", "In review"),
+        (metrics["total_open_hours"], PALETTE[0], "Total time open"),
+        (metrics["awaiting_author_hours"], PALETTE[1], "Awaiting author"),
+        (metrics["in_review_hours"], PALETTE[2], "In review"),
     ]
     for index, (values, color, title) in enumerate(panels):
         draw_histogram(
@@ -632,13 +644,15 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
     width = 1250
     height = 116 + max(1, len(shown)) * 52 + 35
     bar_x, bar_width = 235, 780
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Pull requests reaching each automated review cycle">',
-        f'<rect width="100%" height="100%" fill="{BG}"/>',
-        f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:27px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.label{{font-size:14px;font-weight:680}}.value{{font-size:13px;font-weight:750}}.track{{fill:#e3e6e8}}</style>',
-        '<text x="45" y="42" class="title">PRs reaching each review cycle</text>',
-        f'<text x="45" y="70" class="subtitle">One cycle = one entry into review from an author or CI state · {metrics["total_cycles"]:,} cycles across {reviewed:,} reviewed PRs{epoch_note}</text>',
-    ]
+    parts = chart_frame(
+        width, height, "Pull requests reaching each automated review cycle",
+        "PRs reaching each review cycle",
+        f'One cycle = one entry into review from an author or CI state · '
+        f'{metrics["total_cycles"]:,} cycles across {reviewed:,} reviewed PRs{epoch_note}',
+        f'.label{{font-size:14px;font-weight:600}}'
+        '.value{font-size:13px;font-weight:700}'
+        f'.track{{fill:{BAR_BG}}}',
+    )
     if not shown:
         parts.append('<text x="45" y="125" class="label">No review cycles observed.</text>')
     for index, item in enumerate(shown):
@@ -658,20 +672,23 @@ def render_review_cycles(path: Path, metrics: dict, max_rows: int) -> None:
 def render_rolling(path: Path, rolling: list[dict]) -> None:
     width, height = 1500, 830
     panels = [
-        ("Merges in trailing 7 days", "merges", "#3979c6", lambda x: f"{int(x)}"),
-        ("Active PR authors in trailing 7 days", "active_authors", "#d27736", lambda x: f"{int(x)}"),
-        ("Median time to merge", "median_merge_hours", "#2f9364", lambda x: f"{x:.1f}h"),
-        ("90th percentile time to merge", "p90_merge_hours", "#8059bd", lambda x: f"{x:.1f}h"),
+        ("Merges in trailing 7 days", "merges", PALETTE[2], lambda x: f"{int(x)}"),
+        ("Active PR authors in trailing 7 days", "active_authors", PALETTE[1], lambda x: f"{int(x)}"),
+        ("Median time to merge", "median_merge_hours", PALETTE[0], lambda x: f"{x:.1f}h"),
+        ("90th percentile time to merge", "p90_merge_hours", PALETTE[4], lambda x: f"{x:.1f}h"),
     ]
     panel_width, panel_height = 680, 285
     origins = [(65, 125), (785, 125), (65, 475), (785, 475)]
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Trailing-seven-day pull request health">',
-        f'<rect width="100%" height="100%" fill="{BG}"/>',
-        f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:29px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.panel{{font-size:17px;font-weight:650}}.latest{{font-size:28px;font-weight:750}}.tick{{font-size:11px;fill:{MUTED}}}.grid{{stroke:{GRID};stroke-width:1}}</style>',
-        '<text x="55" y="44" class="title">Trailing-seven-day project health</text>',
-        f'<text x="55" y="72" class="subtitle">Daily UTC windows ending {rolling[0]["date"]}–{rolling[-1]["date"]} · complete days only</text>',
-    ]
+    parts = chart_frame(
+        width, height, "Trailing-seven-day pull request health",
+        "Trailing-seven-day project health",
+        f'Daily UTC windows ending {rolling[0]["date"]}–{rolling[-1]["date"]} · '
+        'complete days only',
+        '.panel{font-size:15px;font-weight:600}'
+        '.latest{font-size:24px;font-weight:700}'
+        f'.tick{{font-size:11px;fill:{MUTED}}}'
+        f'.grid{{stroke:{GRID};stroke-width:1}}',
+    )
     for (title, key, color, formatter), (ox, oy) in zip(panels, origins):
         values = [row[key] or 0 for row in rolling]
         axis_max = nice_axis_max(max(values, default=0))
@@ -707,7 +724,7 @@ def render_rolling(path: Path, rolling: list[dict]) -> None:
 
 def color_for(name: str, other: bool = False) -> str:
     if other:
-        return "#7b8490"
+        return MUTED
     digest = hashlib.sha256(name.encode("utf-8")).digest()
     return PALETTE[int.from_bytes(digest[:2], "big") % len(PALETTE)]
 
@@ -754,13 +771,15 @@ def render_cumulative_contributors(
     labels = spread_labels([(name, y_for(plotted_totals[name])) for name in names], top, bottom)
     omitted = total_contributors - min(total_contributors, len([name for name in names if not name.startswith("Other (")]))
     coverage = f"top {len(names) - bool(omitted)} + {omitted:,} others" if omitted else "every contributor"
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">',
-        f'<rect width="100%" height="100%" fill="{BG}"/>',
-        f'<style>text{{font-family:Inter,ui-sans-serif,system-ui,sans-serif;fill:{TEXT}}}.title{{font-size:29px;font-weight:700}}.subtitle{{font-size:14px;fill:{MUTED}}}.tick{{font-size:11px;fill:{MUTED}}}.label{{font-size:12px;font-weight:650}}.grid{{stroke:{GRID};stroke-width:1}}.leader{{stroke-width:1;opacity:.55}}</style>',
-        f'<text x="55" y="44" class="title">{html.escape(title)}</text>',
-        f'<text x="55" y="72" class="subtitle">Cumulative {html.escape(noun)} by UTC day, {dates[0]}–{dates[-1]} · logarithmic count axis · {coverage}; exact totals for all {total_contributors:,} in JSON</text>',
-    ]
+    parts = chart_frame(
+        width, height, title, title,
+        f'Cumulative {noun} by UTC day, {dates[0]}–{dates[-1]} · logarithmic '
+        f'count axis · {coverage}; exact totals for all {total_contributors:,} in JSON',
+        f'.tick{{font-size:11px;fill:{MUTED}}}'
+        '.label{font-size:12px;font-weight:600}'
+        f'.grid{{stroke:{GRID};stroke-width:1}}'
+        '.leader{stroke-width:1;opacity:.55}',
+    )
     for tick in log_ticks(maximum):
         y = y_for(tick)
         parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{right}" y2="{y:.1f}" class="grid"/>')
@@ -872,13 +891,13 @@ def generate(
         render_rolling(staging / "rolling-seven-day-history.svg", rolling)
         render_cumulative_contributors(
             staging / "cumulative-merges-by-contributor.svg",
-            "Total merged PRs by contributor since project inception", "merged PRs",
+            "Merged PRs by contributor", "merged PRs",
             merge_dates, merge_names, merge_series, merge_totals, len(merge_totals),
         )
         render_cumulative_contributors(
             staging / "cumulative-reviews-by-contributor.svg",
-            "Trusted v1 review scoreboards by contributor",
-            "trusted v1 review scoreboards", review_dates, review_names, review_series,
+            "Reviews by contributor", "reviews",
+            review_dates, review_names, review_series,
             review_totals, len(review_totals),
         )
         atomic_write(

@@ -379,6 +379,9 @@ class RenderingTest(unittest.TestCase):
             metrics = stats.generate(data, out, contributor_limit=2, history_days=30)
             for name in expected:
                 ET.parse(out / name)
+                svg = (out / name).read_text(encoding="utf-8")
+                self.assertIn('rx="12" fill="#101936" stroke="#1b2547"', svg)
+                self.assertIn(".title{font-size:19px;font-weight:600}", svg)
             self.assertTrue((out / "pr-stats.json").is_file())
             queue_svg = (out / "pr-queue-age.svg").read_text(encoding="utf-8")
             self.assertLess(queue_svg.index("Total time open"),
@@ -387,11 +390,29 @@ class RenderingTest(unittest.TestCase):
                             queue_svg.index("In review"))
             cycle_svg = (out / "review-cycles-reached.svg").read_text(encoding="utf-8")
             self.assertIn("Review cycle 7", cycle_svg)
+            review_svg = (
+                out / "cumulative-reviews-by-contributor.svg"
+            ).read_text(encoding="utf-8")
+            self.assertIn("Reviews by contributor", review_svg)
+            self.assertNotIn("Trusted v1 review scoreboards", review_svg)
             self.assertEqual(metrics["review_cycles"]["max_cycle"], 7)
             self.assertEqual(metrics["merge_totals_by_contributor"]["frank"], 1)
             self.assertEqual(metrics["review_totals_by_contributor"]["reviewer-c"], 1)
             self.assertNotIn("future-author", metrics["merge_totals_by_contributor"])
             self.assertNotIn("future-reviewer", metrics["review_totals_by_contributor"])
+
+    def test_page_places_participation_before_contributor_histories(self):
+        source = (
+            Path(__file__).parents[1] / "web" / "Site" / "Stats.lean"
+        ).read_text(encoding="utf-8")
+        self.assertLess(
+            source.index('src="static/rolling-seven-day-history.svg"'),
+            source.index('src="static/review-cycles-reached.svg"'),
+        )
+        self.assertLess(
+            source.rindex(":::blob participationGraph"),
+            source.rindex(":::blob contributorGraphs"),
+        )
 
     def test_render_failure_keeps_previous_asset_set(self):
         data = {
