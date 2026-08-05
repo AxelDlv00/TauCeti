@@ -389,7 +389,7 @@ jobs:
       # cache.taucetiproject.org (repo variable LAKE_CACHE_ARTIFACT_ENDPOINT_PUBLIC), so that
       # explanation no longer applies and must not be treated as a diagnosis. The observed symptom
       # is `error: no such file or directory` naming an artifact Lake had just reported
-      # downloading. See the tracking issue for the investigation.
+      # downloading; see https://github.com/TauCetiProject/TauCeti/issues/2062 for the investigation.
       #
       # Hence: retry from an EMPTY cache each time, then fall back to no cache at all. Retrying
       # over the dirty cache a failed attempt left behind does not work: Lake skips any artifact
