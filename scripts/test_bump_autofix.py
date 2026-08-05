@@ -196,6 +196,36 @@ class ContainmentTest(unittest.TestCase):
     def _log(self, path):
         return (f"{path}:1:6: `Old.name` has been deprecated: Use `New.name` instead\n")
 
+    def test_a_malformed_name_cannot_insert_without_matching(self):
+        # `_dot_suffixes(".")` used to yield the empty string, and `startswith("")` is true
+        # at every position -- so this forged line spliced the replacement in having matched
+        # no token at all, defeating the position anchor entirely.
+        self._write("TauCeti/A.lean", "exact foo bar\n")
+        log = "TauCeti/A.lean:1:5: `.` has been deprecated: Use `Injected.name` instead\n"
+        self.assertEqual(ba.renames_from_log(log), [])
+        applied, _ = ba.apply_renames(self.root, ba.renames_from_log(log))
+        self.assertEqual(applied, [])
+        with open(os.path.join(self.root, "TauCeti/A.lean"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "exact foo bar\n")
+
+    def test_names_with_an_empty_component_are_refused(self):
+        for bad in ("A..b", ".b", "a."):
+            log = (f"TauCeti/A.lean:1:0: `{bad}` has been deprecated: "
+                   f"Use `New.name` instead\n")
+            self.assertEqual(ba.renames_from_log(log), [], bad)
+            log = (f"TauCeti/A.lean:1:0: `Old.name` has been deprecated: "
+                   f"Use `{bad}` instead\n")
+            self.assertEqual(ba.renames_from_log(log), [], bad)
+
+    def test_a_column_inside_a_longer_identifier_is_refused(self):
+        # The left boundary matters as much as the right: without it a suffix could match
+        # partway through a name and splice the replacement into its middle.
+        self._write("TauCeti/A.lean", "exact Prefix.Old.name h\n")
+        log = "TauCeti/A.lean:1:13: `Old.name` has been deprecated: Use `New.name` instead\n"
+        applied, skipped = ba.apply_renames(self.root, ba.renames_from_log(log))
+        self.assertEqual(applied, [])
+        self.assertIn("mid-identifier", skipped[0][1])
+
     def test_dot_dot_never_parses_as_a_path(self):
         for path in ("TauCeti/../scripts/Axioms.lean",
                      "TauCeti/../../etc/passwd.lean",

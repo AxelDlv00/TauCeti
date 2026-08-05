@@ -282,12 +282,12 @@ class StuckBumpTest(unittest.TestCase):
 
     def _routes(self, age_hours, build_state="success", removals=(),
                 files=("lake-manifest.json",), head_ref="bump-mathlib/fix-c003275",
-                labels=(), draft=False, fkb=""):
+                labels=(), draft=False, fkb="", head_repo=None):
         import json as _j
         prs = _j.dumps({"number": 1986, "head": "abc", "draft": draft,
                         "updated_at": _ago(1), "created_at": _ago(age_hours),
-                        "head_ref": head_ref, "head_repo": "o/r", "author": "a",
-                        "labels": list(labels)}) + "\n"
+                        "head_ref": head_ref, "head_repo": head_repo or sa.REPO,
+                        "author": "a", "labels": list(labels)}) + "\n"
         status = (_j.dumps({"state": build_state, "updated_at": _ago(1)})
                   if build_state else "")
         tl = "".join(_j.dumps({"at": t}) + "\n" for t in removals)
@@ -338,6 +338,14 @@ class StuckBumpTest(unittest.TestCase):
         _install(self, self._routes(20, "failure", files=(),
                                     head_ref="hopscotch/lkg-bump"))
         self.assertEqual(len(sa.detect_stuck_bump()), 1)
+
+    def test_a_fork_branch_of_the_same_name_is_not_our_bump(self):
+        # A fork may use the branch name too; an old fork PR must not be reported as this
+        # project's stalled bump. Its file list still decides, so a real fork bump is caught.
+        _install(self, self._routes(48, "failure", files=("TauCeti/A.lean",),
+                                    head_ref="hopscotch/lkg-bump",
+                                    head_repo="someone/TauCeti"))
+        self.assertEqual(sa.detect_stuck_bump(), [])
 
     def test_a_pr_that_moves_no_pin_is_not_a_bump(self):
         _install(self, self._routes(48, "failure", files=("TauCeti/A.lean",),

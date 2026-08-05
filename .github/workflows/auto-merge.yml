@@ -35,8 +35,16 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: auto-merge-${{ github.event.issue.number || github.event.workflow_run.head_sha }}
+  # Repository-wide, and shared with merge-sweep.yml, because those two are the only doors
+  # into the merge queue and the bump reservation is only worth anything if they cannot
+  # walk through them at the same time. Reading "no bump queued" and then enqueuing are
+  # separate steps, so without serialisation two runs can both read a free queue and both
+  # enqueue -- reproducing the batching this PR exists to stop. `queue: max` keeps up to
+  # 100 runs pending instead of the default `single`, which would cancel a pending run and
+  # silently drop a PR's only merge trigger.
+  group: merge-enqueue
   cancel-in-progress: false
+  queue: max
 
 jobs:
   resolve:

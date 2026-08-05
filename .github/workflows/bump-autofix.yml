@@ -60,18 +60,22 @@ permissions:
 concurrency:
   # Shared with update.yml, which force-pushes this same branch on its daily schedule.
   # Without one group the two race: a repair can be pushed onto a branch the updater is
-  # about to rewrite, or land after the rewrite against a stale log.
+  # about to rewrite, or land after the rewrite against a stale log. `queue: max` matters
+  # as much as the group does -- the default `single` keeps at most ONE run pending and
+  # cancels whatever was pending before, so a second repair queueing up could silently
+  # replace the pending daily update and skip a bump with nothing to show for it.
   group: lkg-bump-branch
   cancel-in-progress: false
+  queue: max
 
 env:
   LKG_BRANCH: hopscotch/lkg-bump   # keep in sync with update.yml's LKG_BRANCH
-  # Repairs per bump before we stop and let the stuck-bump alert escalate. Counted from the
-  # branch's own history, which update.yml rewrites when it opens the next day's bump — so
-  # the budget resets exactly when a NEW bump starts, which is the intended granularity, not
-  # an accident of using git as the ledger. Three covers the realistic shape (one round of
-  # renames, plus a second for deprecations only reachable once the first round compiles)
-  # without a runaway loop burning an 85-minute rebuild per attempt.
+  # Repairs per bump before we stop and let the stuck-bump alert escalate. Counted over the
+  # commits unique to the bump branch (`main..HEAD`), so the budget resets exactly when
+  # update.yml cuts the next bump from main and never counts a repair that has already
+  # merged. Three covers the realistic shape (one round of renames, plus a second for
+  # deprecations only reachable once the first round compiles) without a runaway loop
+  # burning an 85-minute rebuild per attempt.
   MAX_AUTOFIXES: 3
 
 jobs:
@@ -176,8 +180,13 @@ jobs:
         working-directory: work
         run: |
           set -euo pipefail
-          spent=$(git log -F --grep='[bump-autofix]' --oneline | wc -l)
-          echo "repairs on $LKG_BRANCH since it was last rewritten: $spent (cap $MAX_AUTOFIXES)"
+          # Count only what is unique to THIS branch. Searching all reachable history would
+          # also find every repair that has already merged into main -- squash commits keep
+          # the body, marker and all -- so after three repairs ever, every future bump would
+          # start with its budget permanently spent.
+          git fetch origin main
+          spent=$(git log -F --grep='[bump-autofix]' --oneline FETCH_HEAD..HEAD | wc -l)
+          echo "repairs on this bump: $spent (cap $MAX_AUTOFIXES)"
           if [ "$spent" -ge "$MAX_AUTOFIXES" ]; then
             echo "::warning::repair budget spent for this bump; leaving it to the stuck-bump alert"
             echo "go=false" >> "$GITHUB_OUTPUT"

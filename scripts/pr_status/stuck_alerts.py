@@ -284,7 +284,10 @@ def _unlanded_bump_prs():
             continue
         if hours_since(pr["created_at"]) < BUMP_UNLANDED_HOURS:
             continue
-        if pr.get("head_ref") == LKG_BRANCH:
+        # Same-repo only: a fork may use the branch name too, and an old fork PR must not
+        # be reported as the project's stalled bump. A fork PR that genuinely moves the
+        # pins is still caught by the file test below.
+        if pr.get("head_ref") == LKG_BRANCH and pr.get("head_repo") == REPO:
             out.append(pr)
             continue
         # Filenames are bare strings, not JSON -- gh_lines, not gh_stream.

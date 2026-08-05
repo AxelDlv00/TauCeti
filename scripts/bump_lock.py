@@ -94,6 +94,7 @@ query($owner: String!, $name: String!, $branch: String!) {
           pullRequest {
             number
             headRefName
+            headRepository { nameWithOwner }
             files(first: 100) { nodes { path } }
           }
         }
@@ -144,7 +145,12 @@ def is_bump(pr):
     """Does this queued PR move a Lake pin (and so face the full 85-minute rebuild)?"""
     if not pr:
         return False
-    if pr.get("headRefName") == LKG_BRANCH:
+    # The branch-name shortcut only means anything for OUR branch: a fork is free to call
+    # its branch `hopscotch/lkg-bump` too, and treating that as the bump would hand an
+    # outsider the ability to reserve the queue. The pin test below has no such problem,
+    # so a fork PR that really does move the pins still reserves, as it should.
+    own = (pr.get("headRepository") or {}).get("nameWithOwner")
+    if pr.get("headRefName") == LKG_BRANCH and own == REPO:
         return True
     files = ((pr.get("files") or {}).get("nodes")) or []
     return any(f.get("path") in PIN_FILES for f in files)

@@ -33,8 +33,11 @@ permissions:
   pull-requests: read     # read the merge queue for the bump reservation
 
 concurrency:
-  group: merge-sweep
+  # Shared with auto-merge.yml: see the note there. The sweep is the other door into the
+  # merge queue, so it has to be serialised against the same lock check.
+  group: merge-enqueue
   cancel-in-progress: false
+  queue: max
 
 jobs:
   bump-lock:

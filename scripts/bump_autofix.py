@@ -79,6 +79,12 @@ UNKNOWN_RE = re.compile(
     r"(?P<path>" + _PATH + r"):(?P<line>\d+):(?P<col>\d+): "
     r"unknown (?:identifier|constant) '(?P<old>[^']+)'")
 
+# A dotted Lean name, every component non-empty. Both names in a diagnostic are checked
+# against this before they are used. Without it a line naming `` `.` `` yields the empty
+# dot-suffix, which `str.startswith` matches at ANY position, so the "replacement" would
+# insert text having matched nothing -- the one thing the position anchor exists to prevent.
+NAME_RE = re.compile(r"[^\s`.]+(?:\.[^\s`.]+)*\Z")
+
 Rename = collections.namedtuple("Rename", "path line col old new")
 
 
@@ -91,8 +97,10 @@ def renames_from_log(text):
     """
     seen = {}
     for m in RENAME_RE.finditer(text):
-        r = Rename(m.group("path"), int(m.group("line")), int(m.group("col")),
-                   m.group("old"), m.group("new"))
+        old, new = m.group("old"), m.group("new")
+        if not (NAME_RE.match(old) and NAME_RE.match(new)):
+            continue
+        r = Rename(m.group("path"), int(m.group("line")), int(m.group("col")), old, new)
         seen[r] = None
     return sorted(seen, key=lambda r: (r.path, r.line, r.col))
 
@@ -134,7 +142,9 @@ def _dot_suffixes(name):
     specific match wins.
     """
     parts = name.split(".")
-    return [".".join(parts[i:]) for i in range(len(parts))]
+    # Empty candidates are dropped: `str.startswith("")` is true at every position, so one
+    # would "match" without a token being there at all (see NAME_RE).
+    return [c for c in (".".join(parts[i:]) for i in range(len(parts))) if c]
 
 
 def _resolve_under(root, path):
@@ -200,6 +210,12 @@ def apply_renames(root, renames):
                 skipped.append((r, f"line {r.line} is past the end of the file"))
                 continue
             text = lines[r.line - 1]
+            # The LEFT boundary matters as much as the right: a column landing inside a
+            # longer identifier would let a suffix match and splice the replacement into the
+            # middle of a name.
+            if r.col > 0 and _is_name_char(text[r.col - 1:r.col]):
+                skipped.append((r, f"column {r.col} is mid-identifier; the source has moved"))
+                continue
             for cand in _dot_suffixes(r.old):
                 end = r.col + len(cand)
                 if text.startswith(cand, r.col) and not _is_name_char(text[end:end + 1]):

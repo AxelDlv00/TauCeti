@@ -25,9 +25,10 @@ def _ago(hours):
 
 
 def _entry(number, files=("lake-manifest.json",), hours=0.5,
-           state="AWAITING_CHECKS", branch="bump-mathlib/fix-c003275"):
+           state="AWAITING_CHECKS", branch="bump-mathlib/fix-c003275", repo=bl.REPO):
     return {"enqueuedAt": _ago(hours), "state": state,
             "pullRequest": {"number": number, "headRefName": branch,
+                            "headRepository": {"nameWithOwner": repo},
                             "files": {"nodes": [{"path": p} for p in files]}}}
 
 
@@ -51,6 +52,20 @@ class HoldTest(unittest.TestCase):
         # files connection comes back empty.
         held, _ = bl.decide([_entry(9, files=(), branch=bl.LKG_BRANCH)],
                             subject=2000, now=NOW)
+        self.assertTrue(held)
+
+    def test_a_fork_branch_of_the_same_name_is_not_the_bump(self):
+        # A fork may name its branch `hopscotch/lkg-bump` too. Honouring the name alone
+        # would let an outsider reserve the whole merge queue.
+        held, _ = bl.decide([_entry(9, files=(), branch=bl.LKG_BRANCH,
+                                    repo="someone/TauCeti")], subject=2000, now=NOW)
+        self.assertFalse(held)
+
+    def test_a_fork_pr_that_really_moves_the_pins_still_reserves(self):
+        # The pin test needs no trust in the branch name, so a genuine fork bump is still
+        # an 85-minute rebuild and still reserves.
+        held, _ = bl.decide([_entry(9, files=("lean-toolchain",), branch="whatever",
+                                    repo="someone/TauCeti")], subject=2000, now=NOW)
         self.assertTrue(held)
 
     def test_ordinary_prs_in_the_queue_hold_nothing(self):

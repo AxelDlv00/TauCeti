@@ -19,8 +19,12 @@ concurrency:
   # Shared with bump-autofix.yml, which pushes repairs to the same branch. Without one
   # group the two race: a repair can land on a branch this job is about to force-push over,
   # or arrive just after the rewrite and be applied against a log for the previous bump.
+  # `queue: max` because the default `single` would let a newly queued repair cancel a
+  # PENDING daily update, skipping a bump silently -- the exact outcome this file exists
+  # to prevent.
   group: lkg-bump-branch
   cancel-in-progress: false
+  queue: max
 
 env:
   LKG_BRANCH: hopscotch/lkg-bump
