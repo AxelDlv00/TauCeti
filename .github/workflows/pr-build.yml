@@ -404,6 +404,29 @@ jobs:
           # Define the public read service in a Lake system config and select it with
           # `--service` (the env-var form of endpoint config is deprecated). Anonymous
           # GETs, so no key here.
+          # Discarding the cache directory must never be what fails this step. `lake cache
+          # get` can return while the curl children it spawned are still writing into
+          # base/.lake/cache, so a plain `rm -rf` unlinks what it saw, then fails at the
+          # final rmdir with "Directory not empty" when a straggler recreates an entry --
+          # and under `bash -e` that reddens the whole build for a purge that was only ever
+          # best-effort. It is not rare: six of eight consecutive pr-build failures on
+          # 2026-08-05 were exactly this. Rename first, which is atomic and frees the path
+          # Lake will use next even while the stragglers keep writing, and let the delete of
+          # the renamed tree fail harmlessly. `purged` is unique per call so a second purge
+          # in the same step cannot collide with the first one's leftovers.
+          purged=0
+          purge_cache() {
+            [ -d base/.lake/cache ] || return 0
+            purged=$(( purged + 1 ))
+            doomed="base/.lake/cache.discarded.$$.$purged"
+            mv base/.lake/cache "$doomed" 2>/dev/null || true
+            rm -rf "$doomed" 2>/dev/null || true
+            rm -rf base/.lake/cache 2>/dev/null || true
+            if [ -e base/.lake/cache ]; then
+              echo "::warning::could not fully discard the partial Lake cache"
+              return 1
+            fi
+          }
           CFG="$RUNNER_TEMP/lake-cache.toml"
           cat > "$CFG" <<TOML
           cache.defaultService = "tauceti-public"
@@ -447,7 +470,9 @@ jobs:
               # Must precede the retry: see the step comment above. Without this, attempt N+1
               # skips every artifact this attempt already wrote, including the broken ones, and
               # a clean exit from it says nothing about the entries that made this attempt fail.
-              rm -rf base/.lake/cache
+              # A purge we could not complete makes the retry meaningless, so stop retrying and
+              # fall through to the no-cache path below rather than trusting a half-cleared dir.
+              purge_cache || break
               sleep $(( attempt * 30 ))
             fi
           done
@@ -458,7 +483,7 @@ jobs:
             # resolve is worse than none, because each unresolvable entry becomes a build
             # failure rather than a rebuild. Discarding it restores the no-cache path exactly.
             echo "::warning::lake cache get did not complete cleanly; discarding the cache and building TauCeti/ from scratch"
-            rm -rf base/.lake/cache
+            purge_cache || true
             # Empty is NOT off: Lake parses an empty LAKE_ARTIFACT_CACHE as "unspecified" and
             # then defaults artifact-cache reads to true, and an empty LAKE_CACHE_DIR falls back
             # to the workspace's own .lake/cache. Say false explicitly rather than relying on
