@@ -209,5 +209,137 @@ class MarkerSafetyTest(unittest.TestCase):
         self.assertEqual(got["main-red"]["id"], 1)
 
 
+
+
+# ----- blind spots the detectors used to have --------------------------------
+
+def _ago(hours):
+    """An ISO timestamp `hours` in the past, in the format the GitHub API returns."""
+    import datetime as _dt
+    t = sa.now_utc() - _dt.timedelta(hours=hours)
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class RoutedGh:
+    """Fakes core.gh_api by matching substrings of the request path, in order."""
+
+    def __init__(self, routes):
+        self.routes = routes
+
+    def __call__(self, path, jq=None, paginate=False):
+        for needle, payload in self.routes:
+            if needle in path:
+                return payload
+        return ""
+
+
+def _install(test, routes):
+    test.addCleanup(setattr, core, "gh_api", core.gh_api)
+    core.gh_api = RoutedGh(routes)
+
+
+class ReadyLabelClockTest(unittest.TestCase):
+    """The strand clock must not reset when the merge queue churns a PR."""
+
+    def _timeline(self, *events):
+        return "".join(__import__("json").dumps(e) + "\n" for e in events)
+
+    def test_reports_latest_application(self):
+        _install(self, [("/timeline", self._timeline(
+            {"event": "labeled", "at": "2026-08-01T00:00:00Z"},
+            {"event": "unlabeled", "at": "2026-08-02T00:00:00Z"},
+            {"event": "labeled", "at": "2026-08-03T00:00:00Z"}))])
+        self.assertEqual(sa.ready_label_applied_at(1), "2026-08-03T00:00:00Z")
+
+    def test_none_when_currently_removed(self):
+        _install(self, [("/timeline", self._timeline(
+            {"event": "labeled", "at": "2026-08-01T00:00:00Z"},
+            {"event": "unlabeled", "at": "2026-08-02T00:00:00Z"}))])
+        self.assertIsNone(sa.ready_label_applied_at(1))
+
+    def test_queue_churn_does_not_reset_the_clock(self):
+        # The regression this replaced: `updated_at` bumps on every enqueue/eviction, so a PR
+        # bouncing every couple of hours could never reach STRANDED_HOURS. The label is old
+        # even though the PR was "updated" minutes ago, so the strand must still be visible.
+        _install(self, [("/timeline", self._timeline(
+            {"event": "labeled", "at": _ago(30)}))])
+        applied = sa.ready_label_applied_at(99)
+        self.assertGreater(sa.hours_since(applied), sa.STRANDED_HOURS)
+
+
+class EvictionLoopTest(unittest.TestCase):
+    def _routes(self, removals, labels=("ready-to-merge",)):
+        import json as _j
+        prs = _j.dumps({"number": 7, "head": "abc", "draft": False,
+                        "updated_at": _ago(1), "head_ref": "b", "head_repo": "o/r",
+                        "author": "a", "labels": list(labels)}) + "\n"
+        tl = "".join(_j.dumps({"at": t}) + "\n" for t in removals)
+        return [("/pulls?state=open", prs), ("/timeline", tl)]
+
+    def test_two_recent_evictions_alert(self):
+        _install(self, self._routes([_ago(1), _ago(3)]))
+        got = sa.detect_eviction_loops()
+        self.assertEqual([a["key"] for a in got], ["eviction-loop/7"])
+
+    def test_single_eviction_is_not_a_loop(self):
+        _install(self, self._routes([_ago(1)]))
+        self.assertEqual(sa.detect_eviction_loops(), [])
+
+    def test_evictions_outside_the_window_do_not_count(self):
+        _install(self, self._routes([_ago(30), _ago(40)]))
+        self.assertEqual(sa.detect_eviction_loops(), [])
+
+    def test_pr_not_marked_ready_is_skipped(self):
+        _install(self, self._routes([_ago(1), _ago(2)], labels=("awaiting-author",)))
+        self.assertEqual(sa.detect_eviction_loops(), [])
+
+
+class MissingStatusTest(unittest.TestCase):
+    def _routes(self, build_status, run_finished):
+        import json as _j
+        prs = _j.dumps({"number": 8, "head": "def", "draft": False,
+                        "updated_at": _ago(1), "head_ref": "b", "head_repo": "o/r",
+                        "author": "a", "labels": []}) + "\n"
+        return [("/pulls?state=open", prs),
+                ("/statuses", build_status),
+                ("pr-build.yml/runs", run_finished)]
+
+    def test_alerts_when_run_finished_but_no_status(self):
+        _install(self, self._routes("", _ago(2)))
+        self.assertEqual([a["key"] for a in sa.detect_missing_required_status()],
+                         ["missing-status/8"])
+
+    def test_silent_while_the_build_is_still_running(self):
+        # No completed run yet: this is ordinary `awaiting-CI`, never an alert.
+        _install(self, self._routes("", ""))
+        self.assertEqual(sa.detect_missing_required_status(), [])
+
+    def test_silent_when_the_status_exists(self):
+        _install(self, self._routes(
+            '{"state": "failure", "updated_at": "2026-08-01T00:00:00Z"}', _ago(2)))
+        self.assertEqual(sa.detect_missing_required_status(), [])
+
+
+class DivergedHeadTest(unittest.TestCase):
+    def _routes(self, tip):
+        import json as _j
+        prs = _j.dumps({"number": 9, "head": "aaaaaaaa", "draft": False,
+                        "updated_at": _ago(1), "head_ref": "feat", "head_repo": "fork/TauCeti",
+                        "author": "a", "labels": []}) + "\n"
+        return [("/pulls?state=open", prs), ("/branches/", tip)]
+
+    def test_alerts_when_head_is_behind_the_branch_tip(self):
+        _install(self, self._routes("bbbbbbbb"))
+        self.assertEqual([a["key"] for a in sa.detect_diverged_head()], ["diverged-head/9"])
+
+    def test_silent_when_head_matches(self):
+        _install(self, self._routes("aaaaaaaa"))
+        self.assertEqual(sa.detect_diverged_head(), [])
+
+    def test_silent_when_branch_is_unreadable(self):
+        # A deleted head repo/branch is a different problem; do not cry wolf on an API miss.
+        _install(self, self._routes(""))
+        self.assertEqual(sa.detect_diverged_head(), [])
+
 if __name__ == "__main__":
     unittest.main()
