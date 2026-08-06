@@ -24,14 +24,17 @@ prime-power levels — the degree count of Shimura, Theorem 3.24 — which lives
 is congruence-subgroup arithmetic consumed by, but independent of, the Hecke-ring layer.
 
 Ported from the AINTLIB `LeanModularForms` project
-(`LeanModularForms/HeckeRIngs/GL2/Gamma1Pair.lean` and, for the index section,
-`LeanModularForms/HeckeRIngs/GL2/CongruenceIndex.lean`, Chris Birkbeck,
+(`LeanModularForms/HeckeRIngs/GL2/Gamma1Pair.lean`, for the index section
+`LeanModularForms/HeckeRIngs/GL2/CongruenceIndex.lean`, and for the level-antitonicity
+lemmas `LeanModularForms/HeckeRIngs/GL2/LevelEmbed.lean`, all Chris Birkbeck,
 <https://github.com/CBirkbeck/AINTLIB/tree/main/projects/LeanModularForms>), extracted from
 `TauCeti/NumberTheory/ModularForms/DiamondOperators.lean` as congruence-subgroup
 infrastructure independent of the diamond operators.
 
 ## Main results
 
+* `CongruenceSubgroup.Gamma1_le_Gamma1_of_dvd`, `CongruenceSubgroup.Gamma0_le_Gamma0_of_dvd`:
+  both families are antitone in the level, `Γ(N) ≤ Γ(M)` whenever `M ∣ N`.
 * `CongruenceSubgroup.Gamma0_normalizes_Gamma1`: conjugation by `Γ₀(N)` preserves `Γ₁(N)`.
 * `CongruenceSubgroup.Gamma1_map_le_Gamma0_map`: the inclusion `Γ₁(N) ≤ Γ₀(N)` after mapping to
   `GL₂(ℝ)`.
@@ -58,6 +61,21 @@ open scoped MatrixGroups Pointwise
 variable {N : ℕ}
 
 namespace CongruenceSubgroup
+
+/-- `Γ₁` is antitone in the level: if `M ∣ N` then `Γ₁(N) ≤ Γ₁(M)`, since reducing the
+congruences `a ≡ d ≡ 1`, `c ≡ 0` modulo `N` along `ZMod N → ZMod M` gives them modulo `M`. -/
+theorem Gamma1_le_Gamma1_of_dvd {M N : ℕ} (h : M ∣ N) : Gamma1 N ≤ Gamma1 M := by
+  intro A hA
+  rw [Gamma1_mem] at hA ⊢
+  exact ⟨by simpa [map_intCast, map_one, map_zero] using congr_arg (ZMod.castHom h (ZMod M)) hA.1,
+    by simpa [map_intCast, map_one, map_zero] using congr_arg (ZMod.castHom h (ZMod M)) hA.2.1,
+    by simpa [map_intCast, map_one, map_zero] using congr_arg (ZMod.castHom h (ZMod M)) hA.2.2⟩
+
+/-- `Γ₀` is antitone in the level: if `M ∣ N` then `Γ₀(N) ≤ Γ₀(M)`. -/
+theorem Gamma0_le_Gamma0_of_dvd {M N : ℕ} (h : M ∣ N) : Gamma0 N ≤ Gamma0 M := by
+  intro A hA
+  rw [Gamma0_mem] at hA ⊢
+  simpa [map_intCast, map_one, map_zero] using congr_arg (ZMod.castHom h (ZMod M)) hA
 
 /-- Conjugation by a `Gamma0 N` element preserves `Gamma1 N`.
 This is the foundation for the diamond operator `⟨d⟩` on modular forms. -/
@@ -343,10 +361,8 @@ theorem Gamma0_prime_power_index (p : ℕ) (hp : Nat.Prime p) (k : ℕ) (hk : 0 
   induction k, hk using Nat.le_induction with
   | base => simpa using Gamma0_prime_index p hp
   | succ m hm ih =>
-    have h_le : Gamma0 (p ^ (m + 1)) ≤ Gamma0 (p ^ m) := fun σ hσ ↦ by
-      rw [Gamma0_mem, ZMod.intCast_zmod_eq_zero_iff_dvd] at hσ ⊢
-      exact (Int.natCast_dvd_natCast.mpr (pow_dvd_pow p m.le_succ)).trans hσ
-    rw [Nat.add_sub_cancel, ← Subgroup.relIndex_mul_index h_le,
+    rw [Nat.add_sub_cancel,
+      ← Subgroup.relIndex_mul_index (Gamma0_le_Gamma0_of_dvd (pow_dvd_pow p m.le_succ)),
       Gamma0_relIndex_pow_succ p hp.pos m hm, ih, ← mul_assoc, ← pow_succ',
       Nat.sub_add_cancel hm]
 
