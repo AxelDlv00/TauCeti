@@ -25,6 +25,9 @@ active segment. These are the `γ'` factors of the valence-formula contour integ
 * `TauCeti.ModularForm.hasDerivAt_fdBoundary_of_lt_one` … `_of_gt_four`: the contour
   differentiates like its active segment between the breakpoints, with the two arcs
   unified across their smooth junction (`hasDerivAt_fdBoundary_of_mem_Ioo_one_three`).
+* `TauCeti.ModularForm.deriv_fdBoundary_four_sub_vertical`, `…_four_sub_arc`: the
+  derivative transforms of the reflection identities of `fdBoundary` — the `γ'` halves
+  of the vertical cancellation and the arc self-pairing.
 
 ## References
 
@@ -216,6 +219,40 @@ lemma deriv_fdBoundary_of_gt_four (ht : 4 < t) : deriv (fdBoundary H) t = 1 :=
   (hasDerivAt_fdBoundary_of_gt_four ht).deriv
 
 end DerivRewrites
+
+section Reflection
+
+/-- Differentiating the vertical reflection identity: on the interiors of the verticals,
+the reflection `t ↦ 4 - t` negates the derivative. -/
+@[simp]
+lemma deriv_fdBoundary_four_sub_vertical (H : ℝ) {t : ℝ} (ht : t ∈ Set.Ioo (0 : ℝ) 1) :
+    deriv (fdBoundary H) (4 - t) = -deriv (fdBoundary H) t := by
+  rw [deriv_fdBoundary_of_mem_Ioo_three_four ⟨by linarith [ht.2], by linarith [ht.1]⟩,
+    deriv_fdBoundary_of_lt_one ht.2]
+  ring
+
+/-- Differentiating the arc reflection identity: on the interior of the arc, the
+reflection `t ↦ 4 - t` transforms the derivative by `w ↦ -w / z ^ 2` — the inversion
+`z ↦ -1/z` contributes its derivative `w ↦ w / z ^ 2`, and the parameter reversal
+`t ↦ 4 - t` contributes the minus sign. -/
+@[simp]
+lemma deriv_fdBoundary_four_sub_arc (H : ℝ) {t : ℝ} (ht : t ∈ Set.Ioo (1 : ℝ) 3) :
+    deriv (fdBoundary H) (4 - t) = -deriv (fdBoundary H) t / fdBoundary H t ^ 2 := by
+  have hmem : (4 - t : ℝ) ∈ Set.Icc (1 : ℝ) 3 := ⟨by linarith [ht.2], by linarith [ht.1]⟩
+  have hval : circleMap 0 1 ((4 - t + 1) * (Real.pi / 6)) =
+      -1 / circleMap 0 1 ((t + 1) * (Real.pi / 6)) := by
+    have h := fdBoundary_four_sub_arc H ⟨ht.1.le, ht.2.le⟩
+    rwa [eqOn_fdBoundary_arc H hmem, eqOn_fdBoundary_arc H ⟨ht.1.le, ht.2.le⟩] at h
+  have hcurve : fdBoundary H t = circleMap 0 1 ((t + 1) * (Real.pi / 6)) :=
+    eqOn_fdBoundary_arc H ⟨ht.1.le, ht.2.le⟩
+  have hne : circleMap 0 1 ((t + 1) * (Real.pi / 6)) ≠ 0 := circleMap_ne_center one_ne_zero
+  rw [deriv_fdBoundary_of_mem_Ioo_one_three ⟨by linarith [ht.2], by linarith [ht.1]⟩,
+    deriv_fdBoundary_of_mem_Ioo_one_three ht, hcurve, hval, Complex.real_smul,
+    Complex.real_smul]
+  field_simp
+
+end Reflection
+
 
 
 end ModularForm
