@@ -6,7 +6,7 @@ module
 
 public import Mathlib.RepresentationTheory.Maschke
 public import TauCeti.RepresentationTheory.Symmetric.Factorization
-public import TauCeti.RepresentationTheory.Symmetric.SpechtIdeal.Basic
+public import TauCeti.RepresentationTheory.Symmetric.Specht.Ideal.Basic
 public import TauCeti.RingTheory.Semisimple.NilpotentIdeal
 
 /-!
@@ -45,7 +45,7 @@ Mathlib nor this repository relates `CategoryTheory.Simple` in `FDRep ℚ Sₙ` 
 `Representation.IsIrreducible`, so the `FDRep` mirror of the theorem is not available.
 
 On the one-row and the one-column shape the Specht ideal is a line, by the dimension count of
-`TauCeti.RepresentationTheory.Symmetric.SpechtIdeal.Extremes`, so on those shapes this theorem is
+`TauCeti.RepresentationTheory.Symmetric.Specht.Ideal.Extremes`, so on those shapes this theorem is
 visible without any of the above; there is nothing extra to say about them here.  The
 identification of this representation with the span of the polytabloids inside the Young
 permutation module, and the classification saying that these exhaust the irreducibles of `Sₙ` and

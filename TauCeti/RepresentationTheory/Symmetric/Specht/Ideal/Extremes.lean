@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import TauCeti.RepresentationTheory.Symmetric.SpechtIdeal.Basic
+public import TauCeti.RepresentationTheory.Symmetric.Specht.Ideal.Basic
 
 /-!
 # The Specht ideals of the one-row and the one-column shape
@@ -14,7 +14,7 @@ The two extreme shapes of a partition of `n` are the single row `(n)` and the si
 representation theory: the trivial one and the sign one.  This file proves that for the left-ideal
 presentation `ℚ[Sₙ] c_t` of the Specht module.  Both are lines, so both are irreducible, but that
 is a special case of `TauCeti.YoungTableau.isIrreducible_spechtIdealRep` in
-`TauCeti.RepresentationTheory.Symmetric.SpechtIdeal.Irreducible`, which holds for every shape, and
+`TauCeti.RepresentationTheory.Symmetric.Specht.Ideal.Irreducible`, which holds for every shape, and
 is not restated here.
 
 The shape hypotheses are stated on the row and column groups rather than on the diagram, because
