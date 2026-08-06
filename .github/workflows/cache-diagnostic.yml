@@ -67,9 +67,18 @@ jobs:
           echo "curl:      $(curl --version | head -1)"
           echo "nproc:     $(nproc)   # curl -Z parallelism scales with this"
           echo "kernel:    $(uname -r)"
-          echo "runner fs: $(findmnt -no FSTYPE,OPTIONS --target "$PWD" || true)"
+          echo "workspace fs:   $(findmnt -no FSTYPE,OPTIONS --target "$PWD" || true)"
           df -h "$PWD" | tail -1
-          echo "tmp fs:    $(findmnt -no FSTYPE,OPTIONS --target /tmp || true)"
+          echo "RUNNER_TEMP fs: $(findmnt -no FSTYPE,OPTIONS --target "$RUNNER_TEMP" || true)"
+          echo "tmp fs:         $(findmnt -no FSTYPE,OPTIONS --target /tmp || true)"
+          # The probe MUST write where the real cache lives. pr-build.yml puts it at
+          # base/.lake/cache inside the workspace; if RUNNER_TEMP were a different
+          # filesystem, probing there would test the wrong one, and a negative result
+          # would say nothing about the filesystem the failure actually occurs on.
+          ws=$(findmnt -no SOURCE --target "$PWD" || echo unknown-ws)
+          rt=$(findmnt -no SOURCE --target "$RUNNER_TEMP" || echo unknown-rt)
+          echo "workspace device=$ws  RUNNER_TEMP device=$rt"
+          [ "$ws" = "$rt" ] || echo "::warning::workspace and RUNNER_TEMP are different filesystems; probes run on the workspace one"
 
       - name: Collect artifact hashes to probe
         id: hashes
@@ -112,16 +121,17 @@ jobs:
           python3 scripts/diag/cache_fetch_probe.py \
             "$RUNNER_TEMP/diag/hashes.txt" \
             "$PUBLIC_ARTIFACT_ENDPOINT/TauCetiProject/TauCeti" \
-            "$RUNNER_TEMP/diag/outA" \
+            "$GITHUB_WORKSPACE/base/.lake/cache/probeA" \
             --iterations "${{ inputs.iterations }}"
 
       - name: Phase B — probe under disk and CPU load
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/base/.lake/cache"
           # A real build writes multi-GB into this filesystem while the fetch runs and
           # saturates every core. Reproduce that pressure, then tear it down.
           for i in $(seq 1 "$(nproc)"); do
-            ( while :; do dd if=/dev/zero of="$RUNNER_TEMP/diag/load.$i" bs=1M count=256 \
-                 oflag=direct 2>/dev/null || dd if=/dev/zero of="$RUNNER_TEMP/diag/load.$i" \
+            ( while :; do dd if=/dev/zero of="$GITHUB_WORKSPACE/base/.lake/cache/load.$i" bs=1M count=256 \
+                 oflag=direct 2>/dev/null || dd if=/dev/zero of="$GITHUB_WORKSPACE/base/.lake/cache/load.$i" \
                  bs=1M count=256 2>/dev/null; sync; done ) &
             echo $! >> "$RUNNER_TEMP/diag/load.pids"
           done
@@ -131,9 +141,9 @@ jobs:
           python3 scripts/diag/cache_fetch_probe.py \
             "$RUNNER_TEMP/diag/hashes.txt" \
             "$PUBLIC_ARTIFACT_ENDPOINT/TauCetiProject/TauCeti" \
-            "$RUNNER_TEMP/diag/outB" \
+            "$GITHUB_WORKSPACE/base/.lake/cache/probeB" \
             --iterations "${{ inputs.iterations }}"
-          rm -f "$RUNNER_TEMP/diag"/load.* || true
+          rm -f "$GITHUB_WORKSPACE/base/.lake/cache"/load.* || true
 
       - name: Install elan (for phase C)
         run: |
