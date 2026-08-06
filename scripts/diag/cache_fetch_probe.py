@@ -87,8 +87,16 @@ def run_once(hashes, endpoint, outdir, tag, refs):
         if rec.get("http_code") not in (200, 201):
             non200 += 1
             continue
+        # Guard the fields before using them. A missing `filename_effective` would make
+        # open("") raise FileNotFoundError and be counted as ENOENT; a missing
+        # `size_download` would default to -1 and make every file look SHORT. Both would
+        # be false POSITIVES, which for a diagnostic is as bad as a false negative -- it
+        # would send the investigation after a phantom. Count them as anomalies instead.
         path = rec.get("filename_effective") or ""
-        want = rec.get("size_download", -1)
+        want = rec.get("size_download")
+        if not path or not isinstance(want, int):
+            unparsed += 1
+            continue
         # This is the moment Lake calls computeFileHash. Do exactly that.
         try:
             with open(path, "rb") as fh:
@@ -140,13 +148,14 @@ def main(argv):
     refs = build_references(hashes, args.endpoint, refdir)
     print(f"recorded {len(refs)} reference digests", flush=True)
 
-    tot_enoent = tot_short = tot_corrupt = tot_clean = 0
+    tot_enoent = tot_short = tot_corrupt = tot_clean = tot_unparsed = 0
     for i in range(1, args.iterations + 1):
         r = run_once(hashes, args.endpoint, args.outdir, i, refs)
         tot_enoent += len(r["enoent"])
         tot_short += len(r["short"])
         tot_corrupt += len(r["corrupt"])
         tot_clean += r["clean"]
+        tot_unparsed += r["unparsed"]
         print(f"  iter {i}: clean={r['clean']} enoent={len(r['enoent'])} "
               f"short={len(r['short'])} corrupt={len(r['corrupt'])} "
               f"non200={r['non200']} unparsed={r['unparsed']} curl_rc={r['rc']}",
@@ -167,6 +176,9 @@ def main(argv):
               "short, or wrong at verification time.")
     else:
         print("NOT REPRODUCED in this configuration.")
+    if tot_unparsed:
+        print(f"NOTE: {tot_unparsed} curl record(s) were unusable (missing fields or "
+              f"unparseable JSON) and were counted as neither clean nor failing.")
     return 0
 
 
