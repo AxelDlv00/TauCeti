@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Mathlib.Analysis.Calculus.Deriv.Basic
+public import Mathlib.Analysis.Calculus.LogDeriv
 public import TauCeti.NumberTheory.ModularForms.LevelOne.FundamentalDomainBoundary.Basic
 
 import Mathlib.Analysis.Calculus.Deriv.AffineMap
@@ -250,6 +251,33 @@ lemma deriv_fdBoundary_four_sub_arc (H : ℝ) {t : ℝ} (ht : t ∈ Set.Ioo (1 :
     deriv_fdBoundary_of_mem_Ioo_one_three ht, hcurve, hval, Complex.real_smul,
     Complex.real_smul]
   field_simp
+
+/-- On the open arc the contour's logarithmic derivative — its logarithmic speed
+`γ' / γ` — is the constant `π/6 · i`: the arc traverses the unit circle at angular speed
+`π/6`. -/
+@[simp]
+theorem logDeriv_fdBoundary_arc {H t : ℝ} (ht : t ∈ Set.Ioo (1 : ℝ) 3) :
+    logDeriv (fdBoundary H) t = (Real.pi / 6 : ℝ) * Complex.I := by
+  have hne : circleMap 0 1 ((t + 1) * (Real.pi / 6)) ≠ 0 := circleMap_ne_center one_ne_zero
+  rw [logDeriv_apply, deriv_fdBoundary_of_mem_Ioo_one_three ht,
+    eqOn_fdBoundary_arc H ⟨ht.1.le, ht.2.le⟩, Complex.real_smul]
+  field_simp
+
+/-- The arc integral of the contour's logarithmic derivative over any subinterval of the
+arc, in either orientation: the integrand is `π/6 · i` on the open arc
+(`logDeriv_fdBoundary_arc`), hence almost everywhere for these interval integrals. -/
+theorem integral_logDeriv_fdBoundary_arc (H : ℝ) {a b : ℝ} (ha : a ∈ Set.Icc (1 : ℝ) 3)
+    (hb : b ∈ Set.Icc (1 : ℝ) 3) :
+    ∫ t in a..b, logDeriv (fdBoundary H) t =
+      (b - a) * ((Real.pi / 6 : ℝ) * Complex.I) := by
+  rw [intervalIntegral.integral_congr_uIoo
+      (g := fun _ ↦ ((Real.pi / 6 : ℝ) : ℂ) * Complex.I) fun t ht ↦
+        logDeriv_fdBoundary_arc
+          ⟨lt_of_le_of_lt (le_min ha.1 hb.1) ht.1,
+            lt_of_lt_of_le ht.2 (max_le ha.2 hb.2)⟩,
+    intervalIntegral.integral_const, Complex.real_smul]
+  push_cast
+  ring
 
 end Reflection
 
