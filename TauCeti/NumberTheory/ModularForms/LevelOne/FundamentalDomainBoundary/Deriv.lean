@@ -162,17 +162,34 @@ lemma hasDerivAt_fdBoundary_of_lt_one (ht : t < 1) :
     filter_upwards [Iio_mem_nhds ht] with s hs
     exact fdBoundary_of_le_one hs.le
 
+/-- The unified-arc parameterization differentiates by the chain rule, at every real
+parameter. -/
+private lemma hasDerivAt_arcMap (t : ℝ) :
+    HasDerivAt (fun s : ℝ ↦ circleMap 0 1 ((s + 1) * (Real.pi / 6)))
+      ((Real.pi / 6) • (circleMap 0 1 ((t + 1) * (Real.pi / 6)) * Complex.I)) t := by
+  have hθ : HasDerivAt (fun s : ℝ ↦ (s + 1) * (Real.pi / 6)) (Real.pi / 6) t := by
+    simpa using ((hasDerivAt_id t).add_const 1).mul_const (Real.pi / 6)
+  exact HasDerivAt.scomp_of_eq (x := t)
+    (hg := hasDerivAt_circleMap 0 1 ((t + 1) * (Real.pi / 6))) (hh := hθ) (hy := rfl)
+
+/-- On any subinterval of the arc range, the contour's within-derivative is the arc
+speed, endpoints included. -/
+lemma hasDerivWithinAt_fdBoundary_arc {c d : ℝ} (hc : 1 ≤ c) (hd : d ≤ 3)
+    (ht : t ∈ Set.Icc c d) :
+    HasDerivWithinAt (fdBoundary H)
+      ((Real.pi / 6) • (circleMap 0 1 ((t + 1) * (Real.pi / 6)) * Complex.I))
+      (Set.Icc c d) t := by
+  refine (hasDerivAt_arcMap t).hasDerivWithinAt.congr (fun s hs ↦ ?_) ?_
+  · exact eqOn_fdBoundary_arc H ⟨hc.trans hs.1, hs.2.trans hd⟩
+  · exact eqOn_fdBoundary_arc H ⟨hc.trans ht.1, ht.2.trans hd⟩
+
 /-- Strictly between the first and third breakpoints — across the smooth junction at
 `t = 2`, where the two arc segments continue the same circle parameterization — the
 contour differentiates like the unified arc of angle `(t + 1)·π/6`. -/
 lemma hasDerivAt_fdBoundary_of_mem_Ioo_one_three (ht : t ∈ Set.Ioo (1 : ℝ) 3) :
     HasDerivAt (fdBoundary H)
       ((Real.pi / 6) • (circleMap 0 1 ((t + 1) * (Real.pi / 6)) * Complex.I)) t := by
-  have hθ : HasDerivAt (fun s : ℝ ↦ (s + 1) * (Real.pi / 6)) (Real.pi / 6) t := by
-    simpa using ((hasDerivAt_id t).add_const 1).mul_const (Real.pi / 6)
-  have h_arc := HasDerivAt.scomp_of_eq (x := t)
-    (hg := hasDerivAt_circleMap 0 1 ((t + 1) * (Real.pi / 6))) (hh := hθ) (hy := rfl)
-  refine h_arc.congr_of_eventuallyEq ?_
+  refine (hasDerivAt_arcMap t).congr_of_eventuallyEq ?_
   filter_upwards [Ioo_mem_nhds ht.1 ht.2] with s hs
   exact eqOn_fdBoundary_arc H ⟨hs.1.le, hs.2.le⟩
 
