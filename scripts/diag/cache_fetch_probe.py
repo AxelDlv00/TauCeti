@@ -127,6 +127,12 @@ def main(argv):
 
     with open(args.hashes) as fh:
         hashes = [l.strip() for l in fh if l.strip()]
+    # Defence in depth against the worst outcome for a diagnostic: reporting a clean
+    # negative having verified nothing. The caller checks this too.
+    if len(hashes) < 50:
+        print(f"ERROR: only {len(hashes)} hashes supplied; refusing to report a "
+              f"negative result from too few draws", file=sys.stderr)
+        return 2
     print(f"probing {len(hashes)} artifacts x {args.iterations} iteration(s) "
           f"= {len(hashes) * args.iterations} verifications", flush=True)
 

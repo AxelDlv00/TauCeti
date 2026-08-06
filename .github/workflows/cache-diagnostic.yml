@@ -74,10 +74,15 @@ jobs:
       - name: Collect artifact hashes to probe
         id: hashes
         run: |
-          if [ -z "$PUBLIC_ARTIFACT_ENDPOINT" ]; then
-            echo "::error::LAKE_CACHE_ARTIFACT_ENDPOINT_PUBLIC is unset; nothing to probe"
-            exit 1
-          fi
+          # Fail closed on every path that would leave nothing to probe. A diagnostic
+          # that prints "NOT REPRODUCED" after zero verifications is worse than one that
+          # errors: it is a false negative in the instrument built to avoid them.
+          for v in PUBLIC_ARTIFACT_ENDPOINT PUBLIC_REVISION_ENDPOINT; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is unset; cannot probe"
+              exit 1
+            fi
+          done
           # Take the revision manifest for a recent built commit and read the artifact
           # hashes out of it, so we probe exactly the objects a real fetch would.
           mkdir -p "$RUNNER_TEMP/diag"
@@ -89,14 +94,18 @@ jobs:
             fi
           done
           if [ -z "$found" ]; then
-            echo "::warning::no revision manifest found in the last 40 commits; falling back to none"
-            : > "$RUNNER_TEMP/diag/hashes.txt"
-          else
-            echo "using revision $found ($(wc -l < "$RUNNER_TEMP/diag/rev.jsonl") manifest lines)"
-            grep -oE '[0-9a-f]{16}' "$RUNNER_TEMP/diag/rev.jsonl" | sort -u \
-              | head -n "${{ inputs.artifacts }}" > "$RUNNER_TEMP/diag/hashes.txt"
+            echo "::error::no revision manifest found in the last 40 commits; aborting rather than probing nothing"
+            exit 1
           fi
-          echo "probing $(wc -l < "$RUNNER_TEMP/diag/hashes.txt") artifact hashes"
+          echo "using revision $found ($(wc -l < "$RUNNER_TEMP/diag/rev.jsonl") manifest lines)"
+          grep -oE '[0-9a-f]{16}' "$RUNNER_TEMP/diag/rev.jsonl" | sort -u \
+            | head -n "${{ inputs.artifacts }}" > "$RUNNER_TEMP/diag/hashes.txt"
+          n=$(wc -l < "$RUNNER_TEMP/diag/hashes.txt")
+          if [ "$n" -lt 50 ]; then
+            echo "::error::only $n artifact hashes extracted; too few for a meaningful probe"
+            exit 1
+          fi
+          echo "probing $n artifact hashes"
 
       - name: Phase A — probe alone (baseline)
         run: |
