@@ -383,13 +383,9 @@ jobs:
       # cache service configured, so it cannot fetch them: Lake logs a warning per affected
       # module and correctly rebuilds it from source, but `lake build --iofail` is
       # `--fail-level=info`, so those warnings fail a build in which every module compiled.
-      # Partial fetches are routine in practice: about 16% of merge-group builds on 2026-08-05
-      # lost the cache entirely. WHY is not currently known. This comment used to attribute it to
-      # Cloudflare rate-limiting the public `*.r2.dev` host, but that host was replaced by
-      # cache.taucetiproject.org (repo variable LAKE_CACHE_ARTIFACT_ENDPOINT_PUBLIC), so that
-      # explanation no longer applies and must not be treated as a diagnosis. The observed symptom
-      # is `error: no such file or directory` naming an artifact Lake had just reported
-      # downloading; see https://github.com/TauCetiProject/TauCeti/issues/2062 for the investigation.
+      # Partial fetches are routine: they cost about a third of merge-group builds their cache.
+      # Fixed by https://github.com/leanprover/lean4/pull/14651, landing in v4.34.0-rc1;
+      # see https://github.com/TauCetiProject/TauCeti/issues/2062.
       #
       # Hence: retry from an EMPTY cache each time, then fall back to no cache at all. Retrying
       # over the dirty cache a failed attempt left behind does not work: Lake skips any artifact
