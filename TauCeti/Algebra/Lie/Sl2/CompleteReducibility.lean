@@ -256,8 +256,11 @@ private theorem exists_invariant_notMem_of_ne_bot_of_ne_of_le {d : ℕ}
       (fun hc ↦ hWN ((LieSubmodule.toSubmodule_inj _ _).1 hc))
   have hWlt : finrank K W < finrank K N := Submodule.finrank_lt_finrank_of_lt hWsub
   have hquot : finrank K (M ⧸ W) ≤ d := by
-    -- Ascribing the type states Mathlib's rank identity at the Lie quotient, so the arithmetic
-    -- below never has to see through the `LieSubmodule → Submodule` coercion.
+    -- There is no cross-type conversion here to justify. Mathlib *defines* the Lie-submodule
+    -- quotient to be the submodule quotient, `HasQuotient M (LieSubmodule R L M)` being
+    -- `⟨fun N => M ⧸ N.toSubmodule⟩` in `Mathlib/Algebra/Lie/Quotient.lean`, and `↥W` carries the
+    -- submodule's own carrier. So the submodule rank identity *is* the identity for `M ⧸ W`;
+    -- ascribing the type is what states it in that form.
     have hadd : finrank K (M ⧸ W) + finrank K W = finrank K M :=
       Submodule.finrank_quotient_add_finrank (W : Submodule K M)
     omega
