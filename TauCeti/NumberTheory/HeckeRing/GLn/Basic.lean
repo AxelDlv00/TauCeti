@@ -36,6 +36,9 @@ modular forms); the AINTLIB `HeckePair` bundle is replaced by Mathlib's `IsHecke
 
 * `SLnZ_le_posDetInt`: `SL_n(ℤ) ≤ Δ`.
 * `posDetInt_le_commensurator`: `Δ ≤ commensurator(SL_n(ℤ))` (Shimura's Lemma 3.10).
+* `commensurable_map_SLnZ`: the image of a finite-index subgroup of `SL_n(ℤ)` is commensurable
+  with `SL_n(ℤ)` — the step by which each congruence subgroup inherits Lemma 3.10 and so sits
+  in a Hecke triple of its own.
 * the `IsHeckeTriple (posDetInt n) (SLnZ n) (SLnZ n)` instance, and the
   Hecke ring `IntegralHeckeRing n` it founds.
 
@@ -75,6 +78,23 @@ downstream cannot unfold it to `MonoidHom.range`; this lemma is how they extract
 @[simp] lemma mem_SLnZ_iff {g : GL (Fin n) ℚ} :
     g ∈ SLnZ n ↔ ∃ σ : SpecialLinearGroup (Fin n) ℤ, (σ : GL (Fin n) ℚ) = g := by
   rw [SLnZ, MonoidHom.mem_range]
+
+/-- The image in `GL_n(ℚ)` of a finite-index subgroup of `SL_n(ℤ)` is commensurable with
+`SL_n(ℤ)`. Since `mapGL ℚ` is injective, both relative indices transport along it: one is the
+index of `H`, finite by hypothesis, and the other is `1`.
+
+This is the commensurability every congruence subgroup needs in order to sit in a Hecke
+triple, so it is stated once here for an arbitrary finite-index subgroup rather than
+re-proved at each of `Γ₀(N)`, `Γ₁(N)`, `Γ(N)`. -/
+lemma commensurable_map_SLnZ (H : Subgroup (SpecialLinearGroup (Fin n) ℤ)) [H.FiniteIndex] :
+    Subgroup.Commensurable (H.map (mapGL ℚ)) (SLnZ n) := by
+  constructor
+  · rw [SLnZ, MonoidHom.range_eq_map,
+      Subgroup.relIndex_map_map_of_injective _ _ mapGL_injective, Subgroup.relIndex_top_right]
+    exact Subgroup.FiniteIndex.index_ne_zero
+  · rw [SLnZ, MonoidHom.range_eq_map,
+      Subgroup.relIndex_map_map_of_injective _ _ mapGL_injective, Subgroup.relIndex_top_left]
+    exact one_ne_zero
 
 end Embedding
 
