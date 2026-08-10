@@ -43,6 +43,9 @@ counterexample in `IsWeightFamily`'s docstring shows the hypothesis is not autom
 * `TauCeti.Huber.weightedNhd`: the subgroup `U⟨X⟩` of `A⟨X⟩_T`.
 * `TauCeti.Huber.weightedTopology`: the ring topology they generate.
 * `TauCeti.Huber.weightedC` and `TauCeti.Huber.weightedX`: the constant series and the variables.
+* `TauCeti.Huber.weightedMap`: the morphism `A⟨X⟩_T → B⟨X⟩_S` induced by a continuous ring map
+  carrying each weight into the corresponding one; `continuous_weightedMap` makes it a morphism of
+  topological rings, and `weightedMap_id` with `weightedMap_comp` are the functor laws.
 
 ## Main results
 
@@ -59,6 +62,11 @@ counterexample in `IsWeightFamily`'s docstring shows the hypothesis is not autom
   `nonarchimedeanRing_weightedTopology`, `continuous_weightedC`).
 * `TauCeti.Huber.weightedRestrictedSubring_one_weight`: for the trivial weight this is the ordinary
   ring of restricted power series (Wedhorn Example 5.54).
+* `TauCeti.Huber.IsWeightedRestricted.map`, with `weightMul_map_le` and `image_weightPow`:
+  restrictedness is preserved by a continuous ring map carrying each `T i` into `S i`. This is
+  what `weightedMap` is built from; `weightedMap_weightedX` says it fixes the variables, while
+  `weightedMap_weightedC` says it acts as `φ` on constants — the constants are moved, not fixed.
+  `weightedMap_id` and `weightedMap_comp` are the functor laws.
 
 ## Scope
 
@@ -809,6 +817,136 @@ theorem continuous_weightedC [NonarchimedeanRing A] {T : Fin k → Set A} (hT : 
   · rw [weightMul_zero]
     simpa using ha
   · simp [coe_weightedC, MvPowerSeries.coeff_C, hν]
+
+/-! ### Functoriality -/
+
+section Functoriality
+
+variable {B : Type*} [CommRing B] [TopologicalSpace B]
+
+omit [TopologicalSpace A] in
+/-- The weight is monotone in the family. -/
+theorem weightPow_mono {T S : Fin k → Set A} (h : ∀ i, T i ⊆ S i) (ν : Fin k →₀ ℕ) :
+    weightPow T ν ⊆ weightPow S ν :=
+  Finset.prod_le_prod' fun i _ ↦ Set.pow_subset_pow_left (h i)
+
+omit [TopologicalSpace A] [TopologicalSpace B] in
+/-- A ring map carries the weight `Tν` onto the weight of the image family. -/
+theorem image_weightPow (φ : A →+* B) (T : Fin k → Set A) (ν : Fin k →₀ ℕ) :
+    φ '' weightPow T ν = weightPow (fun i ↦ φ '' T i) ν := by
+  simp only [weightPow_def, Set.image_finsetProd, Set.image_pow]
+
+omit [TopologicalSpace A] [TopologicalSpace B] in
+/-- **`weightMul` is functorial**: a ring map carrying each `T i` into `S i` and `U` into `V`
+carries `Tν · U` into `Sν · V`. -/
+theorem weightMul_map_le (φ : A →+* B) {T : Fin k → Set A} {S : Fin k → Set B}
+    (hTS : ∀ i, φ '' T i ⊆ S i) (ν : Fin k →₀ ℕ) {U : AddSubgroup A} {V : AddSubgroup B}
+    (hUV : U ≤ V.comap (φ : A →+ B)) :
+    (weightMul T ν U).map (φ : A →+ B) ≤ weightMul S ν V := by
+  rw [AddSubgroup.map_le_iff_le_comap]
+  refine weightMul_le.mpr fun t ht u hu ↦ ?_
+  simp only [AddSubgroup.mem_comap, AddMonoidHom.coe_coe, map_mul]
+  exact mul_mem_weightMul S ν V
+    (weightPow_mono hTS ν (image_weightPow φ T ν ▸ Set.mem_image_of_mem φ ht)) (hUV hu)
+
+/-- **Restrictedness is functorial**: a continuous ring map carrying each `T i` into `S i`
+carries `T`-restricted series to `S`-restricted ones. -/
+theorem IsWeightedRestricted.map {φ : A →+* B} (hφ : Continuous φ) {T : Fin k → Set A}
+    {S : Fin k → Set B} (hTS : ∀ i, φ '' T i ⊆ S i) {f : MvPowerSeries (Fin k) A}
+    (hf : IsWeightedRestricted T f) :
+    IsWeightedRestricted S (MvPowerSeries.map φ f) := by
+  -- continuity is used exactly once: `φ ⁻¹' V` is the *open* subgroup `hf` gets applied to
+  intro V
+  filter_upwards [hf (OpenAddSubgroup.comap (φ : A →+ B) hφ V)] with ν hν
+  rw [MvPowerSeries.coeff_map]
+  exact weightMul_map_le φ hTS ν le_rfl ⟨_, hν, rfl⟩
+
+/-- **The induced morphism `A⟨X⟩_T → B⟨X⟩_S`**: a continuous ring map `φ : A → B` carrying each
+weight `T i` into `S i` induces one, acting coefficientwise.
+
+The roadmap asks for functoriality as part of the §0.4 target; Wedhorn states the construction
+(Remark and Definition 5.48) but numbers no separate result for the induced morphism, so this
+carries no Wedhorn locator. The two weight families are given independently rather than taking
+`S i := φ '' T i`, because the image of a weight family need not be one and the intended targets —
+`S i` a bounded subset of `B` containing `φ '' T i` — are larger. -/
+noncomputable def weightedMap [NonarchimedeanRing A] [NonarchimedeanRing B] {φ : A →+* B}
+    (hφ : Continuous φ) {T : Fin k → Set A} {S : Fin k → Set B} (hT : IsWeightFamily T)
+    (hS : IsWeightFamily S) (hTS : ∀ i, φ '' T i ⊆ S i) :
+    weightedRestrictedSubring T hT →+* weightedRestrictedSubring S hS :=
+  ((MvPowerSeries.map φ).comp (weightedRestrictedSubring T hT).subtype).codRestrict _
+    fun f ↦ f.property.map hφ hTS
+
+/-- `weightedMap` is `MvPowerSeries.map` with its codomain cut down, so its values coerce back to
+the coefficientwise map. -/
+@[simp]
+theorem coe_weightedMap [NonarchimedeanRing A] [NonarchimedeanRing B] {φ : A →+* B}
+    (hφ : Continuous φ) {T : Fin k → Set A} {S : Fin k → Set B} {hT : IsWeightFamily T}
+    {hS : IsWeightFamily S} (hTS : ∀ i, φ '' T i ⊆ S i) (f : weightedRestrictedSubring T hT) :
+    (weightedMap hφ hT hS hTS f : MvPowerSeries (Fin k) B) =
+      MvPowerSeries.map φ (f : MvPowerSeries (Fin k) A) := (rfl)
+
+/-- `weightedMap` is compatible with the constant-series embeddings. -/
+@[simp]
+theorem weightedMap_weightedC [NonarchimedeanRing A] [NonarchimedeanRing B] {φ : A →+* B}
+    (hφ : Continuous φ) {T : Fin k → Set A} {S : Fin k → Set B} {hT : IsWeightFamily T}
+    {hS : IsWeightFamily S} (hTS : ∀ i, φ '' T i ⊆ S i) (a : A) :
+    weightedMap hφ hT hS hTS (weightedC T hT a) = weightedC S hS (φ a) :=
+  Subtype.ext (by simp [MvPowerSeries.map_C])
+
+/-- **`weightedMap` is continuous**, so the induced morphism is one of *topological* rings rather
+than of the underlying rings only. -/
+theorem continuous_weightedMap [NonarchimedeanRing A] [NonarchimedeanRing B] {φ : A →+* B}
+    (hφ : Continuous φ) {T : Fin k → Set A} {S : Fin k → Set B} (hT : IsWeightFamily T)
+    (hS : IsWeightFamily S) (hTS : ∀ i, φ '' T i ⊆ S i) :
+    Continuous (weightedMap hφ hT hS hTS) := by
+  -- the basic neighbourhood at `U = φ ⁻¹' V`, open by `hφ`, lands inside `V⟨X⟩`
+  refine continuous_of_continuousAt_zero (weightedMap hφ hT hS hTS) ?_
+  rw [ContinuousAt, map_zero, (hasBasis_nhds_zero_weightedTopology hS).tendsto_right_iff]
+  intro V _
+  refine Filter.mem_of_superset
+    ((hasBasis_nhds_zero_weightedTopology hT).mem_of_mem (i := OpenAddSubgroup.comap
+      (φ : A →+ B) hφ V) trivial) fun f hf ↦ ?_
+  simp only [Set.mem_ofPred_eq, SetLike.mem_coe, mem_weightedNhd] at hf ⊢
+  intro ν
+  rw [coe_weightedMap, MvPowerSeries.coeff_map]
+  exact weightMul_map_le φ hTS ν le_rfl ⟨_, hf ν, rfl⟩
+
+/-- **The identity law**: the map induced by `RingHom.id` is the identity. -/
+@[simp]
+theorem weightedMap_id [NonarchimedeanRing A] {T : Fin k → Set A} (hT : IsWeightFamily T) :
+    weightedMap (φ := RingHom.id A) (by simpa only [RingHom.coe_id] using continuous_id) hT hT
+        (fun _ ↦ by simpa only [RingHom.coe_id] using (Set.image_id _).subset)
+      = RingHom.id (weightedRestrictedSubring T hT) := by
+  refine RingHom.ext fun f ↦ Subtype.ext ?_
+  rw [coe_weightedMap, MvPowerSeries.map_id]
+  rfl
+
+/-- **The composition law**: the map induced by a composite is the composite of the induced maps.
+With `weightedMap_id` this is what makes `A⟨X⟩_T` functorial in the pair `(A, T)`. -/
+theorem weightedMap_comp [NonarchimedeanRing A] [NonarchimedeanRing B] {C : Type*} [CommRing C]
+    [TopologicalSpace C] [NonarchimedeanRing C] {φ : A →+* B} {ψ : B →+* C} (hφ : Continuous φ)
+    (hψ : Continuous ψ) {T : Fin k → Set A} {S : Fin k → Set B} {R : Fin k → Set C}
+    (hT : IsWeightFamily T) (hS : IsWeightFamily S) (hR : IsWeightFamily R)
+    (hTS : ∀ i, φ '' T i ⊆ S i) (hSR : ∀ i, ψ '' S i ⊆ R i) :
+    weightedMap (φ := ψ.comp φ) (by simpa only [RingHom.coe_comp] using hψ.comp hφ) hT hR
+        (fun i ↦ by
+          simpa only [RingHom.coe_comp, Set.image_comp] using
+            (Set.image_mono (hTS i)).trans (hSR i))
+      = (weightedMap hψ hS hR hSR).comp (weightedMap hφ hT hS hTS) := by
+  refine RingHom.ext fun f ↦ Subtype.ext ?_
+  rw [coe_weightedMap, MvPowerSeries.map_comp]
+  rfl
+
+/-- `weightedMap` fixes the variables. -/
+@[simp]
+theorem weightedMap_weightedX [NonarchimedeanRing A] [NonarchimedeanRing B] {φ : A →+* B}
+    (hφ : Continuous φ) {T : Fin k → Set A} {S : Fin k → Set B} {hT : IsWeightFamily T}
+    {hS : IsWeightFamily S} (hTS : ∀ i, φ '' T i ⊆ S i) (i : Fin k) :
+    weightedMap hφ hT hS hTS (weightedX T hT i) = weightedX S hS i :=
+  Subtype.ext (by simp [MvPowerSeries.map_X])
+
+end Functoriality
+
 
 end
 
