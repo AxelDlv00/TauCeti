@@ -12,10 +12,12 @@ public import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
 For a point `(x, y)` on an affine Weierstrass curve `W` over a field, Mathlib's
 `CoordinateRing.XYIdeal W x (C y)` is the ideal `⟨X - x, Y - y⟩` of the coordinate ring, and
 `CoordinateRing.quotientXYIdealEquiv` identifies the quotient by it with the base field. This file
-records the consequence: that ideal is maximal.
+records the consequences: that ideal is maximal, and it is nonzero.
 
 ## Main results
 
+* `TauCeti.WeierstrassCurve.Affine.CoordinateRing.XYIdeal_ne_bot`: `XYIdeal W x y` is nonzero, over
+  any nontrivial commutative base.
 * `TauCeti.WeierstrassCurve.Affine.CoordinateRing.XYIdeal_isMaximal`: `XYIdeal W x y` is maximal
   for any `y : F[X]` solving the Weierstrass equation at `x`, matching the generality of
   `XYIdeal` and `quotientXYIdealEquiv` themselves.
@@ -24,7 +26,9 @@ records the consequence: that ideal is maximal.
 
 Mathlib has the quotient isomorphism but records nothing about the ideal itself; the many `XYIdeal`
 lemmas it does state (`XYIdeal_eq₁`, `XYIdeal_eq₂`, `XYIdeal_mul_XYIdeal`, `XYIdeal_neg_mul`) are
-all about products and rewriting, not about the ideal's place in the spectrum.
+all about products and rewriting, not about the ideal's place in the spectrum. It does record that
+the two generators are nonzero (`XClass_ne_zero`, `YClass_ne_zero`), which is what `XYIdeal_ne_bot`
+rests on.
 
 Only the curve equation is needed, not nonsingularity: the quotient is the base field either way.
 
@@ -55,6 +59,20 @@ open Polynomial WeierstrassCurve WeierstrassCurve.Affine
 namespace TauCeti
 
 namespace WeierstrassCurve.Affine.CoordinateRing
+
+section CommRing
+
+variable {R : Type*} [CommRing R] [Nontrivial R] {W : _root_.WeierstrassCurve.Affine R}
+
+/-- **The ideal `⟨X - x, Y - y(X)⟩` of the coordinate ring is nonzero** over a nontrivial base. -/
+@[simp]
+lemma XYIdeal_ne_bot (x : R) (y : R[X]) : CoordinateRing.XYIdeal W x y ≠ ⊥ := fun hbot => by
+  have hmem : CoordinateRing.XClass W x ∈ CoordinateRing.XYIdeal W x y :=
+    Ideal.subset_span (Set.mem_insert _ _)
+  rw [hbot, Ideal.mem_bot] at hmem
+  exact CoordinateRing.XClass_ne_zero x hmem
+
+end CommRing
 
 variable {F : Type*} [Field F] {W : _root_.WeierstrassCurve.Affine F} {x : F}
 
