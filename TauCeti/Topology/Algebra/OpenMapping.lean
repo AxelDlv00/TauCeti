@@ -4,17 +4,18 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
+public import TauCeti.Topology.Algebra.Group.Pointwise
 public import TauCeti.Topology.Algebra.ZeroSequenceOfUnits
 public import Mathlib.Topology.Baire.Lemmas
 public import Mathlib.GroupTheory.GroupAction.Pointwise
 
 /-!
-# The Baire step of Henkel's open mapping theorem
+# The Baire steps of Henkel's open mapping theorem
 
 Henkel's open mapping theorem says that a continuous surjective linear map between complete
 Hausdorff first-countable modules over a ring with a zero sequence of units is open. Its first
 half is a Baire-category argument, and that half is what this file isolates. It needs none of
-the hypotheses the second half needs — no completeness, no first countability, not even
+the hypotheses the rest of the proof needs — no completeness, no first countability, not even
 continuity of the map. What it does need is that the target is a Baire space and that the map is
 equivariant, the latter being what lets a dilate pass through it.
 
@@ -25,9 +26,15 @@ that cover to a cover of the target by the corresponding dilates of `f '' U`; Ba
 their closures to have interior; and dilating back by a unit — a homeomorphism of the target —
 moves that interior onto `closure (f '' U)` itself.
 
-What this does **not** give is that `closure (f '' U)` is a *neighbourhood of zero*, still less
-that `f '' U` is. Both are later steps of Henkel's proof and neither is proved here; the second
-is where completeness and first countability enter.
+The interior is then upgraded to a neighbourhood of zero in the usual way: a difference `D - D`
+of the closure with itself absorbs a translate of that interior, and `D - D` stays inside a
+closure by `TauCeti.closure_sub_closure_subset`. Choosing the neighbourhood symmetric — which
+Mathlib's `exists_closed_nhds_zero_neg_eq_add_subset` does in one step — turns that difference
+back into the image of `U`.
+
+What this does **not** give is that `f '' U` itself is a neighbourhood of zero, only its closure.
+Removing that closure is the last step of Henkel's proof and is where completeness and first
+countability enter; it is not proved here.
 
 ## Main results
 
@@ -37,7 +44,10 @@ is where completeness and first countability enter.
 * `TauCeti.nonempty_interior_closure_image_of_tendsto_zero`: the form Henkel's proof uses — along
   a zero sequence of units, the closure of the image of any neighbourhood of zero under a
   surjective equivariant map has nonempty interior.
-* `TauCeti.HasZeroSequenceOfUnits.nonempty_interior_closure_image`: the same, taking the sequence
+* `TauCeti.closure_image_mem_nhds_zero_of_tendsto_zero`: that interior upgraded — the closure of
+  the image of a neighbourhood of zero *is* a neighbourhood of zero.
+* `TauCeti.HasZeroSequenceOfUnits.nonempty_interior_closure_image` and
+  `TauCeti.HasZeroSequenceOfUnits.closure_image_mem_nhds_zero`: the same two, taking the sequence
   from the class rather than from the caller.
 
 ## References
@@ -123,6 +133,50 @@ theorem HasZeroSequenceOfUnits.nonempty_interior_closure_image [HasZeroSequenceO
   nonempty_interior_closure_image_of_tendsto_zero f hf hu hc hU
 
 end Image
+
+section Nhds
+
+variable {A M N : Type*} [MonoidWithZero A] [TopologicalSpace A]
+  [AddGroup M] [TopologicalSpace M] [IsTopologicalAddGroup M] [MulActionWithZero A M]
+  [AddGroup N] [TopologicalSpace N] [IsTopologicalAddGroup N] [MulAction A N]
+  [ContinuousConstSMul A N]
+
+/-- **The closure of the image of a neighbourhood of zero is a neighbourhood of zero.** This is
+the strongest statement about `f` available without completeness or first countability; removing
+the closure needs both and is not done here.
+
+Additivity of `f` is used here and by none of the results above, which is why this and its
+class-level companion carry the additive hypotheses on `M` and `N` and those do not. -/
+theorem closure_image_mem_nhds_zero_of_tendsto_zero [BaireSpace N]
+    {F : Type*} [FunLike F M N] [MulActionHomClass F A M N] [AddMonoidHomClass F M N] (f : F)
+    (hf : Function.Surjective f) {u : ℕ → Aˣ} (hu : Tendsto (fun n ↦ ((u n : A))) atTop (𝓝 0))
+    (hc : ∀ x : M, ContinuousAt (fun a : A ↦ a • x) 0) {U : Set M} (hU : U ∈ 𝓝 (0 : M)) :
+    closure (f '' U) ∈ 𝓝 (0 : N) := by
+  obtain ⟨V, hV, -, hVneg, hVU⟩ := exists_closed_nhds_zero_neg_eq_add_subset hU
+  have hVsub : V - V ⊆ U := by rw [sub_eq_add_neg, hVneg]; exact hVU
+  obtain ⟨y, hy⟩ := nonempty_interior_closure_image_of_tendsto_zero f hf hu hc hV
+  -- `W - y` is an open neighbourhood of zero, presented as the preimage of `W` under `· + y`.
+  have hO : IsOpen ((fun x : N ↦ x + y) ⁻¹' interior (closure (f '' V))) :=
+    isOpen_interior.preimage (continuous_id.add continuous_const)
+  refine Filter.mem_of_superset (hO.mem_nhds (by simpa using hy)) fun x hx ↦ ?_
+  have hxy : x ∈ closure (f '' V) - closure (f '' V) :=
+    ⟨x + y, interior_subset hx, y, interior_subset hy, add_sub_cancel_right x y⟩
+  refine closure_mono ?_ (closure_sub_closure_subset _ _ hxy)
+  rw [← Set.image_sub]
+  exact Set.image_mono hVsub
+
+/-- **The neighbourhood step under the class hypothesis.** The same conclusion as
+`TauCeti.closure_image_mem_nhds_zero_of_tendsto_zero`, with the zero sequence taken from
+`TauCeti.HasZeroSequenceOfUnits` instead of supplied by the caller. -/
+theorem HasZeroSequenceOfUnits.closure_image_mem_nhds_zero [HasZeroSequenceOfUnits A]
+    [BaireSpace N] {F : Type*} [FunLike F M N]
+    [MulActionHomClass F A M N] [AddMonoidHomClass F M N] (f : F) (hf : Function.Surjective f)
+    (hc : ∀ x : M, ContinuousAt (fun a : A ↦ a • x) 0) {U : Set M} (hU : U ∈ 𝓝 (0 : M)) :
+    closure (f '' U) ∈ 𝓝 (0 : N) :=
+  let ⟨_, hu⟩ := ‹HasZeroSequenceOfUnits A›.exists_tendsto
+  closure_image_mem_nhds_zero_of_tendsto_zero f hf hu hc hU
+
+end Nhds
 
 end TauCeti
 
