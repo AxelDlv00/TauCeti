@@ -62,8 +62,6 @@ simpNF TauCeti.Subgroup.normalizerEquivMap_symm_apply_coe
 simpNF TauCeti.Subgroup.normalizerEquivMap_symm_apply_coe'
 simpNF TauCeti.Subgroup.normalizerEquivMap_trans_apply_coe
 simpNF TauCeti.Subgroup.normalizerQuotientEquivMap_symm_mk'
-simpNF TauCeti.WeierstrassCurve.Affine.CoordinateRing.conj_conj
-simpNF TauCeti.WeierstrassCurve.Affine.CoordinateRing.mul_conj
 simpNF TauCeti.integral_normalizedChebyshevT_mul_normalizedChebyshevT_measureT_eq_ite
 simpNF TauCeti.isComplexLinear_arrowCongr_iff
 simpNF TauCeti.reflectRepMapApp_of_ne✝
