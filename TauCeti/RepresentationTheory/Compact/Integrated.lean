@@ -99,7 +99,7 @@ variable [CompactSpace G] [MeasurableSpace G] [BorelSpace G]
 /-- Haar averaging does not see the conjugation of the group variable: it is a right translation
 followed by a left translation. -/
 private theorem haarAverage_comp_conjMap {W : Type*} [NormedAddCommGroup W] [NormedSpace 𝕜 W]
-    [NormedSpace ℝ W] [SMulCommClass ℝ 𝕜 W] [CompleteSpace W] (F : C(G, W)) (h : G) :
+    [NormedSpace ℝ W] [SMulCommClass ℝ 𝕜 W] (F : C(G, W)) (h : G) :
     haarAverage G (𝕜 := 𝕜) (F.comp (conjMap h)) = haarAverage G (𝕜 := 𝕜) F := by
   rw [conjMap, ← ContinuousMap.comp_assoc, haarAverage_comp_mulRight, haarAverage_comp_mulLeft]
 
@@ -151,6 +151,7 @@ theorem integratedOperator_apply (f : C(G, 𝕜)) (v : V) :
 
 /-! ### Linearity in the acting function -/
 
+omit [CompleteSpace V] in
 @[simp]
 theorem integratedOperator_zero : integratedOperator π hπ (0 : C(G, 𝕜)) = 0 := by
   have hzero : weightFamily π hπ (0 : C(G, 𝕜)) = 0 := by
@@ -158,6 +159,7 @@ theorem integratedOperator_zero : integratedOperator π hπ (0 : C(G, 𝕜)) = 0
     simp
   rw [integratedOperator, hzero, map_zero]
 
+omit [CompleteSpace V] in
 @[simp]
 theorem integratedOperator_add (f₁ f₂ : C(G, 𝕜)) :
     integratedOperator π hπ (f₁ + f₂)
@@ -167,6 +169,7 @@ theorem integratedOperator_add (f₁ f₂ : C(G, 𝕜)) :
     simp [add_smul]
   rw [integratedOperator, integratedOperator, integratedOperator, hadd, map_add]
 
+omit [CompleteSpace V] in
 @[simp]
 theorem integratedOperator_smul (c : 𝕜) (f : C(G, 𝕜)) :
     integratedOperator π hπ (c • f) = c • integratedOperator π hπ f := by
@@ -182,6 +185,7 @@ noncomputable def integratedOperatorₗ : C(G, 𝕜) →ₗ[𝕜] V →L[𝕜] V
   map_add' := integratedOperator_add π hπ
   map_smul' := integratedOperator_smul π hπ
 
+omit [CompleteSpace V] in
 @[simp]
 theorem integratedOperatorₗ_apply (f : C(G, 𝕜)) :
     integratedOperatorₗ π hπ f = integratedOperator π hπ f :=
