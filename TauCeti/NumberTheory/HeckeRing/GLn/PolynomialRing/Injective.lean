@@ -146,31 +146,14 @@ private lemma divChain_two_of_dvd {a b : ℕ} (hab : a ∣ b) :
   isDvdChain_iff.mpr fun i j hij ↦ by
     fin_cases i <;> fin_cases j <;> simp_all
 
-/-- Determinant of an SL_n(ℤ) element embedded in GL_n(ℚ) is 1.
-
-`SpecialLinearGroup.det_mapGL` is the same fact for `GeneralLinearGroup.det`, which is
-`ℚˣ`-valued; every use here needs the `Matrix.det` of the coerced matrix, so this is the
-`Units.val` bridge rather than a second proof. -/
-private lemma det_SLnZ_eq_one {g : GL (Fin 2) ℚ} (hg : g ∈ SLnZ 2) :
-    (↑g : Matrix (Fin 2) (Fin 2) ℚ).det = 1 := by
-  obtain ⟨σ, rfl⟩ := (mem_SLnZ_iff 2).mp hg
-  exact congrArg Units.val (SpecialLinearGroup.det_mapGL (S := ℚ) σ)
-
-/-- Elements in the same SL_n double coset have the same determinant. -/
+/-- Elements in the same SL_n double coset have the same determinant. The general fact is
+`det_eq_of_mem_doubleCoset_SLnZ`; this is its `HeckeCoset` phrasing. -/
 private lemma det_doubleCoset_eq {g₁ g₂ : posDetInt 2}
     (h : HeckeCoset.mk (SLnZ 2) (SLnZ 2) g₁ = HeckeCoset.mk (SLnZ 2) (SLnZ 2) g₂) :
     (↑(↑g₁ : GL (Fin 2) ℚ) : Matrix (Fin 2) (Fin 2) ℚ).det =
-      (↑(↑g₂ : GL (Fin 2) ℚ) : Matrix (Fin 2) (Fin 2) ℚ).det := by
-  rw [HeckeCoset.eq_iff] at h
-  have hg₁_mem : (g₁ : GL (Fin 2) ℚ) ∈
-      DoubleCoset.doubleCoset (g₂ : GL (Fin 2) ℚ) (SLnZ 2) (SLnZ 2) := by
-    rw [← h]; exact DoubleCoset.mem_doubleCoset_self _ _ _
-  obtain ⟨h₁, hh₁, h₂, hh₂, heq⟩ := DoubleCoset.mem_doubleCoset.mp hg₁_mem
-  have : (↑(↑g₁ : GL (Fin 2) ℚ) : Matrix (Fin 2) (Fin 2) ℚ).det =
-      (h₁ * (↑g₂ : GL (Fin 2) ℚ) * h₂).1.det := by rw [heq]
-  simp only [GeneralLinearGroup.coe_mul, Matrix.det_mul, det_SLnZ_eq_one hh₁,
-    det_SLnZ_eq_one hh₂, one_mul, mul_one] at this
-  exact this
+      (↑(↑g₂ : GL (Fin 2) ℚ) : Matrix (Fin 2) (Fin 2) ℚ).det :=
+  det_eq_of_mem_doubleCoset_SLnZ 2
+    (HeckeCoset.eq_iff.mp h ▸ DoubleCoset.mem_doubleCoset_self _ _ _)
 
 /-- The diagonal product of rep(diagCoset a) equals ∏ a. -/
 private lemma prod_rep_T_diag (a : Fin 2 → ℕ) (ha : ∀ i, 0 < a i) :
@@ -196,8 +179,8 @@ private lemma det_mulMap_eq (g₁ g₂ : posDetInt 2)
     (HeckeCoset.mulMap_eq_mk (SLnZ 2) (SLnZ 2) (SLnZ 2) g₁ g₂ p)
   rw [det_doubleCoset_eq h_eq]
   simp only [GeneralLinearGroup.coe_mul, Matrix.det_mul]
-  have h1 := det_SLnZ_eq_one (p.1.out.2)
-  have h2 := det_SLnZ_eq_one (p.2.out.2)
+  have h1 := det_eq_one_of_mem_SLnZ 2 (p.1.out.2)
+  have h2 := det_eq_one_of_mem_SLnZ 2 (p.2.out.2)
   rw [h1, h2]; ring
 
 /-- If `D'` appears in the support of `m(rep D₁, rep D₂)`, then the determinant of its
