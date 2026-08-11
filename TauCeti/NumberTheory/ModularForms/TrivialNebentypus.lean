@@ -16,19 +16,23 @@ form for the bare congruence subgroup `Γ₀(N)`, and as an element of the chara
 character `χ = 1`. The ModularForms roadmap flags the clash and pins its resolution: prove the
 two isomorphic, then use `M_k(Γ₀(N))` as the default spelling and convert to it. This file is
 that milestone, for modular forms (`TauCeti.modFormCharSpaceOneEquiv`) and for cusp forms
-(`TauCeti.cuspFormCharSpaceOneEquiv`).
+(`TauCeti.cuspFormCharSpaceOneEquiv`), both stated for `N ≠ 0`.
 
 Both directions are instances of the generic subgroup-change API of
 `TauCeti.NumberTheory.ModularForms.Basic`. Restricting a `Γ₀(N)`-form to `Γ₁(N)`
 (`ModularForm.ofLe`) is unconditional, and the resulting form has trivial nebentypus because
 the diamond operators are slashes by elements of `Γ₀(N)`. Conversely, a `Γ₁(N)`-form with
-trivial nebentypus is `Γ₀(N)`-slash invariant by the nebentypus bridge
+trivial nebentypus is `Γ₀(N)`-slash invariant by the nebentypus criterion
 `mem_modFormCharSpace_iff_nebentypus`, and it is bounded (resp. zero) at every cusp of `Γ₀(N)`
-because `Γ₀(N)` and `Γ₁(N)` are arithmetic, hence share the cusps of `SL(2, ℤ)`
-(`Subgroup.IsArithmetic.isCusp_of_isCusp`); this is `ModularForm.ofSlashInvariant`. Both
-constructions preserve the underlying function `ℍ → ℂ`, so the resulting bijections are
+because for `N ≠ 0` the groups `Γ₀(N)` and `Γ₁(N)` are arithmetic, hence share the cusps of
+`SL(2, ℤ)` (`Subgroup.IsArithmetic.isCusp_of_isCusp`); this is `ModularForm.ofSlashInvariant`.
+Both constructions preserve the underlying function `ℍ → ℂ`, so the resulting bijections are
 `ℂ`-linear and conversion in either direction costs nothing: see the `coe_…_apply` lemmas
 below.
+
+The hypothesis `N ≠ 0` is therefore needed only for that converse direction: the
+characterisations of trivial nebentypus and the results about restricting a `Γ₀(N)`-form hold
+at every level, while the range equalities and the two equivalences assume `[NeZero N]`.
 
 Note what the isomorphism is *not*: `M_k(Γ₁(N), 1)` is a `Submodule` of `M_k(Γ₁(N))`, so the
 statement is that a submodule of the level-`Γ₁(N)` space is linearly equivalent to another
@@ -36,8 +40,8 @@ space of forms, not an equality of types.
 
 ## Main definitions
 
-* `TauCeti.modFormCharSpaceOneEquiv`, `TauCeti.cuspFormCharSpaceOneEquiv`: the `ℂ`-linear
-  equivalences `M_k(Γ₁(N), 1) ≃ₗ M_k(Γ₀(N))` and `S_k(Γ₁(N), 1) ≃ₗ S_k(Γ₀(N))`.
+* `TauCeti.modFormCharSpaceOneEquiv`, `TauCeti.cuspFormCharSpaceOneEquiv`: for `N ≠ 0`, the
+  `ℂ`-linear equivalences `M_k(Γ₁(N), 1) ≃ₗ M_k(Γ₀(N))` and `S_k(Γ₁(N), 1) ≃ₗ S_k(Γ₀(N))`.
 
 ## Main results
 
@@ -46,8 +50,9 @@ space of forms, not an equality of types.
 * `TauCeti.mem_modFormCharSpace_one_iff_diamondOp`,
   `TauCeti.mem_cuspFormCharSpace_one_iff_diamondOpCusp`: equivalently, being fixed by every
   diamond operator.
-* `TauCeti.modFormCharSpace_one_eq_range`, `TauCeti.cuspFormCharSpace_one_eq_range`: the
-  trivial-nebentypus space is the image of the restriction map from level `Γ₀(N)`.
+* `TauCeti.modFormCharSpace_one_eq_range`, `TauCeti.cuspFormCharSpace_one_eq_range`: for
+  `N ≠ 0`, the trivial-nebentypus space is the image of the restriction map from level
+  `Γ₀(N)`.
 
 ## References
 
