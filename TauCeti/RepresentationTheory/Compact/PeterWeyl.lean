@@ -19,9 +19,9 @@ Let `G` be a compact group. Schur orthogonality
 coefficients `√(dim V_i) · (π i)_{ab}` of a family of pairwise inequivalent finite-dimensional
 irreducible unitary continuous representations form an *orthonormal system* in `L²(G)`. This file
 proves that when the family is moreover **exhaustive** the system is *complete*, so it is a
-**Hilbert basis** of `L²(G)`: the Peter-Weyl theorem. Hausdorffness is not needed for this;
-it enters only in the standard-basis section at the end, where the skeleton is built from the
-irreducible classes of `G` and separating points is what asks for it.
+**Hilbert basis** of `L²(G)`: the Peter-Weyl theorem. Hausdorffness is nowhere needed, here or
+in the unconditional standard basis at the end: what the density argument runs on are the
+mollifiers of `Compact/ApproximateIdentity.lean`, which are built without it.
 
 ## "One representative per equivalence class" is data
 
@@ -529,7 +529,7 @@ end Existence
 section StandardBasis
 
 variable (𝕜 G : Type*) [RCLike 𝕜] [IsAlgClosed 𝕜] [Group G] [TopologicalSpace G]
-  [IsTopologicalGroup G] [CompactSpace G] [T2Space G] [MeasurableSpace G] [BorelSpace G]
+  [IsTopologicalGroup G] [CompactSpace G] [MeasurableSpace G] [BorelSpace G]
 
 /-- **The Peter-Weyl theorem, unconditionally.** The normalized matrix coefficients of the models
 chosen in the unitary equivalence classes are a Hilbert basis of `L²(G)`, indexed by
@@ -543,7 +543,6 @@ noncomputable def stdPeterWeylBasis :
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) 𝕜 (Lp 𝕜 2 (haarProb G)) :=
   peterWeylBasis (isIrrepSkeleton_model 𝕜 G)
 
-omit [T2Space G] in
 /-- **The unconditional Peter-Weyl basis is the normalized matrix coefficients of the chosen
 representatives.** As for `TauCeti.coe_peterWeylBasis`, the elements are on the nose the functions
 `g ↦ √(dim V_i) · ⟪(IrrepClass.model i).rep g e_a, e_b⟫`. -/
