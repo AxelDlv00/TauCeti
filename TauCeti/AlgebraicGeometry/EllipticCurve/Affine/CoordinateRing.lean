@@ -134,12 +134,10 @@ private lemma conj_apply (x : W.CoordinateRing) : conj W x = conjHom W x := by
   simp [conj]
 
 /-- Conjugation sends the coordinate `y` to `-y - (a₁X + a₃)`. -/
-@[simp]
 lemma conj_mk_Y : conj W (AdjoinRoot.root W.polynomial) = mk W W.negPolynomial := by
   rw [conj_apply, conjHom_mk_Y]
 
 /-- Conjugation fixes the coefficient ring `R[X]`. -/
-@[simp]
 lemma conj_mk_C (r : R[X]) : conj W (AdjoinRoot.of W.polynomial r) = mk W (C r) := by
   rw [conj_apply, conjHom_mk_C]
 
