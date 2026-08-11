@@ -117,6 +117,7 @@ theorem iSup_modFormCharSpace_eq_top (k : ℤ) :
   simpa only [top_inf_eq] using
     iSup_inf_modFormCharSpace_of_invariant k ⊤ fun _ _ _ ↦ Submodule.mem_top
 
+omit [NeZero N] in
 /-- **The character subspaces form an independent family.** -/
 theorem iSupIndep_modFormCharSpace (k : ℤ) :
     iSupIndep (fun χ : (ZMod N)ˣ →* ℂˣ ↦ modFormCharSpace (N := N) k χ) := by
@@ -132,6 +133,7 @@ theorem isInternal_modFormCharSpace (k : ℤ) [DecidableEq ((ZMod N)ˣ →* ℂ�
   DirectSum.isInternal_submodule_of_iSupIndep_of_iSup_eq_top
     (iSupIndep_modFormCharSpace k) (iSup_modFormCharSpace_eq_top k)
 
+omit [NeZero N] in
 /-- **The cusp-form character subspaces form an independent family.** -/
 theorem iSupIndep_cuspFormCharSpace (k : ℤ) :
     iSupIndep (fun χ : (ZMod N)ˣ →* ℂˣ ↦ cuspFormCharSpace (N := N) k χ) := by
