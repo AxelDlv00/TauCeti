@@ -610,7 +610,7 @@ any prescribed open subgroup of `B`. This is the `A₀`-level base case of
 `exists_pow_mul_locSubring_mem`. -/
 private theorem exists_pow_mul_algebraMap_mem {B : Type*} [Ring B] [TopologicalSpace B]
     (P : PairOfDefinition A)
-    (S : Type*) [CommRing S] [Algebra A S] (f : S →+* B)
+    (S : Type*) [Ring S] [Algebra A S] (f : S →+* B)
     (hf : Continuous (f.comp (algebraMap A S))) (G : OpenAddSubgroup B) :
     ∃ m : ℕ, ∀ x ∈ P.ringOfDefinition.map (algebraMap A S),
       ∀ b ∈ P.idealOfDefinition ^ m,
