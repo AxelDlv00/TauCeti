@@ -437,7 +437,7 @@ theorem orthogonal_span_peterWeylFamily_eq_bot (h : IsIrrepSkeleton models) :
 
 end IsIrrepSkeleton
 
-/-- **The Peter-Weyl theorem.** For a skeleton of the unitary dual of a compact Hausdorff group,
+/-- **The Peter-Weyl theorem.** For a skeleton of the unitary dual of a compact group,
 the normalized matrix coefficients `√(dim V_i) · (models i)_{ab}` are a Hilbert basis of `L²(G)`,
 indexed by `Σ i, Fin (models i).dim × Fin (models i).dim`.
 

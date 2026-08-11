@@ -13,8 +13,10 @@ public import TauCeti.RepresentationTheory.Compact.EigenspaceRepresentation
 
 The **representative ring** `𝓡(G)` of `TauCeti/RepresentationTheory/Continuous/Representative.lean`
 is the span, inside `C(G, 𝕜)`, of the matrix coefficients of the finite-dimensional continuous
-representations of `G`. This file proves that on a compact Hausdorff group it is **uniformly
-dense** in `C(G, 𝕜)`. That density is the analytic core of the Peter-Weyl theorem: it is what makes
+representations of `G`. This file proves that on a compact group it is **uniformly dense** in
+`C(G, 𝕜)`; Hausdorffness is not needed for density, only for the point-separation corollaries
+below, which read closedness of points off `isClosed_singleton`. That density is the analytic
+core of the Peter-Weyl theorem: it is what makes
 the matrix coefficients span a dense subspace of `L²(G)`, and hence what a Hilbert basis of `L²(G)`
 can be assembled from.
 
