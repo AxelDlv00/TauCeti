@@ -350,7 +350,7 @@ Follows `diamondOp_n` of the AINTLIB `LeanModularForms` project
 `ce76186b5f61c846d770d2f87eb76ba5b9c9117a`, Apache-2.0). -/
 -- The statement is that project's; the proofs below are re-derived against the current Mathlib
 -- pin, where `dif_pos`/`dif_neg` are deprecated and the coprime lemma cannot carry `@[simp]`.
-noncomputable def diamondOpNat [NeZero N] (k : ℤ) (n : ℕ) :
+noncomputable def diamondOpNat (k : ℤ) (n : ℕ) :
     ModularForm ((Gamma1 N).map (mapGL ℝ)) k →ₗ[ℂ] ModularForm ((Gamma1 N).map (mapGL ℝ)) k :=
   if h : Nat.Coprime n N then diamondOp k (ZMod.unitOfCoprime n h) else 0
 
@@ -358,13 +358,13 @@ noncomputable def diamondOpNat [NeZero N] (k : ℤ) (n : ℕ) :
 -- Not a `simp` lemma: the right-hand side mentions the coprimality proof `h`, which `simp`
 -- cannot recover from the left-hand side, so it could never apply. Its negative counterpart is
 -- `simp`-able because that right-hand side is just `0`.
-lemma diamondOpNat_of_coprime [NeZero N] (k : ℤ) {n : ℕ} (h : Nat.Coprime n N) :
+lemma diamondOpNat_of_coprime (k : ℤ) {n : ℕ} (h : Nat.Coprime n N) :
     diamondOpNat k n = diamondOp k (ZMod.unitOfCoprime n h) :=
   dite_eq_left_of_eq_true (by simpa using h)
 
 /-- When `n` is not coprime to `N`, `⟨n⟩` vanishes. This is the case that lets the prime-power
 Hecke recurrence be stated without splitting on whether `p` divides the level. -/
 @[simp]
-lemma diamondOpNat_of_not_coprime [NeZero N] (k : ℤ) {n : ℕ} (h : ¬ Nat.Coprime n N) :
+lemma diamondOpNat_of_not_coprime (k : ℤ) {n : ℕ} (h : ¬ Nat.Coprime n N) :
     diamondOpNat (N := N) k n = 0 :=
   dite_eq_right_of_eq_false (by simpa using h)
