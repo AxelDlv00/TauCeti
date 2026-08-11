@@ -96,13 +96,14 @@ open _root_.TauCeti.ContRepresentation
 section CompactGroup
 
 variable {𝕜 G : Type*} [RCLike 𝕜] [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
-  [CompactSpace G] [T2Space G]
+  [CompactSpace G]
 
 /-! ### Uniform density -/
 
 variable (𝕜 G) in
-/-- **The Peter-Weyl density theorem.** The representative ring `𝓡(G)` of a compact Hausdorff group
-is uniformly dense in `C(G, 𝕜)`. -/
+/-- **The Peter-Weyl density theorem.** The representative ring `𝓡(G)` of a compact group is
+uniformly dense in `C(G, 𝕜)`. Hausdorffness is not needed: the mollifiers the proof runs on are
+built without it. -/
 theorem dense_representativeSubmodule : Dense (representativeSubmodule 𝕜 G : Set C(G, 𝕜)) := by
   let : MeasurableSpace G := borel G
   have : BorelSpace G := ⟨rfl⟩
@@ -143,7 +144,7 @@ theorem representativeStarSubalgebra_dense :
 
 Point separation is a *corollary* of `TauCeti.dense_representativeSubmodule`, and the roadmap's
 non-circular route to Peter-Weyl depends on its never being assumed beforehand. -/
-theorem exists_mem_representativeSubmodule_apply_ne (x y : G) (hxy : x ≠ y) :
+theorem exists_mem_representativeSubmodule_apply_ne [T2Space G] (x y : G) (hxy : x ≠ y) :
     ∃ f ∈ representativeSubmodule 𝕜 G, f x ≠ f y := by
   obtain ⟨u, hux, huy, -⟩ := exists_continuous_zero_one_of_isClosed (X := G)
     isClosed_singleton isClosed_singleton (Set.disjoint_singleton.2 hxy)
@@ -171,14 +172,14 @@ theorem exists_mem_representativeSubmodule_apply_ne (x y : G) (hxy : x ≠ y) :
 
 /-- Point separation, read on the representative `*`-subalgebra: this is the roadmap's
 `representativeStarSubalgebra_separatesPoints`. -/
-theorem representativeStarSubalgebra_separatesPoints (x y : G) (hxy : x ≠ y) :
+theorem representativeStarSubalgebra_separatesPoints [T2Space G] (x y : G) (hxy : x ≠ y) :
     ∃ f ∈ representativeStarSubalgebra 𝕜 G, f x ≠ f y := by
   obtain ⟨f, hf, hne⟩ := exists_mem_representativeSubmodule_apply_ne (𝕜 := 𝕜) x y hxy
   exact ⟨f, mem_representativeStarSubalgebra_iff.2 hf, hne⟩
 
 /-- **A single representative function already separates two distinct points**, and not merely a
 linear combination of representative functions. -/
-theorem exists_isRepresentative_apply_ne (x y : G) (hxy : x ≠ y) :
+theorem exists_isRepresentative_apply_ne [T2Space G] (x y : G) (hxy : x ≠ y) :
     ∃ f : C(G, 𝕜), IsRepresentative f ∧ f x ≠ f y := by
   by_contra hcon
   have hall : Set.EqOn (ContinuousMap.evalCLM 𝕜 x).toLinearMap
@@ -194,7 +195,7 @@ elements of `G` act differently in some finite-dimensional continuous representa
 
 This is the group-theoretic content of Peter-Weyl density: the finite-dimensional continuous
 representations of a compact Hausdorff group are jointly faithful. -/
-theorem exists_contRepresentation_apply_ne (x y : G) (hxy : x ≠ y) :
+theorem exists_contRepresentation_apply_ne [T2Space G] (x y : G) (hxy : x ≠ y) :
     ∃ (n : ℕ) (π : ContRepresentation 𝕜 G (EuclideanSpace 𝕜 (Fin n))),
       Continuous π ∧ π x ≠ π y := by
   obtain ⟨f, hf, hne⟩ := exists_isRepresentative_apply_ne (𝕜 := 𝕜) x y hxy

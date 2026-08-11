@@ -150,7 +150,7 @@ end IrrepModel
 section Skeleton
 
 variable {𝕜 G ι : Type*} [RCLike 𝕜] [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
-  [CompactSpace G] [T2Space G] [MeasurableSpace G] [BorelSpace G]
+  [CompactSpace G] [MeasurableSpace G] [BorelSpace G]
 
 /-- The set of all matrix coefficients of the members of a family of models. -/
 def modelCoeffs (models : ι → IrrepModel 𝕜 G) : Set C(G, 𝕜) :=
@@ -161,7 +161,7 @@ the statement that for a skeleton of the unitary dual this is dense. -/
 noncomputable def modelSubmodule (models : ι → IrrepModel 𝕜 G) : Submodule 𝕜 C(G, 𝕜) :=
   Submodule.span 𝕜 (modelCoeffs models)
 
-omit [IsTopologicalGroup G] [CompactSpace G] [T2Space G] [MeasurableSpace G] [BorelSpace G] in
+omit [IsTopologicalGroup G] [CompactSpace G] [MeasurableSpace G] [BorelSpace G] in
 /-- A matrix coefficient of a model lies in the span of the models' matrix coefficients. -/
 theorem matrixCoeff_mem_modelSubmodule (models : ι → IrrepModel 𝕜 G) (i : ι)
     (v w : EuclideanSpace 𝕜 (Fin (models i).dim)) :
@@ -193,7 +193,7 @@ namespace IsIrrepSkeleton
 
 variable {models : ι → IrrepModel 𝕜 G}
 
-omit [IsTopologicalGroup G] [CompactSpace G] [T2Space G] [MeasurableSpace G] [BorelSpace G] in
+omit [IsTopologicalGroup G] [CompactSpace G] [MeasurableSpace G] [BorelSpace G] in
 /-- **The matrix coefficients of an irreducible representation are accounted for.** A
 finite-dimensional irreducible unitary continuous representation is carried to a standard model by
 `stdOrthonormalBasis`, and from there onto a member of the skeleton; matrix coefficients survive
@@ -214,7 +214,7 @@ theorem matrixCoeff_mem_of_isIrreducible (h : IsIrrepSkeleton models) {V : Type*
   rw [ContRepresentation.matrixCoeff_apply, ContRepresentation.matrixCoeff_apply, hg]
   simp
 
-omit [IsTopologicalGroup G] [CompactSpace G] [T2Space G] [MeasurableSpace G] [BorelSpace G] in
+omit [IsTopologicalGroup G] [CompactSpace G] [MeasurableSpace G] [BorelSpace G] in
 /-- **The matrix coefficients of a unitary representation are accounted for.** Complete
 reducibility splits the representation into irreducible blocks orthogonally, and the inner product
 against a fixed vector only sees that vector's component in the block, so every matrix coefficient
@@ -268,7 +268,6 @@ theorem matrixCoeff_mem (h : IsIrrepSkeleton models) {V : Type*} [NormedAddCommG
 
 /-! ### Density -/
 
-omit [T2Space G] in
 /-- Convolving a finite sum of eigenvectors of a convolution operator lands in the span of the
 models' matrix coefficients: each nonzero eigenspace carries a *unitary* finite-dimensional
 continuous representation, so `TauCeti.IsIrrepSkeleton.matrixCoeff_mem` applies to it. -/
@@ -299,7 +298,6 @@ theorem convolutionCLM_mem_modelSubmodule (h : IsIrrepSkeleton models) (k : C(G,
   · rw [map_add]
     exact add_mem hx hy
 
-omit [T2Space G] in
 /-- Every convolution by a symmetric kernel lies in the uniform closure of the span of the models'
 matrix coefficients. -/
 theorem convolutionCLM_mem_closure_modelSubmodule (h : IsIrrepSkeleton models) (k : C(G, 𝕜))
@@ -352,7 +350,6 @@ noncomputable def peterWeylFamily (models : ι → IrrepModel 𝕜 G)
     ContRepresentation.matrixCoeffLp (models x.1).rep (models x.1).continuous_rep
       ((models x.1).basis x.2.1) ((models x.1).basis x.2.2)
 
-omit [T2Space G] in
 /-- Every `L²` matrix coefficient of a model lies in the span of the normalized ones: expand both
 defining vectors in the canonical orthonormal basis and use sesquilinearity. -/
 theorem matrixCoeffLp_mem_span_peterWeylFamily (models : ι → IrrepModel 𝕜 G) (i : ι)
@@ -409,7 +406,6 @@ namespace IsIrrepSkeleton
 
 variable {models : ι → IrrepModel 𝕜 G}
 
-omit [T2Space G] in
 /-- **The normalized matrix coefficients of a skeleton are orthonormal.** This is Schur
 orthogonality; only pairwise inequivalence of the family is used. -/
 theorem orthonormal_peterWeylFamily [IsAlgClosed 𝕜] (h : IsIrrepSkeleton models) :
@@ -545,6 +541,7 @@ noncomputable def stdPeterWeylBasis :
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) 𝕜 (Lp 𝕜 2 (haarProb G)) :=
   peterWeylBasis (isIrrepSkeleton_model 𝕜 G)
 
+omit [T2Space G] in
 /-- **The unconditional Peter-Weyl basis is the normalized matrix coefficients of the chosen
 representatives.** As for `TauCeti.coe_peterWeylBasis`, the elements are on the nose the functions
 `g ↦ √(dim V_i) · ⟪(IrrepClass.model i).rep g e_a, e_b⟫`. -/

@@ -123,6 +123,7 @@ theorem averageOperator_apply (T : V →L[𝕜] W) (v : V) :
 
 /-! ### Linearity in the averaged operator -/
 
+omit [CompleteSpace W] in
 @[simp]
 theorem averageOperator_zero : averageOperator π hπ ρ hρ 0 = 0 := by
   have hzero : conjFamily π hπ ρ hρ 0 = 0 := by
@@ -130,6 +131,7 @@ theorem averageOperator_zero : averageOperator π hπ ρ hρ 0 = 0 := by
     simp
   rw [averageOperator, hzero, map_zero]
 
+omit [CompleteSpace W] in
 @[simp]
 theorem averageOperator_add (T₁ T₂ : V →L[𝕜] W) :
     averageOperator π hπ ρ hρ (T₁ + T₂)
@@ -140,6 +142,7 @@ theorem averageOperator_add (T₁ T₂ : V →L[𝕜] W) :
     simp
   rw [averageOperator, averageOperator, averageOperator, hadd, map_add]
 
+omit [CompleteSpace W] in
 @[simp]
 theorem averageOperator_smul (c : 𝕜) (T : V →L[𝕜] W) :
     averageOperator π hπ ρ hρ (c • T) = c • averageOperator π hπ ρ hρ T := by
@@ -156,6 +159,7 @@ noncomputable def averageOperatorₗ : (V →L[𝕜] W) →ₗ[𝕜] V →L[𝕜
   map_add' := averageOperator_add π hπ ρ hρ
   map_smul' := averageOperator_smul π hπ ρ hρ
 
+omit [CompleteSpace W] in
 @[simp]
 theorem averageOperatorₗ_apply (T : V →L[𝕜] W) :
     averageOperatorₗ π hπ ρ hρ T = averageOperator π hπ ρ hρ T :=

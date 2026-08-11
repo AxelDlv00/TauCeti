@@ -207,7 +207,7 @@ variable (𝕜) in
 The kernel is built from a Urysohn bump at the identity supported in a symmetric open
 neighbourhood, made inversion invariant by adding its composition with inversion, and normalized by
 its mass, which is positive because Haar measure is positive on nonempty open sets. -/
-theorem exists_isMollifier [T2Space G] {U : Set G} (hU : U ∈ 𝓝 (1 : G)) :
+theorem exists_isMollifier {U : Set G} (hU : U ∈ 𝓝 (1 : G)) :
     ∃ k : C(G, 𝕜), IsMollifier U k := by
   obtain ⟨V, hVU, hVopen, hV1⟩ := mem_nhds_iff.1 hU
   -- A symmetric open neighbourhood of `1` inside `U`.
@@ -271,7 +271,7 @@ convolution with `f` is uniformly within `ε` of `f`.
 This is the input to the uniform density of the matrix coefficients in `C(G)`: a continuous
 function is approximated by convolutions, and convolutions are decomposed spectrally into finitely
 many matrix coefficients. -/
-theorem exists_isMollifier_norm_convolutionCLM_toLp_sub_le [T2Space G] (f : C(G, 𝕜)) {ε : ℝ}
+theorem exists_isMollifier_norm_convolutionCLM_toLp_sub_le (f : C(G, 𝕜)) {ε : ℝ}
     (hε : 0 < ε) {U : Set G} (hU : U ∈ 𝓝 (1 : G)) :
     ∃ k : C(G, 𝕜), IsMollifier U k ∧
       ‖convolutionCLM k (ContinuousMap.toLp 2 (haarProb G) 𝕜 f) - f‖ ≤ ε := by
@@ -289,7 +289,7 @@ This is why the Peter-Weyl argument can start: together with the self-adjointnes
 compactness of `convolutionOperator k` established elsewhere, it supplies a *nonzero* operator to
 feed to the spectral theorem. Nonvanishing and self-adjointness are what is proved here;
 compactness is not. -/
-theorem exists_isMollifier_convolutionOperator_toLp_ne_zero [T2Space G] {f : C(G, 𝕜)} (hf : f ≠ 0)
+theorem exists_isMollifier_convolutionOperator_toLp_ne_zero {f : C(G, 𝕜)} (hf : f ≠ 0)
     {U : Set G} (hU : U ∈ 𝓝 (1 : G)) :
     ∃ k : C(G, 𝕜), IsMollifier U k ∧
       convolutionOperator k (ContinuousMap.toLp 2 (haarProb G) 𝕜 f) ≠ 0 := by
@@ -327,7 +327,7 @@ The index filter is the one of `TauCeti.comap_val_smallSets_neBot` at `𝓝 1`, 
 so the convergence has content. Unlike
 `TauCeti.exists_isMollifier_norm_convolutionCLM_toLp_sub_le`, where the kernel may depend on the
 function being approximated, the family here is chosen once and for all. -/
-theorem exists_isMollifier_tendsto_convolutionCLM_toLp [T2Space G] :
+theorem exists_isMollifier_tendsto_convolutionCLM_toLp :
     ∃ k : {U : Set G // U ∈ 𝓝 (1 : G)} → C(G, 𝕜), (∀ U, IsMollifier U.1 (k U)) ∧
       ∀ f : C(G, 𝕜),
         Tendsto (fun U => convolutionCLM (k U) (ContinuousMap.toLp 2 (haarProb G) 𝕜 f))
