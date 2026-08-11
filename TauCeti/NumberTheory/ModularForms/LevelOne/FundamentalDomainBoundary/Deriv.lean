@@ -21,8 +21,8 @@ active segment. These are the `γ'` factors of the valence-formula contour integ
 
 ## Main declarations
 
-* `TauCeti.ModularForm.hasDerivAt_fdBoundarySegment1` … `_segment5`: the closed-form
-  segment derivatives.
+* `TauCeti.ModularForm.hasDerivAt_fdBoundarySegment1` through
+  `TauCeti.ModularForm.hasDerivAt_fdBoundarySegment5`: the closed-form segment derivatives.
 * `TauCeti.ModularForm.hasDerivAt_fdBoundary_of_lt_one` … `_of_gt_four`: the contour
   differentiates like its active segment between the breakpoints, with the two arcs
   unified across their smooth junction (`hasDerivAt_fdBoundary_of_mem_Ioo_one_three`).

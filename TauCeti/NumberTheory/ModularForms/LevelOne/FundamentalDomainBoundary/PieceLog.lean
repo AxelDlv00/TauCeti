@@ -27,8 +27,10 @@ the interior winding number `-1` of the contour is computed.
 
 ## Main declarations
 
-* `TauCeti.ModularForm.windingNumber_fdBoundarySegment1_eq_log`, `…_arc_eq_log`,
-  `…_segment4_eq_log`, `…_segment5_eq_log` — the four logarithm values.
+* `TauCeti.ModularForm.windingNumber_fdBoundarySegment1_eq_log`,
+  `TauCeti.ModularForm.windingNumber_fdBoundary_arc_eq_log`,
+  `TauCeti.ModularForm.windingNumber_fdBoundarySegment4_eq_log` and
+  `TauCeti.ModularForm.windingNumber_fdBoundarySegment5_eq_log` — the four logarithm values.
 
 ## References
 
