@@ -14,12 +14,14 @@ public import TauCeti.RepresentationTheory.Continuous.Unitary.Equivalence
 /-!
 # The Peter-Weyl theorem: the matrix coefficients are a Hilbert basis of `L²(G)`
 
-Let `G` be a compact Hausdorff group. Schur orthogonality
+Let `G` be a compact group. Schur orthogonality
 (`TauCeti/RepresentationTheory/Compact/Orthonormal.lean`) says that the normalized matrix
 coefficients `√(dim V_i) · (π i)_{ab}` of a family of pairwise inequivalent finite-dimensional
 irreducible unitary continuous representations form an *orthonormal system* in `L²(G)`. This file
 proves that when the family is moreover **exhaustive** the system is *complete*, so it is a
-**Hilbert basis** of `L²(G)`: the Peter-Weyl theorem.
+**Hilbert basis** of `L²(G)`: the Peter-Weyl theorem. Hausdorffness is not needed for this;
+it enters only in the standard-basis section at the end, where the skeleton is built from the
+irreducible classes of `G` and separating points is what asks for it.
 
 ## "One representative per equivalence class" is data
 
