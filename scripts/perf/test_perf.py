@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Regression tests for the trusted Lean performance-gate boundary.
+
+The cases live together because they exercise the gate's cross-cutting safety
+contract: watchdog discovery and termination, instruction/CPU reporting
+thresholds, changed-file manifest construction, and no-follow handling of
+outputs and build trees that untrusted Lean code can modify inside landrun.
+"""
 
 from __future__ import annotations
 
