@@ -24,10 +24,11 @@ average `|G|⁻¹ ∑ g, ρ g⁻¹ ∘ T ∘ π g` behind Mathlib's Maschke theo
 (`LinearMap.sumOfConjugates`), with the Haar integral in place of the finite sum.
 
 The target `W` is not assumed complete. `averageOperator` is `TauCeti.haarAverage` of a continuous
-family, so it inherits that average's convention: on an incomplete `W` it is the Bochner integral's
-junk value `0`, and it is the displayed Haar integral exactly when `W` is complete. The statements
-that read the average's actual value, from `TauCeti.ContRepresentation.averageOperator_apply`
-onwards, therefore carry `[CompleteSpace W]`.
+family valued in the operator space `V →L[𝕜] W`, so it inherits that average's convention: it is the
+displayed Haar integral when that space is complete, and the Bochner integral's junk value `0`
+otherwise. `[CompleteSpace W]` is what supplies completeness of `V →L[𝕜] W`, so the statements that
+read the average's actual value, from `TauCeti.ContRepresentation.averageOperator_apply` onwards,
+carry it.
 
 The construction is a projection onto the intertwiners: it is linear in `T`, it fixes every
 intertwiner, and — when `V = W` and `π = ρ` and `V` is finite-dimensional — it preserves the trace.
@@ -116,9 +117,10 @@ omit [CompleteSpace W] in
 
 On a complete `W` this is always defined — the integrand is continuous and Haar measure is
 finite — and it always intertwines `π` with `ρ`
-(`TauCeti.ContRepresentation.averageOperator_comp`). `W` is not assumed complete, and on an
-incomplete `W` this is `TauCeti.haarAverage`'s junk value `0`, which is why the results below that
-read the average's actual value carry `[CompleteSpace W]`. -/
+(`TauCeti.ContRepresentation.averageOperator_comp`). `W` is not assumed complete. The average is
+taken in the operator space `V →L[𝕜] W`, so it is `TauCeti.haarAverage`'s junk value `0` unless that
+space is complete, which `[CompleteSpace W]` supplies; that is why the results below that read the
+average's actual value carry it. -/
 noncomputable def averageOperator (T : V →L[𝕜] W) : V →L[𝕜] W :=
   haarAverage G (𝕜 := 𝕜) (conjFamily π hπ ρ hρ T)
 

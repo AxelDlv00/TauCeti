@@ -57,10 +57,12 @@ predicate: it is passed directly through this API, and the `L²`-level notion th
 bundling is the almost-everywhere one, `TauCeti.classFunctionLp`, which is already defined.
 
 The definition asks only that `V` be a normed space: it is `TauCeti.haarAverage` of a continuous
-family, so it inherits that average's convention and is the Bochner integral's junk value `0` on an
-incomplete `V`, the classical integrated form `π(f)` exactly when `V` is complete. Completeness
-therefore enters with `TauCeti.ContRepresentation.integratedOperator_apply`, finite-dimensionality
-with the trace, and algebraic closedness of the scalars with Schur's lemma. The integrated operator
+family valued in the operator space `V →L[𝕜] V`, so it inherits that average's convention. What the
+Bochner integral reads is completeness of that codomain, and `[CompleteSpace V]` is what supplies
+it; failing that, the average is the integral's junk value `0` rather than the classical integrated
+form `π(f)`. Completeness therefore enters with
+`TauCeti.ContRepresentation.integratedOperator_apply`, finite-dimensionality with the trace, and
+algebraic closedness of the scalars with Schur's lemma. The integrated operator
 of the trivial group action and other structural identities are not developed here: what the
 character projections need is linearity in `f`, the trace, and the scalar theorem.
 
@@ -141,8 +143,9 @@ omit [CompleteSpace V] in
 
 On a complete `V` this is the classical integrated form `π(f)` of the representation, and it is
 always defined there: the integrand is continuous and normalized Haar measure is finite. `V` is not
-assumed complete, and on an incomplete `V` this is `TauCeti.haarAverage`'s junk value `0`, which is
-why the results below that read the operator's actual value carry `[CompleteSpace V]`. -/
+assumed complete. The average is taken in the operator space `V →L[𝕜] V`, so it is
+`TauCeti.haarAverage`'s junk value `0` unless that space is complete, which `[CompleteSpace V]`
+supplies; that is why the results below that read the operator's actual value carry it. -/
 noncomputable def integratedOperator (f : C(G, 𝕜)) : V →L[𝕜] V :=
   haarAverage G (𝕜 := 𝕜) (weightFamily π hπ f)
 
