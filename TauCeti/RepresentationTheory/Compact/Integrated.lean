@@ -56,8 +56,9 @@ same shape as in `TauCeti/RepresentationTheory/Compact/ClassFunctionLp.lean`, ra
 predicate: it is passed directly through this API, and the `L²`-level notion that deserves a
 bundling is the almost-everywhere one, `TauCeti.classFunctionLp`, which is already defined.
 
-The definition asks only that `V` be a complete normed space; finite-dimensionality enters with the
-trace, and algebraic closedness of the scalars with Schur's lemma. The integrated operator of the
+The definition asks only that `V` be a normed space; completeness enters with
+`TauCeti.ContRepresentation.integratedOperator_apply`, finite-dimensionality with the trace, and
+algebraic closedness of the scalars with Schur's lemma. The integrated operator of the
 trivial group action and other structural identities are not developed here: what the character
 projections need is linearity in `f`, the trace, and the scalar theorem.
 
@@ -116,6 +117,7 @@ variable (π : ContRepresentation 𝕜 G V) (hπ : Continuous π)
 
 include hπ
 
+omit [CompleteSpace V] in
 /-- The integrand `g ↦ f g • π g` of the integrated operator, as a continuous map on the group.
 Continuity is where the continuity hypothesis on the representation is used. -/
 private noncomputable def weightFamily (f : C(G, 𝕜)) : C(G, V →L[𝕜] V) where
@@ -131,6 +133,7 @@ private theorem weightFamily_apply (f : C(G, 𝕜)) (g : G) :
     weightFamily π hπ f g = f g • π g :=
   (rfl)
 
+omit [CompleteSpace V] in
 /-- **The operator by which a continuous scalar function acts on a continuous representation**,
 `∫ g, f g • π g ∂(haarProb G)`.
 
@@ -178,6 +181,7 @@ theorem integratedOperator_smul (c : 𝕜) (f : C(G, 𝕜)) :
     simp [mul_smul]
   rw [integratedOperator, integratedOperator, hsmul, map_smul]
 
+omit [CompleteSpace V] in
 /-- The integrated operator, bundled as a linear map in the acting function. Bundling supplies the
 remaining additive identities (`map_neg`, `map_sub`, `map_sum`) through the `LinearMap` API. -/
 noncomputable def integratedOperatorₗ : C(G, 𝕜) →ₗ[𝕜] V →L[𝕜] V where

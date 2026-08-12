@@ -47,7 +47,7 @@ Because a model's carrier is a standard space `EuclideanSpace 𝕜 (Fin n)`, uni
 an equivalence relation on the *type* `TauCeti.IrrepModel 𝕜 G`, and choosing a representative in
 each class gives `TauCeti.IrrepClass.model`, a skeleton by
 `TauCeti.isIrrepSkeleton_model`. Feeding it to `TauCeti.peterWeylBasis` gives
-`TauCeti.stdPeterWeylBasis`, a Hilbert basis of `L²(G)` for every compact Hausdorff `G` with no
+`TauCeti.stdPeterWeylBasis`, a Hilbert basis of `L²(G)` for every compact `G` with no
 hypothesis left over. Pairwise inequivalence of the representatives is the point where the
 rescaling above is used.
 

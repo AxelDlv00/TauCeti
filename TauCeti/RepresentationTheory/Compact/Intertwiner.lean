@@ -86,6 +86,7 @@ private theorem comp_inv_self (g : G) : (ρ g).comp (ρ g⁻¹) = ContinuousLine
 
 include hπ hρ
 
+omit [CompleteSpace W] in
 /-- The integrand `g ↦ ρ g⁻¹ ∘ T ∘ π g` of the averaging construction, as a continuous map on the
 group. Continuity is where the two continuity hypotheses on the representations are used. -/
 private noncomputable def conjFamily (T : V →L[𝕜] W) : C(G, V →L[𝕜] W) where
@@ -103,6 +104,7 @@ private theorem conjFamily_apply_apply (T : V →L[𝕜] W) (g : G) (v : V) :
     conjFamily π hπ ρ hρ T g v = ρ g⁻¹ (T (π g v)) :=
   rfl
 
+omit [CompleteSpace W] in
 /-- The **Haar average of an operator over a pair of representations**,
 `∫ g, ρ g⁻¹ ∘ T ∘ π g ∂(haarProb G)`.
 
@@ -151,6 +153,7 @@ theorem averageOperator_smul (c : 𝕜) (T : V →L[𝕜] W) :
     simp
   rw [averageOperator, averageOperator, hsmul, map_smul]
 
+omit [CompleteSpace W] in
 /-- Haar averaging over a pair of representations, bundled as a linear map in the averaged
 operator. Bundling supplies the remaining additive identities (`map_neg`, `map_sub`, `map_sum`)
 through the `LinearMap` API. -/

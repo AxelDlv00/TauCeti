@@ -49,7 +49,12 @@ variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] [NormedSpace ℝ V] [Norm
   [SMulCommClass ℝ 𝕜 V]
 
 /-- Averaging a continuous vector-valued function against normalized Haar measure, as a
-continuous linear map. -/
+continuous linear map.
+
+`V` is not assumed complete, so this is the Bochner integral's junk value `0` unless it is: the
+definition and its linear structure need no completeness, and the lemmas below that talk about the
+average's actual value (`haarAverage_const`, `norm_haarAverage_eq_one`, and everything reached
+through `haarAverage_comp_comm`) ask for `[CompleteSpace V]` precisely because they do. -/
 noncomputable def haarAverage : C(G, V) →L[𝕜] V :=
   LinearMap.mkContinuous
     { toFun := fun f ↦ ∫ g, f g ∂haarProb G

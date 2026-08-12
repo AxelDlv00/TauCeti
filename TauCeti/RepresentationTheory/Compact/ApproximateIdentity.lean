@@ -52,9 +52,9 @@ Uniform continuity is obtained from the same currying trick that builds the kern
 assemble into a *continuous* map `G → C(G, 𝕜)` for the uniform norm, and continuity at `z = 1` is
 exactly the uniform estimate. No uniform structure on `G` is mentioned.
 
-The kernels themselves come from Urysohn's lemma, in the form that asks only for a regular space:
-a compact topological group is regular whether or not it is Hausdorff, so the construction needs no
-`T2Space G`, and the mollifier results below do not assume it. A bump at the
+The kernels themselves come from Urysohn's lemma, in the form that asks for a regular, locally
+compact space: a compact topological group is both whether or not it is Hausdorff, so the
+construction needs no `T2Space G`, and the mollifier results below do not assume it. A bump at the
 identity supported in a *symmetric* neighbourhood is made inversion invariant by adding its
 composition with inversion, and then normalized by its mass, which is positive because Haar measure
 is positive on nonempty open sets.

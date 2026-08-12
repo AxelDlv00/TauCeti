@@ -37,9 +37,11 @@ Two halves already available meet here, and neither of them presupposes any sepa
 Putting them together, a continuous function is a uniform limit of functions in the closure of
 `𝓡(G)`, so it lies in that closure: `TauCeti.dense_representativeSubmodule`.
 
-**Point separation is a corollary, never an input.** Once density is known, `𝓡(G)` separates the
-points of `G` because `C(G, 𝕜)` does — the values `0` and `1` of a Urysohn function at two distinct
-points cannot both be approximated to within `1/2` by a function taking equal values there. Since a
+**Point separation is a corollary, never an input.** Once density is known, and provided `G` is
+Hausdorff so that its points are closed, `𝓡(G)` separates the points of `G` because `C(G, 𝕜)` does:
+the values `0` and `1` of a Urysohn function at two distinct points cannot both be approximated to
+within `1/2` by a function taking equal values there. Hausdorffness is exactly what this last step
+needs, and nothing before it, which is why only the results below carry `[T2Space G]`. Since a
 span separates two points only if one of its generators does, this upgrades to the statement that
 the *finite-dimensional continuous representations themselves* separate the points of a compact
 Hausdorff group (`TauCeti.exists_contRepresentation_apply_ne`): distinct group elements act
