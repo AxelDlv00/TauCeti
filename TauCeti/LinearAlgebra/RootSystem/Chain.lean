@@ -35,7 +35,6 @@ both excluded by a vector that is linear along each of them.
 * `TauCeti.sum_range_chainEntry_mul`: the row of a chain at a position, evaluated at a weight `g`.
   Away from the two ends it is the second difference `2 g (m + 1) - g m - g (m + 2)`, so a weight
   that is linear in the position is annihilated there.
-
 ## References
 
 The chain weighting is the calculation of J. E. Humphreys, *Introduction to Lie Algebras and
