@@ -203,8 +203,11 @@ private theorem exists_basicOpenFinset_of_characteristicSubgroup_eq_top {v : Spv
 
 /-- **Wedhorn 7.5(ii), the cofinal branch.** Cofinality of each generator below `v(s)` supplies
 an exponent per generator; adjoining those powers to `{f}` gives an admissible numerator set
-inside `Spv(A)(f/s)`. Wedhorn takes one uniform exponent, which would need every generator to
-have value `≤ 1`; a separate exponent per generator avoids that. -/
+inside `Spv(A)(f/s)`. Wedhorn instead takes a single exponent for all generators, which is
+equally available here: cofinality already forces each generator's value below `1`
+(`cofinalValueFor_top_iff` with `CofinalValueFor.lt_one`), so the largest of the individual
+exponents would serve. Nothing downstream needs the exponents to agree, so they are chosen
+separately. -/
 private theorem exists_basicOpenFinset_of_forall_cofinalValue {v : Spv A} (S : Finset A)
     (hcof : ∀ σ ∈ S, CofinalValue v.valuation σ) {f s : A} (hv : v ∈ basicOpen f s) :
     ∃ T : Finset A, f ∈ T ∧ (∀ σ ∈ S, ∃ k : ℕ, σ ^ k ∈ T) ∧ v ∈ basicOpenFinset T s := by
