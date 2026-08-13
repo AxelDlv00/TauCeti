@@ -363,9 +363,9 @@ theorem eventuallyEq [CompleteSpace E] (hf : IsAnalyticContinuationAlong f γ s)
     (hg : IsAnalyticContinuationAlong g γ s) (hs : IsPreconnected s) {a b : X} (ha : a ∈ s)
     (hb : b ∈ s) (hab : f a =ᶠ[𝓝 (γ a)] g a) :
     f b =ᶠ[𝓝 (γ b)] g b :=
-  eq_of_isPreconnected_of_eventually_iff hs
-    (P := fun t => f t =ᶠ[𝓝 (γ t)] g t) (fun _ ht => hf.eventually_eventuallyEq_iff hg ht) ha hb
-    hab
+  -- the germ-agreement predicate is locally constant along `s`, hence constant on it
+  (hs.apply_eq_of_eventually_eq (f := fun t => f t =ᶠ[𝓝 (γ t)] g t)
+    (fun _ ht => ((hf.eventually_eventuallyEq_iff hg ht).mono fun _ h => propext h)) ha hb) ▸ hab
 
 /-- Two continuations along the same path that carry the same germ at one parameter time take the
 same value at every parameter time. -/
