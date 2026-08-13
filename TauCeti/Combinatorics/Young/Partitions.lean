@@ -111,14 +111,6 @@ theorem diagramOf_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
     List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise]
   exact YoungDiagram.ofRowLens_to_rowLens_eq_self
 
-/-- The Young diagram construction is injective on partitions of a fixed size. -/
-theorem diagramOf_injective {n : ℕ} : Function.Injective (diagramOf (n := n)) := by
-  intro μ ν h
-  have h' := congrArg _root_.YoungDiagram.rowLens h
-  rw [rowLens_diagramOf, rowLens_diagramOf] at h'
-  apply Nat.Partition.ext
-  rw [← Multiset.sort_eq μ.parts (· ≥ ·), ← Multiset.sort_eq ν.parts (· ≥ ·), h']
-
 /-- Partitions of `n` are equivalent to Young diagrams with `n` cells. -/
 def partitionEquivYoungDiagram (n : ℕ) :
     n.Partition ≃ {μ : YoungDiagram // μ.card = n} where
@@ -139,6 +131,12 @@ theorem partitionEquivYoungDiagram_apply (n : ℕ) (μ : n.Partition) :
 theorem partitionEquivYoungDiagram_symm_apply (n : ℕ) (μ : {μ : YoungDiagram // μ.card = n}) :
     (partitionEquivYoungDiagram n).symm μ = toPartition μ.1 μ.2 := by
   rfl
+
+/-- The Young diagram construction is injective on partitions of a fixed size. -/
+theorem diagramOf_injective {n : ℕ} : Function.Injective (diagramOf (n := n)) :=
+  fun μ ν h => (partitionEquivYoungDiagram n).injective <| by
+    simp only [partitionEquivYoungDiagram_apply, Subtype.mk.injEq]
+    exact h
 
 /-- The **shape partition** of a Young diagram: the partition of `μ.card` whose parts are the row
 lengths. -/
