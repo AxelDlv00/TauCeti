@@ -46,8 +46,9 @@ maps rather than restating it.
   `TauCeti.ContinuousLinearMap.index_equiv_comp`: composing with a continuous linear equivalence on
   either side preserves Fredholmness and the index. Mathlib's
   `ContinuousLinearMap.isFredholm_comp_equiv` and `ContinuousLinearMap.isFredholm_equiv_comp` are
-  the same statements over a *complete* scalar field; the two here transport the structure fields
-  directly and so hold over any `NontriviallyNormedField`.
+  stronger, being `↔` equivalences rather than one-way preservation, but their forward directions
+  assume a complete scalar field; the two here prove only that direction, transporting the
+  structure fields directly, and so hold over any `NontriviallyNormedField`.
 
 The conventions follow McDuff--Salamon, *J-holomorphic Curves and Symplectic Topology*, Appendix
 A.1, where the index is `dim ker D − dim coker D`.
@@ -172,9 +173,9 @@ private lemma range_comp_equiv (e : G ≃L[𝕜] E) :
 /-- Postcomposing a Fredholm operator with a continuous linear equivalence yields a Fredholm
 operator.
 
-Kept in preference to Mathlib's `ContinuousLinearMap.isFredholm_equiv_comp`, which assumes a
-complete scalar field: the structure fields are transported directly, so this holds over any
-`NontriviallyNormedField`. -/
+Mathlib's `ContinuousLinearMap.isFredholm_equiv_comp` is the `↔` form of this, and so is
+stronger, but it assumes a complete scalar field. This one-way version transports the structure
+fields directly and holds over any `NontriviallyNormedField`. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
     (hT : ContinuousLinearMap.IsFredholm T) (e : F ≃L[𝕜] G) :
     ContinuousLinearMap.IsFredholm ((e : F →L[𝕜] G).comp T) := by
@@ -195,9 +196,9 @@ lemma _root_.ContinuousLinearMap.IsFredholm.equiv_comp
 /-- Precomposing a Fredholm operator with a continuous linear equivalence yields a Fredholm
 operator.
 
-Kept in preference to Mathlib's `ContinuousLinearMap.isFredholm_comp_equiv`, which assumes a
-complete scalar field: the structure fields are transported directly, so this holds over any
-`NontriviallyNormedField`. -/
+Mathlib's `ContinuousLinearMap.isFredholm_comp_equiv` is the `↔` form of this, and so is
+stronger, but it assumes a complete scalar field. This one-way version transports the structure
+fields directly and holds over any `NontriviallyNormedField`. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.comp_equiv (hT : ContinuousLinearMap.IsFredholm T)
     (e : G ≃L[𝕜] E) :
     ContinuousLinearMap.IsFredholm (T.comp (e : G →L[𝕜] E)) := by
