@@ -180,9 +180,10 @@ require bundling its inverse as a continuous linear equivalence. Codomain comple
 Mathlib's bounded-inverse construction `ContinuousLinearEquiv.ofBijective`. -/
 lemma _root_.ContinuousLinearMap.IsFredholm.of_bijective (hT : Function.Bijective T) :
     ContinuousLinearMap.IsFredholm T := by
-  exact ContinuousLinearEquiv.isFredholm
+  have := ContinuousLinearEquiv.isFredholm
     (ContinuousLinearEquiv.ofBijective T
       (LinearMap.ker_eq_bot.mpr hT.injective)
       (LinearMap.range_eq_top.mpr hT.surjective))
+  rwa [ContinuousLinearEquiv.coe_ofBijective] at this
 
 end TauCeti

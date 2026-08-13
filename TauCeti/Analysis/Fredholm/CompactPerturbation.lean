@@ -89,10 +89,14 @@ theorem _root_.ContinuousLinearMap.IsFredholm.add_of_isCompactOperator
     ContinuousLinearMap.IsFredholm (T + C) := by
   obtain ⟨S, hS⟩ := hT.exists_isQuasiInverse
   -- `S ∘ T` and `T ∘ S` differ from the identity by an operator of finite rank.
-  have hleft : LinearMap.HasFiniteRange ((S.comp T - 1 : E →L[𝕜] E) : E →ₗ[𝕜] E) :=
-    LinearMap.FiniteRangeSetoid.equiv_iff_hasFiniteRange.mp hS.1
-  have hright : LinearMap.HasFiniteRange ((T.comp S - 1 : F →L[𝕜] F) : F →ₗ[𝕜] F) :=
-    LinearMap.FiniteRangeSetoid.equiv_iff_hasFiniteRange.mp hS.2
+  have hleft : LinearMap.HasFiniteRange ((S.comp T - 1 : E →L[𝕜] E) : E →ₗ[𝕜] E) := by
+    simpa only [ContinuousLinearMap.toLinearMap_sub, ContinuousLinearMap.toLinearMap_comp,
+      ContinuousLinearMap.toLinearMap_one, Module.End.one_eq_id] using
+      LinearMap.FiniteRangeSetoid.equiv_iff_hasFiniteRange.mp hS.1
+  have hright : LinearMap.HasFiniteRange ((T.comp S - 1 : F →L[𝕜] F) : F →ₗ[𝕜] F) := by
+    simpa only [ContinuousLinearMap.toLinearMap_sub, ContinuousLinearMap.toLinearMap_comp,
+      ContinuousLinearMap.toLinearMap_one, Module.End.one_eq_id] using
+      LinearMap.FiniteRangeSetoid.equiv_iff_hasFiniteRange.mp hS.2
   have hcomp₁ : ContinuousLinearMap.IsFredholm (S.comp (T + C)) := by
     have hcompact : IsCompactOperator (S.comp C) := by
       have hcomp : (⇑(S.comp C) : E → E) = ⇑S ∘ ⇑C := by
