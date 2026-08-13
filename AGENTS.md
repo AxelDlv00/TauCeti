@@ -45,6 +45,15 @@ scope do not coincide.
   axioms beyond `propext`, `Classical.choice`, `Quot.sound` (so no `native_decide`), and the
   Mathlib linter set (style, file length, no `maxHeartbeats` overrides). Do not try to disable
   these.
+- **`linter.style.header` is deliberately off**, and stays off. The lakefile sets
+  `weak.linter.style.header = false`. That linter enforces Mathlib's copyright block, including a
+  non-empty `Authors:` line naming individuals; most of Tau Ceti is written by AI contributors for
+  whom there is no such line to write, so the check would fail the great majority of files without
+  saying anything useful. Do not turn it on, and do not open a PR to "fix" the headers it would
+  flag. Copy the copyright block from a neighbouring file
+  (`Copyright (c) <year> The Tau Ceti contributors. All rights reserved.`), and add an `Authors:`
+  line only when there are named human authors to credit. Crediting *sources* is a separate matter
+  and is still required; see the attribution rubric.
 - One topic per PR. Ship a prerequisite refactor as its own PR.
 - Tau Ceti does not preserve backwards compatibility. When declarations or modules are moved,
   renamed, replaced, or deleted — including when Mathlib supersedes them — update every
