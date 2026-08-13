@@ -102,7 +102,7 @@ private theorem isFredholm_and_index_eq_of_blocks {K X Y C : Type*}
   have hf : ContinuousLinearMap.IsFredholm f := isFredholm_of_finiteDimensional f
   have he : ContinuousLinearMap.IsFredholm (e : X →L[𝕜] Y) := e.isFredholm
   have hprod : ContinuousLinearMap.IsFredholm (f.prodMap (e : X →L[𝕜] Y)) := hf.prodMap he
-  refine ⟨by rw [hfac]; simpa using hprod, ?_⟩
+  refine ⟨by rw [hfac]; exact (hprod.comp_equiv P).equiv_comp Q, ?_⟩
   calc
     ContinuousLinearMap.index A
         = ContinuousLinearMap.index (f.prodMap (e : X →L[𝕜] Y)) := by
@@ -189,7 +189,7 @@ private theorem isFredholm_and_index_eq_of_splitting {K X Y C : Type*}
   have hrecover : S = (q : Y × C →L[𝕜] F).comp (A.comp (p.symm : E →L[𝕜] K × X)) := by
     ext x
     simp [hAdef]
-  refine ⟨by rw [hrecover]; simpa using hAfredholm, ?_⟩
+  refine ⟨by rw [hrecover]; exact (hAfredholm.comp_equiv p.symm).equiv_comp q, ?_⟩
   rw [← hAindex, hrecover]
   simp
 
