@@ -269,17 +269,14 @@ coordinates. -/
 @[simp]
 lemma coe_sphereCircleHomeomorph_apply (c : ℂ) (hr : 0 < r) (w : sphere c r) :
     (sphereCircleHomeomorph c hr w : ℂ) = ((w : ℂ) - c) / r := by
-  rw [sphereCircleHomeomorph, Homeomorph.trans_apply, coe_unitSphereCircleHomeomorph,
-    Homeomorph.subtype_apply_coe, affineHomeomorph_symm_apply]
+  simp [sphereCircleHomeomorph, coe_unitSphereCircleHomeomorph]
 
 /-- The inverse parametrization of `sphere c r` by the unit circle is the affine change of
 coordinates. -/
 @[simp]
 lemma coe_sphereCircleHomeomorph_symm_apply (c : ℂ) (hr : 0 < r) (z : Circle) :
     (((sphereCircleHomeomorph c hr).symm z : sphere c r) : ℂ) = c + r * (z : ℂ) := by
-  rw [sphereCircleHomeomorph, Homeomorph.symm_trans_apply, Homeomorph.subtype_symm_apply_coe,
-    coe_unitSphereCircleHomeomorph_symm, Homeomorph.symm_symm, affineHomeomorph_apply,
-    add_comm]
+  simp [sphereCircleHomeomorph, coe_unitSphereCircleHomeomorph_symm, add_comm]
 
 /-- A circle of positive radius in `ℂ` is a Jordan curve. -/
 theorem isJordanCurve_sphere (c : ℂ) (hr : 0 < r) : IsJordanCurve (sphere c r) :=
