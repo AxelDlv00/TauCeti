@@ -159,9 +159,9 @@ def conjugate {n : ℕ} (μ : n.Partition) : n.Partition :=
 
 /-- The parts of the conjugate partition are the row lengths of the transposed diagram. -/
 @[simp]
-theorem parts_conjugate {n : ℕ} (μ : n.Partition) :
+theorem conjugate_parts {n : ℕ} (μ : n.Partition) :
     (conjugate μ).parts = ((diagramOf μ).transpose.rowLens : Multiset ℕ) :=
-  parts_toPartition _ _
+  toPartition_parts _ _
 
 /-- The Young diagram of the conjugate partition is the transposed Young diagram. -/
 @[simp]
@@ -176,7 +176,7 @@ theorem conjugate_conjugate {n : ℕ} (μ : n.Partition) :
   apply diagramOf_injective
   simp
 
--- Not `@[simp]`: with `parts_conjugate` in the default simp set the left-hand side is no
+-- Not `@[simp]`: with `conjugate_parts` in the default simp set the left-hand side is no
 -- longer in simp normal form (the parts reduce to the transposed row lengths before sorting).
 /-- The decreasing parts of the conjugate partition are the row lengths of the transposed
 diagram. -/

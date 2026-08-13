@@ -100,7 +100,7 @@ def toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) : n.Partition wh
 
 /-- The parts of the partition of a sized Young diagram are its row lengths. -/
 @[simp]
-theorem parts_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
+theorem toPartition_parts {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
     (toPartition μ h).parts = μ.rowLens := by
   rfl
 
@@ -109,14 +109,14 @@ theorem parts_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
 theorem toPartition_diagramOf {n : ℕ} (μ : n.Partition) :
     toPartition (diagramOf μ) (card_diagramOf μ) = μ := by
   apply Nat.Partition.ext
-  rw [parts_toPartition, rowLens_diagramOf, Multiset.sort_eq]
+  rw [toPartition_parts, rowLens_diagramOf, Multiset.sort_eq]
 
 /-- The Young diagram whose rows are the row lengths of a sized Young diagram is that
 diagram. -/
 @[simp]
 theorem diagramOf_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
     diagramOf (toPartition μ h) = μ := by
-  simp only [diagramOf, parts_toPartition, Multiset.coe_sort,
+  simp only [diagramOf, toPartition_parts, Multiset.coe_sort,
     List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise]
   exact YoungDiagram.ofRowLens_to_rowLens_eq_self
 
