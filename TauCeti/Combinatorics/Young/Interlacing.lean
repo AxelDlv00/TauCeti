@@ -9,7 +9,7 @@ public import TauCeti.Combinatorics.Young.Kostka
 /-!
 # Interlacing shapes and the branching of bounded tableaux
 
-A Young diagram `ν` **interlacedBy** `μ` when their row lengths alternate,
+A Young diagram `ν` **interlaces** `μ` when their row lengths alternate,
 `μ₀ ≥ ν₀ ≥ μ₁ ≥ ν₁ ≥ ⋯`; equivalently `ν ⊆ μ` and the skew shape `μ / ν` is a *horizontal
 strip*, having at most one cell in each column.  This file defines that relation,
 `YoungDiagram.InterlacedBy`, packages the shapes interlacing a fixed `μ` and having at most
@@ -32,9 +32,9 @@ way keeps every type non-dependent, so the resulting sum decomposition
 
 ## Main definitions
 
-* `YoungDiagram.InterlacedBy`: `InterlacedBy μ ν` says that `ν` interlacedBy `μ`, that is
+* `YoungDiagram.InterlacedBy`: `InterlacedBy μ ν` says that `ν` interlaces `μ`, that is
   `μ.rowLen (i + 1) ≤ ν.rowLen i` and `ν.rowLen i ≤ μ.rowLen i` for every `i`.  The shape being
-  interlaced is written first, as in `TauCeti.InterlacedBy` for integer sequences.
+  interlaced is written first, as in `TauCeti.Interlaces` for integer sequences.
 * `YoungDiagram.interlacingShapes`: the shapes interlacing `μ` with at most `n` rows.
 * `TauCeti.BoundedSSYT.restrictShape`: the cells of `μ` whose entry is smaller than `n`.
 * `TauCeti.BoundedSSYT.restrict` and `TauCeti.BoundedSSYT.extend`: erasing the cells carrying the
@@ -43,7 +43,7 @@ way keeps every type non-dependent, so the resulting sum decomposition
 ## Main results
 
 * `TauCeti.BoundedSSYT.restrictShape_mem_interlacingShapes`: the sub-shape of small entries
-  interlacedBy `μ` and has at most `n` rows.
+  interlaces `μ` and has at most `n` rows.
 * `TauCeti.BoundedSSYT.content_restrict`: erasing the top letter leaves unchanged how often each
   of the remaining letters occurs.
 * `TauCeti.BoundedSSYT.fiberEquiv`: the tableaux of shape `μ` in `n + 1` letters with a given
@@ -66,11 +66,11 @@ namespace YoungDiagram
 
 variable {μ ν : _root_.YoungDiagram}
 
-/-- `YoungDiagram.InterlacedBy μ ν` says that the Young diagram `ν` **interlacedBy** `μ`: the
+/-- `YoungDiagram.InterlacedBy μ ν` says that the Young diagram `ν` **interlaces** `μ`: the
 two sequences of row lengths alternate, `μ₀ ≥ ν₀ ≥ μ₁ ≥ ν₁ ≥ ⋯`.  Equivalently `ν ⊆ μ` and the
 skew shape `μ / ν` is a horizontal strip: no column of `μ` contains two of its cells.
 
-As for the integer sequences of `TauCeti.InterlacedBy`, the shape being interlaced is written
+As for the integer sequences of `TauCeti.Interlaces`, the shape being interlaced is written
 first. -/
 def InterlacedBy (μ ν : _root_.YoungDiagram) : Prop :=
   ∀ i, μ.rowLen (i + 1) ≤ ν.rowLen i ∧ ν.rowLen i ≤ μ.rowLen i
@@ -82,12 +82,12 @@ theorem interlacedBy_iff :
     InterlacedBy μ ν ↔ ∀ i, μ.rowLen (i + 1) ≤ ν.rowLen i ∧ ν.rowLen i ≤ μ.rowLen i :=
   Iff.rfl
 
-/-- An interlacing shape reaches at least as far as the next row of the shape it interlacedBy. -/
+/-- An interlacing shape reaches at least as far as the next row of the shape it interlaces. -/
 theorem InterlacedBy.rowLen_succ_le (h : InterlacedBy μ ν) (i : ℕ) :
     μ.rowLen (i + 1) ≤ ν.rowLen i :=
   (h i).1
 
-/-- An interlacing shape reaches no further than the shape it interlacedBy. -/
+/-- An interlacing shape reaches no further than the shape it interlaces. -/
 theorem InterlacedBy.rowLen_le (h : InterlacedBy μ ν) (i : ℕ) : ν.rowLen i ≤ μ.rowLen i :=
   (h i).2
 
@@ -95,7 +95,7 @@ theorem InterlacedBy.rowLen_le (h : InterlacedBy μ ν) (i : ℕ) : ν.rowLen i 
 theorem InterlacedBy.le (h : InterlacedBy μ ν) : ν ≤ μ :=
   le_of_forall_rowLen_le h.rowLen_le
 
-/-- **A horizontal strip has at most one cell in a column**: if `ν` interlacedBy `μ`, then a cell of
+/-- **A horizontal strip has at most one cell in a column**: if `ν` interlaces `μ`, then a cell of
 `μ` strictly below row `i` already lies in `ν` at row `i`.  This is the form of interlacing that
 keeps a column strict when the whole of `μ / ν` is filled with one letter. -/
 theorem InterlacedBy.mem_of_lt (h : InterlacedBy μ ν) {i₁ i₂ j : ℕ} (hi : i₁ < i₂)
@@ -162,7 +162,7 @@ theorem restrictShape_le (T : BoundedSSYT (n + 1) μ) : restrictShape T ≤ μ :
   rintro ⟨i, j⟩ hc
   exact (mem_restrictShape.mp hc).1
 
-/-- **The sub-shape of small entries interlacedBy the shape.**  Every cell of `μ` in row `i + 1`
+/-- **The sub-shape of small entries interlace the shape.**  Every cell of `μ` in row `i + 1`
 carries an entry at most `n`, so column strictness makes the entry of the cell directly above it
 smaller than `n`, and that cell is therefore small: this is the inequality `μᵢ₊₁ ≤ νᵢ`. -/
 theorem interlacedBy_restrictShape (T : BoundedSSYT (n + 1) μ) :
@@ -254,7 +254,7 @@ theorem content_restrict (T : BoundedSSYT (n + 1) μ) (hν : restrictShape T = �
   rw [SemistandardYoungTableau.content_apply, SemistandardYoungTableau.content_apply, hcells]
 
 /-- **Restoring the top letter, as a filling**: keep the entries of `T` on `ν` and write the letter
-`n` on every cell of `μ / ν`.  Columns stay strict because `ν` interlacedBy `μ`, so no column of
+`n` on every cell of `μ / ν`.  Columns stay strict because `ν` interlaces `μ`, so no column of
 `μ / ν` holds two cells.  Only the bounded form `TauCeti.BoundedSSYT.extend` is part of the
 interface. -/
 private def extendTableau (h : YoungDiagram.InterlacedBy μ ν) (T : BoundedSSYT n ν) :

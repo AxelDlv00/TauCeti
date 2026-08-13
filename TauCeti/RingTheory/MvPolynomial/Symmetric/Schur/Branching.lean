@@ -11,7 +11,7 @@ public import TauCeti.RingTheory.MvPolynomial.Symmetric.Schur.Basic
 # The branching rule for Schur polynomials
 
 A Schur polynomial in `n + 1` variables is a polynomial in its last variable whose terms are
-Schur polynomials in the first `n`, one term for each shape that **interlacedBy** its own:
+Schur polynomials in the first `n`, one term for each shape that **interlaces** its own:
 
 `s_μ(x₀, …, x_n) = ∑_{ν ≺ μ} x_n ^ (|μ| - |ν|) · s_ν(x₀, …, x_{n-1})`.
 
@@ -199,7 +199,7 @@ theorem aeval_snoc_one_diagramSchurPoly (n : ℕ) (μ : _root_.YoungDiagram) :
 /-- **Stability of Schur polynomials.**  A shape has the same Schur polynomial in `n` and in
 `n + 1` variables, once the extra variable is set to `0`: only the shape itself survives the
 specialization, every other interlacing shape being smaller and so carrying a positive power of
-the vanishing variable.  A shape of more than `n` rows interlacedBy no shape of at most `n` rows
+the vanishing variable.  A shape of more than `n` rows interlaces no shape of at most `n` rows
 that is as large, so there both sides vanish.
 
 Not a `simp` lemma: substituting polynomials for the variables, `simp` rewrites `aeval` to
