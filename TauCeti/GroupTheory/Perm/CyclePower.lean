@@ -11,11 +11,13 @@ public import Mathlib.GroupTheory.Perm.Cycle.Type
 
 A cycle `f` of a finite type has order the number `n = f.support.card` of points it moves
 (`Equiv.Perm.IsCycle.orderOf`), and every power `f ^ k` again moves either all of those points or
-none of them. This file computes the cycle type of such a power:
+none of them. This file computes the cycle type of such a power: whenever `n ∤ k` (equivalently,
+whenever `f ^ k ≠ 1`),
 
 `(f ^ k).cycleType = Multiset.replicate d (n / d)` with `n = f.support.card` and `d = n.gcd k`,
 
-so `f ^ k` splits into `gcd n k` cycles of the common length `n / gcd n k`. Mathlib computes the
+so a nonidentity power `f ^ k` splits into `gcd n k` cycles of the common length `n / gcd n k`;
+for `n ∣ k` the power is the identity and its cycle type is empty. Mathlib computes the
 order of a power (`orderOf_pow`) and decides when a power of a cycle is again a cycle
 (`Equiv.Perm.IsCycle.pow_iff`) but does not compute the cycle type of one; the extra input is that
 all the cycles of `f ^ k` have the *same* length, which holds because `(f ^ m) x = x` is
@@ -25,8 +27,8 @@ equivalent to `orderOf f ∣ m` independently of the point `x` of the support.
 
 * `Equiv.Perm.IsCycle.pow_apply_eq_self_iff`: `(f ^ n) x = x` holds for one point moved by the
   cycle exactly when it holds for all of them, namely exactly when `orderOf f ∣ n`.
-* `Equiv.Perm.IsCycle.cycleType_pow_of_not_dvd`: the cycle type of `f ^ k` is `gcd n k` copies
-  of `n / gcd n k`.
+* `Equiv.Perm.IsCycle.cycleType_pow_of_not_dvd`: for `n ∤ k`, the cycle type of `f ^ k` is
+  `gcd n k` copies of `n / gcd n k`.
 
 The declarations are stated in the `Equiv.Perm.IsCycle` namespace, giving dot notation from
 `hf : f.IsCycle`, as upstream candidates.
