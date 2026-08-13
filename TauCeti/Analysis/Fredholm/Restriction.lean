@@ -4,7 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import TauCeti.Analysis.Fredholm.FiniteRank
+public import TauCeti.Analysis.Fredholm.Comp
+public import TauCeti.Analysis.Fredholm.Criteria
 
 /-!
 # Fredholm operators from finite-codimension restrictions

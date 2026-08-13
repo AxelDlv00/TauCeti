@@ -19,7 +19,7 @@ hypothesis of `ContinuousLinearMap.IsFredholm.add_hasFiniteRange`.
 
 ## Main declarations
 
-* `TauCeti.ContinuousLinearMap.index_add_hasFiniteRange`: over a complete nontrivially normed
+* `TauCeti.ContinuousLinearMap.index_add_of_hasFiniteRange`: over a complete nontrivially normed
   field, adding an operator of finite rank preserves the Fredholm index.
 -/
 
@@ -40,13 +40,11 @@ namespace ContinuousLinearMap
 finite rank leaves its index unchanged: both operators restrict to the same map on the closed,
 finite-codimensional subspace `ker K`, and additivity of the index cancels the index shift of that
 restriction. -/
-theorem index_add_hasFiniteRange (hT : ContinuousLinearMap.IsFredholm T)
+theorem index_add_of_hasFiniteRange (hT : ContinuousLinearMap.IsFredholm T)
     (hK : LinearMap.HasFiniteRange (K : E →ₗ[𝕜] F)) :
     index (T + K) = index T := by
-  have hKfd : FiniteDimensional 𝕜 (LinearMap.range (K : E →ₗ[𝕜] F)) :=
-    (Submodule.fg_iff_finiteDimensional _).mp hK.fg_range
   set ι := (LinearMap.ker (K : E →ₗ[𝕜] F)).subtypeL with hι
-  have hιF : ContinuousLinearMap.IsFredholm ι := isFredholm_ker_subtypeL hKfd
+  have hιF : ContinuousLinearMap.IsFredholm ι := isFredholm_ker_subtypeL hK
   have hcomp : (T + K).comp ι = T.comp ι := by
     ext x
     have hx : K (x : E) = 0 := LinearMap.mem_ker.mp x.2

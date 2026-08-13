@@ -6,7 +6,6 @@ module
 
 public import TauCeti.Analysis.Fredholm.ClosedRange
 public import TauCeti.Analysis.Fredholm.ContinuousFamily
-public import TauCeti.Analysis.Fredholm.FiniteRank
 public import TauCeti.Analysis.Normed.Operator.Compact.RieszTheory
 
 /-!
