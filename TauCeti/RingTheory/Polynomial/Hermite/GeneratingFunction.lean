@@ -43,6 +43,13 @@ The primary statement is the complex `HasSum` form
 lives; the real `tsum` form `Polynomial.hermite_generating_function` (the roadmap target A1)
 follows from it by casting `ℝ → ℂ`. Both are stated in the `Polynomial` namespace, matching the
 existing Hermite API, as upstream candidates.
+
+## References
+
+* [Mathlib PR #42724](https://github.com/leanprover-community/mathlib4/pull/42724)
+  (Kim Morrison) — the draft upstream adaptation of this file and of `Derivative.lean`; the
+  `Polynomial`-namespace names (after `Polynomial.bernoulli_generating_function`) and the trimmed
+  imports here follow the choices made for that PR.
 -/
 
 public section

@@ -30,6 +30,13 @@ content behind the weighted-pairing integration-by-parts recursion
 recurrence is the standard form `Hₙ₊₁ = X·Hₙ - n·Hₙ₋₁` that orthogonal-polynomial arguments
 consume. The parity theorem records `Hₙ(-x) = (-1)ⁿ Hₙ(x)` over any commutative ring. They mirror
 Mathlib's existing Hermite file and are stated in the `Polynomial` namespace as upstream candidates.
+
+## References
+
+* [Mathlib PR #42724](https://github.com/leanprover-community/mathlib4/pull/42724)
+  (Kim Morrison) — the draft upstream adaptation of this file and of `GeneratingFunction.lean`;
+  the removal of `@[simp]` from `Polynomial.derivative_hermite_succ` here follows the
+  simp-normal-form analysis made for that PR.
 -/
 
 public section
