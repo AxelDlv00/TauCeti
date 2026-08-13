@@ -29,6 +29,15 @@ public section
 
 namespace TauCeti
 
+/-- Sorting the row lengths of a Young diagram, as a multiset, recovers the row lengths: they
+are already decreasing. This is the `simp` normal form for sorted row-length expressions, which
+arise whenever the parts of a partition built from a diagram are sorted. -/
+@[simp]
+theorem sort_coe_rowLens (μ : YoungDiagram) :
+    (↑μ.rowLens : Multiset ℕ).sort (· ≥ ·) = μ.rowLens := by
+  rw [Multiset.coe_sort]
+  exact List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise
+
 /-- The Young diagram of a partition: its rows are the decreasingly sorted parts. -/
 def diagramOf {n : ℕ} (μ : n.Partition) : YoungDiagram :=
   YoungDiagram.ofRowLens (μ.parts.sort (· ≥ ·))
@@ -155,10 +164,10 @@ theorem shapePartition_parts (μ : YoungDiagram) :
   rfl
 
 /-- Sorting the parts of the shape partition into decreasing order returns the row lengths, which
-are already decreasing.  This is not a `simp` lemma: `simp` rewrites the parts to `μ.rowLens` with
-`shapePartition_parts` and then sorts the coerced list itself. -/
+are already decreasing.  This is not a `simp` lemma: `simp` reaches the same normal form through
+`shapePartition_parts` and `sort_coe_rowLens`. -/
 theorem shapePartition_parts_sort (μ : YoungDiagram) :
     (shapePartition μ).parts.sort (· ≥ ·) = μ.rowLens := by
-  rw [← rowLens_diagramOf (shapePartition μ), shapePartition, diagramOf_toPartition]
+  rw [shapePartition_parts, sort_coe_rowLens]
 
 end TauCeti
