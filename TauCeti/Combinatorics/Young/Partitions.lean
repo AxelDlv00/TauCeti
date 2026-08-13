@@ -29,10 +29,20 @@ public section
 
 namespace TauCeti
 
-/-- Sorting the row lengths of a Young diagram, as a multiset, recovers the row lengths: they
-are already decreasing. This is the `simp` normal form for sorted row-length expressions, which
-arise whenever the parts of a partition built from a diagram are sorted. -/
+/-- Merge-sorting the row lengths of a Young diagram recovers them: they are already
+decreasing. This is stated for `List.mergeSort` in the shape `simp` produces from
+`Multiset.sort` on a coerced list (via `Multiset.coe_sort` and `ge_iff_le`), so it is the
+`simp` normal form for sorted row-length expressions, which arise whenever the parts of a
+partition built from a diagram are sorted. -/
 @[simp]
+theorem mergeSort_rowLens (μ : YoungDiagram) :
+    μ.rowLens.mergeSort (fun a b => decide (b ≤ a)) = μ.rowLens :=
+  List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise
+
+-- Not `@[simp]`: `Multiset.coe_sort` already reduces this left-hand side to the
+-- `List.mergeSort` form normalized by `mergeSort_rowLens` above.
+/-- Sorting the row lengths of a Young diagram, as a multiset, recovers the row lengths: they
+are already decreasing. -/
 theorem sort_coe_rowLens (μ : YoungDiagram) :
     (↑μ.rowLens : Multiset ℕ).sort (· ≥ ·) = μ.rowLens := by
   rw [Multiset.coe_sort]
