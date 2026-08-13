@@ -29,25 +29,6 @@ public section
 
 namespace TauCeti
 
-/-- Merge-sorting the row lengths of a Young diagram recovers them: they are already
-decreasing. This is stated for `List.mergeSort` in the shape `simp` produces from
-`Multiset.sort` on a coerced list (via `Multiset.coe_sort` and `ge_iff_le`), so it is the
-`simp` normal form for sorted row-length expressions, which arise whenever the parts of a
-partition built from a diagram are sorted. -/
-@[simp]
-theorem mergeSort_rowLens (μ : YoungDiagram) :
-    μ.rowLens.mergeSort (fun a b => decide (b ≤ a)) = μ.rowLens :=
-  List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise
-
--- Not `@[simp]`: `Multiset.coe_sort` already reduces this left-hand side to the
--- `List.mergeSort` form normalized by `mergeSort_rowLens` above.
-/-- Sorting the row lengths of a Young diagram, as a multiset, recovers the row lengths: they
-are already decreasing. -/
-theorem sort_coe_rowLens (μ : YoungDiagram) :
-    (↑μ.rowLens : Multiset ℕ).sort (· ≥ ·) = μ.rowLens := by
-  rw [Multiset.coe_sort]
-  exact List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise
-
 /-- The Young diagram of a partition: its rows are the decreasingly sorted parts. -/
 def diagramOf {n : ℕ} (μ : n.Partition) : YoungDiagram :=
   YoungDiagram.ofRowLens (μ.parts.sort (· ≥ ·))
@@ -126,8 +107,7 @@ diagram. -/
 @[simp]
 theorem diagramOf_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
     diagramOf (toPartition μ h) = μ := by
-  simp only [diagramOf, toPartition_parts, Multiset.coe_sort,
-    List.mergeSort_eq_self _ μ.rowLens_sorted.pairwise]
+  simp only [diagramOf, toPartition_parts, YoungDiagram.sort_coe_rowLens]
   exact YoungDiagram.ofRowLens_to_rowLens_eq_self
 
 /-- Partitions of `n` are equivalent to Young diagrams with `n` cells. -/
@@ -175,9 +155,9 @@ theorem shapePartition_parts (μ : YoungDiagram) :
 
 /-- Sorting the parts of the shape partition into decreasing order returns the row lengths, which
 are already decreasing.  This is not a `simp` lemma: `simp` reaches the same normal form through
-`shapePartition_parts` and `sort_coe_rowLens`. -/
+`shapePartition_parts` and `TauCeti.YoungDiagram.sort_coe_rowLens`. -/
 theorem shapePartition_parts_sort (μ : YoungDiagram) :
     (shapePartition μ).parts.sort (· ≥ ·) = μ.rowLens := by
-  rw [shapePartition_parts, sort_coe_rowLens]
+  rw [shapePartition_parts, YoungDiagram.sort_coe_rowLens]
 
 end TauCeti
