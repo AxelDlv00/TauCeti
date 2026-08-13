@@ -10,9 +10,9 @@ public import Mathlib.Combinatorics.Young.SemistandardTableau
 # Order properties of semistandard Young tableaux
 
 Mathlib's `SemistandardYoungTableau` records that entries increase weakly along each row and
-strictly down each column, as two separate one-step conditions. This file combines them into the
-two-dimensional monotonicity statement that consumers actually reach for: an entry is bounded by
-any entry weakly below and to the right of it.
+strictly down each column, each within a single row or column. This file combines the two into the
+two-dimensional statement that consumers actually reach for, comparing entries that differ in both
+coordinates at once: an entry is bounded by any entry weakly below and to the right of it.
 
 The material is deliberately kept in its own module, upstream of the contents and Kostka-number
 theory, so that a basic order fact about tableaux does not oblige a consumer to import that
