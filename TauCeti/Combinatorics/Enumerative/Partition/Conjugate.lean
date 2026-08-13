@@ -155,7 +155,7 @@ private theorem sum_map_min_le_of_prefix_sum_le {l₁ l₂ : List ℕ}
   omega
 
 /-- The conjugate of a partition is obtained by transposing its Young diagram. -/
-@[expose] def conjugate {n : ℕ} (μ : n.Partition) : n.Partition :=
+def conjugate {n : ℕ} (μ : n.Partition) : n.Partition :=
   toPartition (diagramOf μ).transpose (by simp)
 
 /-- The Young diagram of the conjugate partition is the transposed Young diagram. -/

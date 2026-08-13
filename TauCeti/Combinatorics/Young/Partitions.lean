@@ -30,7 +30,7 @@ public section
 namespace TauCeti
 
 /-- The Young diagram of a partition: its rows are the decreasingly sorted parts. -/
-@[expose] def diagramOf {n : ℕ} (μ : n.Partition) : YoungDiagram :=
+def diagramOf {n : ℕ} (μ : n.Partition) : YoungDiagram :=
   YoungDiagram.ofRowLens (μ.parts.sort (· ≥ ·))
     (Multiset.pairwise_sort μ.parts (· ≥ ·)).sortedGE
 
@@ -84,7 +84,7 @@ theorem colLen_diagramOf_indiscrete_le_one (n : ℕ) :
   exact absurd (YoungDiagram.mem_iff_lt_rowLen.mp hmem) (by omega)
 
 /-- The partition of the cells of a Young diagram: its parts are the row lengths. -/
-@[expose] def toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) : n.Partition where
+def toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) : n.Partition where
   parts := μ.rowLens
   parts_pos := fun {x} hx => μ.pos_of_mem_rowLens x (Multiset.mem_coe.mp hx)
   parts_sum := by rw [Multiset.sum_coe, YoungDiagram.sum_rowLens, h]
@@ -92,7 +92,7 @@ theorem colLen_diagramOf_indiscrete_le_one (n : ℕ) :
 /-- The parts of the partition of a sized Young diagram are its row lengths. -/
 @[simp]
 theorem parts_toPartition {n : ℕ} (μ : YoungDiagram) (h : μ.card = n) :
-    (toPartition μ h).parts = μ.rowLens :=
+    (toPartition μ h).parts = μ.rowLens := by
   rfl
 
 /-- Reading back the row lengths of the Young diagram of a partition recovers the partition. -/
@@ -120,22 +120,35 @@ theorem diagramOf_injective {n : ℕ} : Function.Injective (diagramOf (n := n)) 
   rw [← Multiset.sort_eq μ.parts (· ≥ ·), ← Multiset.sort_eq ν.parts (· ≥ ·), h']
 
 /-- Partitions of `n` are equivalent to Young diagrams with `n` cells. -/
-@[expose] def partitionEquivYoungDiagram (n : ℕ) :
+def partitionEquivYoungDiagram (n : ℕ) :
     n.Partition ≃ {μ : YoungDiagram // μ.card = n} where
   toFun μ := ⟨diagramOf μ, card_diagramOf μ⟩
   invFun μ := toPartition μ.1 μ.2
   left_inv μ := toPartition_diagramOf μ
   right_inv μ := Subtype.ext (diagramOf_toPartition μ.1 μ.2)
 
+/-- The Young diagram associated to a partition by the equivalence is `TauCeti.diagramOf`. -/
+@[simp]
+theorem partitionEquivYoungDiagram_apply (n : ℕ) (μ : n.Partition) :
+    partitionEquivYoungDiagram n μ = ⟨diagramOf μ, card_diagramOf μ⟩ := by
+  rfl
+
+/-- The partition associated to a sized Young diagram by the equivalence is
+`TauCeti.toPartition`. -/
+@[simp]
+theorem partitionEquivYoungDiagram_symm_apply (n : ℕ) (μ : {μ : YoungDiagram // μ.card = n}) :
+    (partitionEquivYoungDiagram n).symm μ = toPartition μ.1 μ.2 := by
+  rfl
+
 /-- The **shape partition** of a Young diagram: the partition of `μ.card` whose parts are the row
 lengths. -/
-@[expose] def shapePartition (μ : YoungDiagram) : μ.card.Partition :=
+def shapePartition (μ : YoungDiagram) : μ.card.Partition :=
   toPartition μ rfl
 
 /-- The parts of the shape partition are the row lengths of the diagram. -/
 @[simp]
 theorem shapePartition_parts (μ : YoungDiagram) :
-    (shapePartition μ).parts = μ.rowLens :=
+    (shapePartition μ).parts = μ.rowLens := by
   rfl
 
 /-- Sorting the parts of the shape partition into decreasing order returns the row lengths, which
