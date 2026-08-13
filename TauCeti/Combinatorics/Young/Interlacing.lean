@@ -12,8 +12,8 @@ public import TauCeti.Combinatorics.Young.Kostka
 A Young diagram `ν` **interlaces** `μ` when their row lengths alternate,
 `μ₀ ≥ ν₀ ≥ μ₁ ≥ ν₁ ≥ ⋯`; equivalently `ν ⊆ μ` and the skew shape `μ / ν` is a *horizontal
 strip*, having at most one cell in each column.  This file defines that relation,
-`TauCeti.YoungDiagram.Interlaces`, packages the shapes interlacing a fixed `μ` and having at most
-`n` rows as a `Finset`, `TauCeti.YoungDiagram.interlacingShapes`, and proves the combinatorial
+`YoungDiagram.Interlaces`, packages the shapes interlacing a fixed `μ` and having at most
+`n` rows as a `Finset`, `YoungDiagram.interlacingShapes`, and proves the combinatorial
 heart of the `GLₙ₊₁ ↓ GLₙ` branching rule.
 
 That heart is a bijection.  A semistandard tableau of shape `μ` written in the `n + 1` letters
@@ -32,10 +32,10 @@ way keeps every type non-dependent, so the resulting sum decomposition
 
 ## Main definitions
 
-* `TauCeti.YoungDiagram.Interlaces`: `Interlaces μ ν` says that `ν` interlaces `μ`, that is
+* `YoungDiagram.Interlaces`: `Interlaces μ ν` says that `ν` interlaces `μ`, that is
   `μ.rowLen (i + 1) ≤ ν.rowLen i` and `ν.rowLen i ≤ μ.rowLen i` for every `i`.  The shape being
   interlaced is written first, as in `TauCeti.Interlaces` for integer sequences.
-* `TauCeti.YoungDiagram.interlacingShapes`: the shapes interlacing `μ` with at most `n` rows.
+* `YoungDiagram.interlacingShapes`: the shapes interlacing `μ` with at most `n` rows.
 * `TauCeti.BoundedSSYT.restrictShape`: the cells of `μ` whose entry is smaller than `n`.
 * `TauCeti.BoundedSSYT.restrict` and `TauCeti.BoundedSSYT.extend`: erasing the cells carrying the
   top letter, and putting them back.
@@ -62,13 +62,11 @@ way keeps every type non-dependent, so the resulting sum decomposition
 
 public section
 
-namespace TauCeti
-
 namespace YoungDiagram
 
 variable {μ ν : _root_.YoungDiagram}
 
-/-- `TauCeti.YoungDiagram.Interlaces μ ν` says that the Young diagram `ν` **interlaces** `μ`: the
+/-- `YoungDiagram.Interlaces μ ν` says that the Young diagram `ν` **interlaces** `μ`: the
 two sequences of row lengths alternate, `μ₀ ≥ ν₀ ≥ μ₁ ≥ ν₁ ≥ ⋯`.  Equivalently `ν ⊆ μ` and the
 skew shape `μ / ν` is a horizontal strip: no column of `μ` contains two of its cells.
 
@@ -78,7 +76,7 @@ def Interlaces (μ ν : _root_.YoungDiagram) : Prop :=
   ∀ i, μ.rowLen (i + 1) ≤ ν.rowLen i ∧ ν.rowLen i ≤ μ.rowLen i
 
 /-- Interlacing unfolded: the pair of inequalities at each row.  This is the introduction and
-elimination rule for `TauCeti.YoungDiagram.Interlaces`, whose body is not exposed. -/
+elimination rule for `YoungDiagram.Interlaces`, whose body is not exposed. -/
 @[simp]
 theorem interlaces_iff :
     Interlaces μ ν ↔ ∀ i, μ.rowLen (i + 1) ≤ ν.rowLen i ∧ ν.rowLen i ≤ μ.rowLen i :=
@@ -120,6 +118,8 @@ theorem mem_interlacingShapes {n : ℕ} :
   Set.Finite.mem_toFinset _
 
 end YoungDiagram
+
+namespace TauCeti
 
 namespace SemistandardYoungTableau
 
