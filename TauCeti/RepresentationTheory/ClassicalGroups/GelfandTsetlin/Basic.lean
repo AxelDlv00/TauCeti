@@ -37,7 +37,7 @@ each row is then a consequence (`TauCeti.GTPattern.entry_anti`), not an extra hy
 
 The engine of the file is `TauCeti.GTPattern.truncateEquiv`: deleting the top row identifies the
 patterns with `n + 1` rows and top row `l` with the patterns with `n` rows whose own top row
-interlaces `l`.  This is the combinatorial shadow of the `GL (n+1) ↓ GL n` branching rule, and it
+interlacedBy `l`.  This is the combinatorial shadow of the `GL (n+1) ↓ GL n` branching rule, and it
 is what makes the patterns with a prescribed top row finite and countable.  Read off at `n = 1` it
 gives a unique pattern for each top row, and at `n = 2` the count `(λ₀ - λ₁ + 1).toNat`, which for
 a dominant top row `λ₁ ≤ λ₀` is `λ₀ - λ₁ + 1`, the dimension of the irreducible representation of
@@ -48,7 +48,7 @@ a dominant top row `λ₁ ≤ λ₀` is `λ₀ - λ₁ + 1`, the dimension of th
 * `TauCeti.GTPattern n`: Gelfand-Tsetlin patterns with `n` rows.
 * `TauCeti.GTPattern.topRow` and `TauCeti.GTPattern.topWeight`: the longest row, the highest weight
   the pattern refines, the second packaged as a `TauCeti.DominantWeight`.
-* `TauCeti.Interlaces`: the betweenness relation `lᵢ ≥ mᵢ ≥ lᵢ₊₁` between two integer sequences.
+* `TauCeti.InterlacedBy`: the betweenness relation `lᵢ ≥ mᵢ ≥ lᵢ₊₁` between two integer sequences.
 * `TauCeti.GTPattern.truncate` and `TauCeti.GTPattern.extend`: deleting and prepending a top row.
 
 ## Main results
@@ -57,10 +57,10 @@ a dominant top row `λ₁ ≤ λ₀` is `λ₀ - λ₁ + 1`, the dimension of th
   decreasing, so the top row is a dominant weight.
 * `TauCeti.GTPattern.entry_nonneg`: a pattern with a nonnegative top row has nonnegative entries,
   so the polynomial patterns are cut out by the top row alone.
-* `TauCeti.Interlaces.antitone`: an interlacing sequence is weakly decreasing, so a sequence
+* `TauCeti.InterlacedBy.antitone`: an interlacing sequence is weakly decreasing, so a sequence
   interlacing a dominant weight is dominant.
 * `TauCeti.GTPattern.truncateEquiv`: patterns with `n + 1` rows and top row `l` correspond to
-  patterns with `n` rows whose top row interlaces `l`.
+  patterns with `n` rows whose top row interlacedBy `l`.
 * `TauCeti.GTPattern.finite_topRow_eq`: only finitely many patterns share a top row.
 * `TauCeti.GTPattern.card_topRow_one_eq_one` and
   `TauCeti.GTPattern.card_topRow_two_eq_toNat_sub_add_one`: the counts for `n = 1` and `n = 2`,
@@ -252,7 +252,7 @@ end GTPattern
 
 /-! ### Interlacing -/
 
-/-- `TauCeti.Interlaces l m` says that the integer sequence `m : Fin n → ℤ` **interlaces** the
+/-- `TauCeti.InterlacedBy l m` says that the integer sequence `m : Fin n → ℤ` **interlacedBy** the
 longer sequence `l : Fin (n + 1) → ℤ`: `lᵢ ≥ mᵢ ≥ lᵢ₊₁` for every `i`.  This is the betweenness
 condition relating consecutive rows of a Gelfand-Tsetlin pattern.
 
@@ -261,29 +261,29 @@ combinatorial.  When `l` *is* dominant it acquires its representation-theoretic 
 interlacing `l` is then dominant too (the two inequalities give `mᵢ₊₁ ≤ lᵢ₊₁ ≤ mᵢ`), and such `m`
 are exactly the highest weights of the constituents of `V_l` restricted along
 `GL n ↪ GL (n + 1)`. -/
-def Interlaces {n : ℕ} (l : Fin (n + 1) → ℤ) (m : Fin n → ℤ) : Prop :=
+def InterlacedBy {n : ℕ} (l : Fin (n + 1) → ℤ) (m : Fin n → ℤ) : Prop :=
   ∀ i : Fin n, m i ≤ l i.castSucc ∧ l i.succ ≤ m i
 
 /-- Interlacing unfolded: the pair of inequalities at each index.  This is the introduction and
-elimination rule for `TauCeti.Interlaces`, whose body is not exposed. -/
+elimination rule for `TauCeti.InterlacedBy`, whose body is not exposed. -/
 @[simp]
-theorem interlaces_iff {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ} :
-    Interlaces l m ↔ ∀ i : Fin n, m i ≤ l i.castSucc ∧ l i.succ ≤ m i :=
+theorem interlacedBy_iff {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ} :
+    InterlacedBy l m ↔ ∀ i : Fin n, m i ≤ l i.castSucc ∧ l i.succ ≤ m i :=
   Iff.rfl
 
 /-- Half of the interlacing condition: `mᵢ ≤ lᵢ`. -/
-theorem Interlaces.le_castSucc {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ}
-    (h : Interlaces l m) (i : Fin n) : m i ≤ l i.castSucc := (h i).1
+theorem InterlacedBy.le_castSucc {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ}
+    (h : InterlacedBy l m) (i : Fin n) : m i ≤ l i.castSucc := (h i).1
 
 /-- The other half of the interlacing condition: `lᵢ₊₁ ≤ mᵢ`. -/
-theorem Interlaces.succ_le {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ}
-    (h : Interlaces l m) (i : Fin n) : l i.succ ≤ m i := (h i).2
+theorem InterlacedBy.succ_le {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ}
+    (h : InterlacedBy l m) (i : Fin n) : l i.succ ≤ m i := (h i).2
 
 /-- **An interlacing sequence is weakly decreasing.**  The two interlacing inequalities at
 adjacent indices meet at the same entry of `l`, giving `mᵢ₊₁ ≤ lᵢ₊₁ ≤ mᵢ`; no assumption on `l` is
 needed.  In particular a sequence interlacing a dominant weight is itself dominant, which is what
 packages the output of `TauCeti.GTPattern.truncateEquiv` as a `TauCeti.DominantWeight`. -/
-theorem Interlaces.antitone {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ} (h : Interlaces l m) :
+theorem InterlacedBy.antitone {n : ℕ} {l : Fin (n + 1) → ℤ} {m : Fin n → ℤ} (h : InterlacedBy l m) :
     Antitone m := by
   cases n with
   | zero => exact fun i => i.elim0
@@ -320,16 +320,16 @@ theorem truncate_apply (P : GTPattern (n + 1)) (i j : ℕ) :
 theorem topRow_truncate (P : GTPattern (n + 1)) (i : Fin n) : (truncate P).topRow i = P i n := by
   simp
 
-/-- The row below the top of a pattern interlaces its top row: the pattern's own witness that
+/-- The row below the top of a pattern interlacedBy its top row: the pattern's own witness that
 `TauCeti.GTPattern.truncate` lands where `TauCeti.GTPattern.extend` expects it. -/
-theorem interlaces_topRow_truncate (P : GTPattern (n + 1)) :
-    Interlaces P.topRow (truncate P).topRow :=
-  interlaces_iff.mpr fun i =>
+theorem interlacedBy_topRow_truncate (P : GTPattern (n + 1)) :
+    InterlacedBy P.topRow (truncate P).topRow :=
+  interlacedBy_iff.mpr fun i =>
     ⟨by simpa using P.entry_le_entry_succ_row i.2 (by omega),
       by simpa using P.entry_succ_succ_le_entry (i := (i : ℕ)) (j := n) (by omega)⟩
 
-/-- Prepend the row `l` on top of a pattern with `n` rows whose own top row it interlaces. -/
-def extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow) :
+/-- Prepend the row `l` on top of a pattern with `n` rows whose own top row it interlacedBy. -/
+def extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow) :
     GTPattern (n + 1) where
   entry i j := if j = n + 1 then (if hi : i < n + 1 then l ⟨i, hi⟩ else 0) else Q i j
   zeros' := by
@@ -354,35 +354,35 @@ def extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRo
       simp only [ite_eq_right hne, ite_eq_right hne']
       exact Q.interlacing' hij (by omega)
 
-theorem extend_apply (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow)
+theorem extend_apply (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow)
     (i j : ℕ) :
     extend Q l h i j = if j = n + 1 then (if hi : i < n + 1 then l ⟨i, hi⟩ else 0) else Q i j :=
   (rfl)
 
 @[simp]
-theorem extend_apply_of_ne (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow)
+theorem extend_apply_of_ne (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow)
     {i j : ℕ} (hj : j ≠ n + 1) : extend Q l h i j = Q i j := by
   rw [extend_apply, ite_eq_right hj]
 
 @[simp]
-theorem extend_apply_top (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow)
+theorem extend_apply_top (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow)
     {i : ℕ} (hi : i < n + 1) : extend Q l h i (n + 1) = l ⟨i, hi⟩ := by
   rw [extend_apply, ite_eq_left rfl, dite_eq_left hi]
 
 /-- Prepending a row leaves the cells past the end of the new row empty.  This is not `@[simp]`:
 `entry_eq_zero_of_le` already rewrites it, being the general normal form for an out-of-row cell. -/
-theorem extend_apply_top_of_le (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow)
+theorem extend_apply_top_of_le (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow)
     {i : ℕ} (hi : n + 1 ≤ i) : extend Q l h i (n + 1) = 0 := by
   rw [extend_apply, ite_eq_left rfl, dite_eq_right (by omega)]
 
 @[simp]
-theorem topRow_extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow) :
+theorem topRow_extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow) :
     (extend Q l h).topRow = l := by
   funext i
   rw [topRow_apply, extend_apply_top Q l h i.2]
 
 @[simp]
-theorem truncate_extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interlaces l Q.topRow) :
+theorem truncate_extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : InterlacedBy l Q.topRow) :
     truncate (extend Q l h) = Q := by
   ext i j
   rw [truncate_apply]
@@ -394,7 +394,7 @@ theorem truncate_extend (Q : GTPattern n) (l : Fin (n + 1) → ℤ) (h : Interla
 
 @[simp]
 theorem extend_truncate (P : GTPattern (n + 1)) :
-    extend (truncate P) P.topRow (interlaces_topRow_truncate P) = P := by
+    extend (truncate P) P.topRow (interlacedBy_topRow_truncate P) = P := by
   ext i j
   by_cases hj : j = n + 1
   · subst hj
@@ -409,7 +409,7 @@ theorem extend_truncate (P : GTPattern (n + 1)) :
       exact (P.entry_eq_zero_of_lt (by omega)).symm
 
 /-- **Deleting the top row is a bijection.**  The Gelfand-Tsetlin patterns with `n + 1` rows and
-top row `l` are exactly the patterns with `n` rows whose own top row interlaces `l`.
+top row `l` are exactly the patterns with `n` rows whose own top row interlacedBy `l`.
 
 The statement holds for an arbitrary integer sequence `l`, where it is a bijection between two
 combinatorial sets and nothing more (for a non-dominant `l` both sides are empty as soon as
@@ -418,8 +418,8 @@ combinatorial sets and nothing more (for a non-dominant `l` both sides are empty
 weights, which are again dominant, and a basis vector of `V_l` is a choice of interlacing weight
 together with a basis vector of the corresponding constituent. -/
 def truncateEquiv (l : Fin (n + 1) → ℤ) :
-    {P : GTPattern (n + 1) // P.topRow = l} ≃ {Q : GTPattern n // Interlaces l Q.topRow} where
-  toFun := fun ⟨P, hP⟩ => ⟨truncate P, hP ▸ interlaces_topRow_truncate P⟩
+    {P : GTPattern (n + 1) // P.topRow = l} ≃ {Q : GTPattern n // InterlacedBy l Q.topRow} where
+  toFun := fun ⟨P, hP⟩ => ⟨truncate P, hP ▸ interlacedBy_topRow_truncate P⟩
   invFun Q := ⟨extend Q.1 l Q.2, topRow_extend _ _ _⟩
   left_inv := by rintro ⟨P, rfl⟩; exact Subtype.ext (extend_truncate P)
   right_inv Q := Subtype.ext (truncate_extend _ _ _)
@@ -432,7 +432,7 @@ theorem truncateEquiv_apply_coe (l : Fin (n + 1) → ℤ)
 
 @[simp]
 theorem truncateEquiv_symm_apply_coe (l : Fin (n + 1) → ℤ)
-    (Q : {Q : GTPattern n // Interlaces l Q.topRow}) :
+    (Q : {Q : GTPattern n // InterlacedBy l Q.topRow}) :
     ((truncateEquiv l).symm Q).1 = extend Q.1 l Q.2 :=
   (rfl)
 
@@ -469,8 +469,8 @@ instance finite_topRow_eq (l : Fin n → ℤ) : Finite {P : GTPattern n // P.top
 /-- A one-row pattern is nothing but its top row: for each `l` there is exactly one pattern with
 top row `l`. -/
 instance uniqueTopRowOne (l : Fin 1 → ℤ) : Unique {P : GTPattern 1 // P.topRow = l} := by
-  haveI : Unique {Q : GTPattern 0 // Interlaces l Q.topRow} :=
-    ⟨⟨⟨default, interlaces_iff.mpr fun i => i.elim0⟩⟩,
+  haveI : Unique {Q : GTPattern 0 // InterlacedBy l Q.topRow} :=
+    ⟨⟨⟨default, interlacedBy_iff.mpr fun i => i.elim0⟩⟩,
       fun _ => Subtype.ext (Subsingleton.elim _ _)⟩
   exact (truncateEquiv l).unique
 
@@ -500,11 +500,11 @@ and for `λ₀ < λ₁` there is no such pattern at all.  On a dominant top row,
 `(λ₀, λ₁)`. -/
 theorem card_topRow_two_eq_toNat_sub_add_one (l : Fin 2 → ℤ) :
     Nat.card {P : GTPattern 2 // P.topRow = l} = (l 0 - l 1 + 1).toNat := by
-  have e₂ : {Q : GTPattern 1 // Interlaces l Q.topRow} ≃ {m : Fin 1 → ℤ // Interlaces l m} :=
+  have e₂ : {Q : GTPattern 1 // InterlacedBy l Q.topRow} ≃ {m : Fin 1 → ℤ // InterlacedBy l m} :=
     Equiv.subtypeEquiv equivOne fun _ => Iff.rfl
-  have e₃ : {m : Fin 1 → ℤ // Interlaces l m} ≃ Set.Icc (l 1) (l 0) :=
+  have e₃ : {m : Fin 1 → ℤ // InterlacedBy l m} ≃ Set.Icc (l 1) (l 0) :=
     { toFun := fun m => ⟨m.1 0, ⟨m.2.succ_le 0, m.2.le_castSucc 0⟩⟩
-      invFun := fun x => ⟨fun _ => x.1, interlaces_iff.mpr fun i => by
+      invFun := fun x => ⟨fun _ => x.1, interlacedBy_iff.mpr fun i => by
         obtain rfl : i = 0 := Subsingleton.elim _ _
         exact ⟨x.2.2, x.2.1⟩⟩
       left_inv := fun m => by
