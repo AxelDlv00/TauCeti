@@ -316,7 +316,7 @@ theorem kostkaNumber_self {n : ℕ} (μ : n.Partition) : kostkaNumber μ μ = 1 
 dominate `ν`. -/
 theorem dominates_of_kostkaNumber_ne_zero {n : ℕ} {μ ν : n.Partition}
     (h : kostkaNumber μ ν ≠ 0) : Dominates μ ν := by
-  intro k
+  refine dominates_iff.mpr fun k => ?_
   rw [kostkaNumber_def] at h
   have hk := sum_le_sum_take_rowLens_of_diagramKostkaNumber_ne_zero h k
   rwa [YoungDiagram.sum_range_rowLen_eq_card_filter_fst,

@@ -67,7 +67,7 @@ theorem dominates_of_youngBlock_colIndex_injective {lam : YoungDiagram} (t : You
       x = y) :
     Dominates (shapePartition lam) μ := by
   classical
-  intro k
+  refine dominates_iff.mpr fun k => ?_
   rw [shapePartition_parts_sort, ← card_filter_youngBlock_lt μ k]
   -- Transport the count along `g`, then feed it to the counting core.
   have hcard : (Finset.univ.filter fun x : Fin lam.card => (youngBlock μ x : ℕ) < k).card =

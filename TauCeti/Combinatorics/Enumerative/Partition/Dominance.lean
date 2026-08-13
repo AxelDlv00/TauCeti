@@ -17,6 +17,13 @@ dominance implies the corresponding lexicographic comparison, strictly for stric
 The dominance order is the triangular order governing Kostka numbers and the occurrence of
 Specht modules in permutation modules. It is the “Orders on partitions” target in Layer 0 of
 the symmetric-group and Schur–Weyl roadmap.
+
+## References
+
+* [Mathlib PR #42725](https://github.com/leanprover-community/mathlib4/pull/42725)
+  (Kim Morrison) — the draft upstream adaptation of this file; the ℕ-indexed definition of
+  `Dominates` and the `Fin`-indexed decidability characterization follow the form prepared
+  for that PR.
 -/
 
 public section
@@ -74,11 +81,21 @@ end PartitionLex
 /-- A partition `μ` dominates a partition `ν` when every partial sum of the decreasingly
 sorted parts of `μ` is at least the corresponding partial sum of `ν`.
 
-The definition is exposed so that a dominance goal or hypothesis can be used directly as the
-family of partial-sum inequalities, indexed by all of `ℕ`, in any module. -/
-@[expose] def Dominates {n : ℕ} (μ ν : n.Partition) : Prop :=
+The definition quantifies over all of `ℕ`, following the form prepared for
+[Mathlib PR #42725](https://github.com/leanprover-community/mathlib4/pull/42725); use
+`dominates_iff` to unfold it outside this module and `dominates_iff_forall_fin` to reduce
+to the first `n + 1` partial sums. -/
+def Dominates {n : ℕ} (μ ν : n.Partition) : Prop :=
   ∀ k : ℕ,
     ((ν.parts.sort (· ≥ ·)).take k).sum ≤ ((μ.parts.sort (· ≥ ·)).take k).sum
+
+/-- The defining partial-sum characterization of dominance. -/
+theorem dominates_iff {n : ℕ} {μ ν : n.Partition} :
+    Dominates μ ν ↔
+      ∀ k : ℕ,
+        ((ν.parts.sort (· ≥ ·)).take k).sum ≤
+          ((μ.parts.sort (· ≥ ·)).take k).sum :=
+  Iff.rfl
 
 /-- Partial sums of sorted parts of partitions of `n` agree from index `n` on, so dominance is
 determined by the first `n + 1` partial sums. In particular it is decidable. -/
