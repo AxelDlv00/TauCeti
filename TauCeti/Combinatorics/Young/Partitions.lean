@@ -143,6 +143,11 @@ lengths. -/
 def shapePartition (μ : YoungDiagram) : μ.card.Partition :=
   toPartition μ rfl
 
+/-- The Young diagram of the shape partition of a Young diagram is that diagram. -/
+@[simp]
+theorem diagramOf_shapePartition (μ : YoungDiagram) : diagramOf (shapePartition μ) = μ :=
+  diagramOf_toPartition μ rfl
+
 /-- The parts of the shape partition are the row lengths of the diagram. -/
 @[simp]
 theorem shapePartition_parts (μ : YoungDiagram) :

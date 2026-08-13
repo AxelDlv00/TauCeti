@@ -18,10 +18,9 @@ The reversal theorem is the remaining part of the “Orders on partitions” tar
 the symmetric-group and Schur–Weyl roadmap.  It supplies the order duality used later for the
 row/column symmetry of Specht modules and permutation modules.
 
-Along the way it records the Young diagrams of the two extreme partitions, which the duality
-exchanges: the diagram of `(1ⁿ)` has at most one column
-(`TauCeti.rowLen_diagramOf_ones_le_one`) and the diagram of `(n)` has at most one row
-(`TauCeti.colLen_diagramOf_indiscrete_le_one`).  Both are empty for `n = 0`.
+The Young diagrams of the two extreme partitions, which the duality exchanges, are recorded
+with the partition–diagram correspondence in `TauCeti/Combinatorics/Young/Partitions.lean`
+(`TauCeti.rowLen_diagramOf_ones_le_one` and `TauCeti.colLen_diagramOf_indiscrete_le_one`).
 
 ## References
 
@@ -157,6 +156,12 @@ private theorem sum_map_min_le_of_prefix_sum_le {l₁ l₂ : List ℕ}
 /-- The conjugate of a partition is obtained by transposing its Young diagram. -/
 def conjugate {n : ℕ} (μ : n.Partition) : n.Partition :=
   toPartition (diagramOf μ).transpose (by simp)
+
+/-- The parts of the conjugate partition are the row lengths of the transposed diagram. -/
+@[simp]
+theorem parts_conjugate {n : ℕ} (μ : n.Partition) :
+    (conjugate μ).parts = ((diagramOf μ).transpose.rowLens : Multiset ℕ) :=
+  parts_toPartition _ _
 
 /-- The Young diagram of the conjugate partition is the transposed Young diagram. -/
 @[simp]
