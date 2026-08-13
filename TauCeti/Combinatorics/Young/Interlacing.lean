@@ -119,17 +119,6 @@ theorem mem_interlacingShapes {n : ℕ} :
 
 end YoungDiagram
 
-namespace SemistandardYoungTableau
-
-variable {μ : _root_.YoungDiagram}
-
-/-- The entries of a semistandard Young tableau increase weakly to the right and downwards. -/
-theorem entry_le_of_le (T : _root_.SemistandardYoungTableau μ) {i₁ i₂ j₁ j₂ : ℕ} (hi : i₁ ≤ i₂)
-    (hj : j₁ ≤ j₂) (hc : ((i₂, j₂) : ℕ × ℕ) ∈ μ) : T i₁ j₁ ≤ T i₂ j₂ :=
-  (T.row_weak_of_le hj (μ.up_left_mem hi le_rfl hc)).trans (T.col_weak hi hc)
-
-end SemistandardYoungTableau
-
 namespace TauCeti
 
 namespace BoundedSSYT
