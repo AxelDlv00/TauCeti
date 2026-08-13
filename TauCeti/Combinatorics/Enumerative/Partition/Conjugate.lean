@@ -176,9 +176,10 @@ theorem conjugate_conjugate {n : ℕ} (μ : n.Partition) :
   apply diagramOf_injective
   simp
 
+-- Not `@[simp]`: with `parts_conjugate` in the default simp set the left-hand side is no
+-- longer in simp normal form (the parts reduce to the transposed row lengths before sorting).
 /-- The decreasing parts of the conjugate partition are the row lengths of the transposed
 diagram. -/
-@[simp]
 theorem conjugate_parts_sort {n : ℕ} (μ : n.Partition) :
     (conjugate μ).parts.sort (· ≥ ·) = (diagramOf μ).transpose.rowLens := by
   rw [← rowLens_diagramOf (conjugate μ), diagramOf_conjugate]
