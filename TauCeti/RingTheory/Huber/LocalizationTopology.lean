@@ -53,6 +53,10 @@ so a consumer holding `A[1/s]` in another presentation can use the topology dire
 * `hasBasis_nhds_zero_locSubring` and `isAdic_locIdeal`: the powers of `J` are a neighbourhood
   basis of zero in `D`, so the subspace topology on `D` is the `J`-adic one. With `fg_locIdeal`
   this completes every condition `TauCeti.Huber.PairOfDefinition` asks of the pair `(D, J)`.
+* `localization` and `isHuberRing_locTopology`: those conditions assembled, so `Aₛ` under
+  `locTopology` is a Huber ring. `localization_ringOfDefinition` and
+  `mem_localization_idealOfDefinition` are its contract, since the body of `localization` is not
+  exposed.
 * `isPowerBounded_of_mem_locSubring` and `isPowerBounded_divBy`: every element of `D` — in
   particular each fraction `t/s` — is power-bounded, the fact a converse to the continuity
   criterion needs.
@@ -644,6 +648,74 @@ theorem isAdic_locIdeal [IsTopologicalRing A] (P : PairOfDefinition A) (T : Fins
       (hbasis.mem_of_mem (i := n) trivial)
   · obtain ⟨n, -, hn⟩ := hbasis.mem_iff.mp hU
     exact ⟨n, hn⟩
+
+/-! ### The localisation is a Huber ring -/
+
+/-- **The pair of definition of `Aₛ`** under `locTopology` — Wedhorn's `A(T/s)` of 5.51, written
+`Aₛ` throughout this file: the subring `D` together with the ideal `J = I · D`.
+
+`TauCeti.Huber.PairOfDefinition` has two data fields and three proof fields, and every one of them
+is already established above. The data are `locSubring` and `locIdeal`; the three proofs are
+`isOpen_locSubring`, `fg_locIdeal` and `isAdic_locIdeal`. Nothing new is proved here — this is the
+value that packages them for `isHuberRing_locTopology`.
+
+The topology is not an instance on `S`, so it is introduced in the statement; a consumer supplies
+it the same way, or works under `isHuberRing_locTopology` instead. -/
+noncomputable def localization [IsTopologicalRing A] (P : PairOfDefinition A) (T : Finset A)
+    (s : A) (S : Type*) [CommRing S] [Algebra A S] [IsLocalization.Away s S]
+    (hden : HasDenominatorPower P T s S) :
+    letI := locTopology P T s S hden
+    PairOfDefinition S :=
+  letI := locTopology P T s S hden
+  { ringOfDefinition := locSubring P T s S
+    isOpen_ringOfDefinition := isOpen_locSubring P T s S hden
+    idealOfDefinition := locIdeal P T s S
+    fg_idealOfDefinition := fg_locIdeal P T s S
+    isAdic_idealOfDefinition := isAdic_locIdeal P T s S hden }
+
+/-- The ring of definition of `localization` is `D`. The body of `localization` is not exposed, so
+this is how a consumer recovers it — the same contract `completion_ringOfDefinition` provides for
+the completion. Unlike that one, the statement has to introduce the topology, because
+`locTopology` is not an instance and `localization`'s own type depends on it. -/
+@[simp]
+theorem localization_ringOfDefinition [IsTopologicalRing A] (P : PairOfDefinition A) (T : Finset A)
+    (s : A) (S : Type*) [CommRing S] [Algebra A S] [IsLocalization.Away s S]
+    (hden : HasDenominatorPower P T s S) :
+    letI := locTopology P T s S hden
+    (P.localization T s S hden).ringOfDefinition = locSubring P T s S := (rfl)
+
+/-- Membership in the ideal of definition of `localization` is membership in `J`. Stated as a
+membership rather than an equation because `idealOfDefinition`'s type depends on
+`ringOfDefinition`, exactly as `mem_completion_idealOfDefinition` is. -/
+@[simp]
+theorem mem_localization_idealOfDefinition [IsTopologicalRing A] (P : PairOfDefinition A)
+    (T : Finset A) (s : A) (S : Type*) [CommRing S] [Algebra A S] [IsLocalization.Away s S]
+    (hden : HasDenominatorPower P T s S)
+    {x : letI := locTopology P T s S hden; (P.localization T s S hden).ringOfDefinition} :
+    letI := locTopology P T s S hden
+    x ∈ (P.localization T s S hden).idealOfDefinition ↔
+      (⟨x, by rw [← localization_ringOfDefinition P T s S hden]; exact x.2⟩ :
+        locSubring P T s S) ∈ locIdeal P T s S := (Iff.rfl)
+
+/-- **Wedhorn's topological localisation is a Huber ring.** Under the standing hypothesis, `Aₛ`
+carrying `locTopology` admits a pair of definition, namely `(D, J)`.
+
+This is what the whole file is for. Being Huber is exactly the existence of *some* pair of
+definition, so the content is the three facts assembled in `localization`: `D` is open, `J` is
+finitely generated, and the subspace topology on `D` is the `J`-adic one.
+
+Both the topology and its ring structure are introduced in the statement, because `locTopology` is
+deliberately not registered as an instance — `Aₛ` is an arbitrary localisation and carries no
+topology of its own. -/
+theorem isHuberRing_locTopology [IsTopologicalRing A] (P : PairOfDefinition A) (T : Finset A)
+    (s : A) (S : Type*) [CommRing S] [Algebra A S] [IsLocalization.Away s S]
+    (hden : HasDenominatorPower P T s S) :
+    letI := locTopology P T s S hden
+    letI := isTopologicalRing_locTopology P T s S hden
+    IsHuberRing S :=
+  letI := locTopology P T s S hden
+  letI := isTopologicalRing_locTopology P T s S hden
+  ⟨⟨localization P T s S hden⟩⟩
 
 /-! ### A sufficient criterion for continuity -/
 
