@@ -119,8 +119,6 @@ theorem mem_interlacingShapes {n : ℕ} :
 
 end YoungDiagram
 
-namespace TauCeti
-
 namespace SemistandardYoungTableau
 
 variable {μ : _root_.YoungDiagram}
@@ -131,6 +129,8 @@ theorem entry_le_of_le (T : _root_.SemistandardYoungTableau μ) {i₁ i₂ j₁ 
   (T.row_weak_of_le hj (μ.up_left_mem hi le_rfl hc)).trans (T.col_weak hi hc)
 
 end SemistandardYoungTableau
+
+namespace TauCeti
 
 namespace BoundedSSYT
 
