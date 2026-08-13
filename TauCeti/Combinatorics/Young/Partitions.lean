@@ -127,24 +127,6 @@ theorem diagramOf_injective {n : ℕ} : Function.Injective (diagramOf (n := n)) 
   left_inv μ := toPartition_diagramOf μ
   right_inv μ := Subtype.ext (diagramOf_toPartition μ.1 μ.2)
 
-/-- The Young diagram associated to a partition by the equivalence is `TauCeti.diagramOf`. -/
-@[simp]
-theorem partitionEquivYoungDiagram_apply_coe (n : ℕ) (μ : n.Partition) :
-    (partitionEquivYoungDiagram n μ).1 = diagramOf μ :=
-  rfl
-
-/-- The Young diagram associated to a partition has its decreasing parts as row lengths. -/
-theorem partitionEquivYoungDiagram_apply_rowLens (n : ℕ) (μ : n.Partition) :
-    (partitionEquivYoungDiagram n μ).1.rowLens = μ.parts.sort (· ≥ ·) :=
-  rowLens_diagramOf μ
-
-/-- Reading the row lengths of a sized Young diagram recovers the partition's parts. -/
-@[simp]
-theorem partitionEquivYoungDiagram_symm_apply_parts (n : ℕ)
-    (μ : {μ : YoungDiagram // μ.card = n}) :
-    ((partitionEquivYoungDiagram n).symm μ).parts = μ.1.rowLens :=
-  rfl
-
 /-- The **shape partition** of a Young diagram: the partition of `μ.card` whose parts are the row
 lengths. -/
 @[expose] def shapePartition (μ : YoungDiagram) : μ.card.Partition :=
