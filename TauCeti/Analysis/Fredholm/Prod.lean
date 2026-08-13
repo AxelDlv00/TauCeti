@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Analysis.Fredholm.Basic
+public import TauCeti.LinearAlgebra.Quotient.Prod
 
 /-!
 # Products of Fredholm operators
@@ -15,8 +16,7 @@ decompositions and finite-dimensional reductions in the Fredholm substrate of th
 Heegaard Floer roadmap.
 
 The proof identifies the kernel and range of the product operator with the products of the
-individual kernels and ranges. It also records the corresponding linear equivalence between the
-cokernel of a product submodule and the product of the two cokernels.
+individual kernels and ranges, and counts the cokernel with `Submodule.finrank_quotient_prod`.
 
 ## Main declarations
 
@@ -36,45 +36,6 @@ variable [NormedAddCommGroup E₁] [NormedSpace K E₁]
 variable [NormedAddCommGroup E₂] [NormedSpace K E₂]
 variable [NormedAddCommGroup F₁] [NormedSpace K F₁]
 variable [NormedAddCommGroup F₂] [NormedSpace K F₂]
-
-namespace Submodule
-
-/-- A product submodule, as a module, is the product of the two submodules. -/
-private def prodSubtypeEquiv (p : Submodule K F₁) (q : Submodule K F₂) :
-    ↥(p.prod q) ≃ₗ[K] p × q where
-  toFun x := (⟨x.1.1, x.2.1⟩, ⟨x.1.2, x.2.2⟩)
-  invFun x := ⟨(x.1.1, x.2.1), x.1.2, x.2.2⟩
-  left_inv _ := rfl
-  right_inv _ := rfl
-  map_add' _ _ := rfl
-  map_smul' _ _ := rfl
-
-/-- The quotient by a product of submodules is linearly equivalent to the product of the
-quotients. This is kept private because the construction is general Mathlib infrastructure; only
-its Fredholm consequences form the public API of this file. -/
-private noncomputable def quotientProdEquiv (p : Submodule K F₁) (q : Submodule K F₂) :
-    ((F₁ × F₂) ⧸ p.prod q) ≃ₗ[K] (F₁ ⧸ p) × (F₂ ⧸ q) := by
-  let f : F₁ × F₂ →ₗ[K] (F₁ ⧸ p) × (F₂ ⧸ q) := p.mkQ.prodMap q.mkQ
-  have hker : LinearMap.ker f = p.prod q := by
-    simp [f]
-  let g : ((F₁ × F₂) ⧸ p.prod q) →ₗ[K] (F₁ ⧸ p) × (F₂ ⧸ q) :=
-    (p.prod q).liftQ f hker.ge
-  refine LinearEquiv.ofBijective g ⟨?_, ?_⟩
-  · exact LinearMap.ker_eq_bot.mp
-      (Submodule.ker_liftQ_eq_bot (p.prod q) f hker.ge hker.le)
-  · rintro ⟨⟨x⟩, ⟨y⟩⟩
-    refine ⟨(p.prod q).mkQ (x, y), ?_⟩
-    simp only [g, Submodule.mkQ_apply, Submodule.liftQ_apply, f, LinearMap.prodMap_apply,
-      Submodule.Quotient.quot_mk_eq_mk]
-
-/-- The cokernel of a product submodule has dimension equal to the sum of the dimensions of the
-two cokernels. -/
-private lemma finrank_quotient_prod (p : Submodule K F₁) (q : Submodule K F₂)
-    [FiniteDimensional K (F₁ ⧸ p)] [FiniteDimensional K (F₂ ⧸ q)] :
-    finrank K ((F₁ × F₂) ⧸ p.prod q) = finrank K (F₁ ⧸ p) + finrank K (F₂ ⧸ q) := by
-  rw [(quotientProdEquiv p q).finrank_eq, finrank_prod]
-
-end Submodule
 
 variable {T : E₁ →L[K] F₁} {S : E₂ →L[K] F₂}
 
