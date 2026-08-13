@@ -68,7 +68,8 @@ noncomputable def quotientProdEquiv (p : Submodule R M) (q : Submodule R N) :
 
 @[simp]
 theorem quotientProdEquiv_mk (p : Submodule R M) (q : Submodule R N) (x : M × N) :
-    quotientProdEquiv p q ((p.prod q).mkQ x) = (p.mkQ x.1, q.mkQ x.2) :=
+    quotientProdEquiv p q (Submodule.Quotient.mk x) =
+      (Submodule.Quotient.mk x.1, Submodule.Quotient.mk x.2) :=
   (rfl)
 
 end
