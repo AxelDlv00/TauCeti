@@ -72,52 +72,42 @@ theorem partition_le_iff {n : ℕ} {μ ν : n.Partition} :
 end PartitionLex
 
 /-- A partition `μ` dominates a partition `ν` when every partial sum of the decreasingly
-sorted parts of `μ` is at least the corresponding partial sum of `ν`. -/
-def Dominates {n : ℕ} (μ ν : n.Partition) : Prop :=
-  ∀ k : Fin (n + 1),
+sorted parts of `μ` is at least the corresponding partial sum of `ν`.
+
+The definition is exposed so that a dominance goal or hypothesis can be used directly as the
+family of partial-sum inequalities, indexed by all of `ℕ`, in any module. -/
+@[expose] def Dominates {n : ℕ} (μ ν : n.Partition) : Prop :=
+  ∀ k : ℕ,
     ((ν.parts.sort (· ≥ ·)).take k).sum ≤ ((μ.parts.sort (· ≥ ·)).take k).sum
 
-/-- By definition, dominance compares the first `n + 1` partial sums. -/
-theorem dominates_def {n : ℕ} {μ ν : n.Partition} :
+/-- Partial sums of sorted parts of partitions of `n` agree from index `n` on, so dominance is
+determined by the first `n + 1` partial sums. In particular it is decidable. -/
+theorem dominates_iff_forall_fin {n : ℕ} {μ ν : n.Partition} :
     Dominates μ ν ↔
       ∀ k : Fin (n + 1),
         ((ν.parts.sort (· ≥ ·)).take k).sum ≤
-          ((μ.parts.sort (· ≥ ·)).take k).sum :=
-  Iff.rfl
-
-/-- The defining partial-sum characterization of dominance. -/
-theorem dominates_iff {n : ℕ} {μ ν : n.Partition} :
-    Dominates μ ν ↔
-      ∀ k : ℕ,
-        ((ν.parts.sort (· ≥ ·)).take k).sum ≤
           ((μ.parts.sort (· ≥ ·)).take k).sum := by
-  constructor
-  · intro h k
-    by_cases hk : k ≤ n
-    · exact h ⟨k, Nat.lt_succ_iff.mpr hk⟩
-    · have hn_lt_k : n < k := Nat.lt_of_not_ge hk
-      rw [List.take_of_length_le ((sortedParts_length_le ν).trans hn_lt_k.le),
-        List.take_of_length_le ((sortedParts_length_le μ).trans hn_lt_k.le),
-        sortedParts_sum, sortedParts_sum]
-  · intro h k
-    exact h k
+  refine ⟨fun h k => h k, fun h k => ?_⟩
+  by_cases hk : k ≤ n
+  · exact h ⟨k, Nat.lt_succ_iff.mpr hk⟩
+  · have hn_lt_k : n < k := Nat.lt_of_not_ge hk
+    rw [List.take_of_length_le ((sortedParts_length_le ν).trans hn_lt_k.le),
+      List.take_of_length_le ((sortedParts_length_le μ).trans hn_lt_k.le),
+      sortedParts_sum, sortedParts_sum]
 
-instance {n : ℕ} (μ ν : n.Partition) : Decidable (Dominates μ ν) := by
-  exact decidable_of_iff
-    (∀ k : Fin (n + 1),
-      ((ν.parts.sort (· ≥ ·)).take k).sum ≤
-        ((μ.parts.sort (· ≥ ·)).take k).sum) dominates_def.symm
+instance {n : ℕ} (μ ν : n.Partition) : Decidable (Dominates μ ν) :=
+  decidable_of_iff _ dominates_iff_forall_fin.symm
 
 /-- Every partition dominates itself. -/
 @[simp, refl]
 theorem dominates_refl {n : ℕ} (μ : n.Partition) : Dominates μ μ :=
-  (dominates_iff.mpr fun _ => le_rfl)
+  fun _ => le_rfl
 
 /-- Dominance is transitive. -/
 @[trans]
 theorem Dominates.trans {n : ℕ} {μ ν ξ : n.Partition}
     (hμν : Dominates μ ν) (hνξ : Dominates ν ξ) : Dominates μ ξ :=
-  dominates_iff.mpr fun k => (dominates_iff.mp hνξ k).trans (dominates_iff.mp hμν k)
+  fun k => (hνξ k).trans (hμν k)
 
 private theorem lex_lt_of_prefix_sum_le {l₁ l₂ : List ℕ} (hsum : l₁.sum = l₂.sum)
     (hpos₁ : ∀ i ∈ l₁, 0 < i) (hpos₂ : ∀ i ∈ l₂, 0 < i)
@@ -164,7 +154,7 @@ private theorem lex_lt_of_dominates_of_ne {n : ℕ} {μ ν : n.Partition}
     exact μ.parts_pos ((Multiset.mem_sort (· ≥ ·)).mp hi)
   · intro i hi
     exact ν.parts_pos ((Multiset.mem_sort (· ≥ ·)).mp hi)
-  · exact dominates_iff.mp hdom
+  · exact hdom
   · intro h
     apply hne
     apply Nat.Partition.ext
@@ -246,7 +236,6 @@ theorem lex_le_of_dominates {n : ℕ} {μ ν : n.Partition} (h : Dominates μ ν
 @[simp]
 theorem indiscrete_dominates {n : ℕ} (μ : n.Partition) :
     Dominates (Nat.Partition.indiscrete n) μ := by
-  rw [dominates_iff]
   intro k
   rcases k with _ | k
   · simp

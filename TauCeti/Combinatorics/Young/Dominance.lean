@@ -129,7 +129,7 @@ theorem dominates_of_rowIndex_colIndex_injective {n : ℕ} {μ ν : n.Partition}
     (σ : Fin (diagramOf μ).card ≃ Fin (diagramOf ν).card)
     (h : ∀ x y, rowIndex s x = rowIndex s y → colIndex t (σ x) = colIndex t (σ y) → x = y) :
     Dominates ν μ := by
-  refine dominates_iff.mpr fun k => ?_
+  intro k
   simpa only [rowLens_diagramOf] using sum_take_rowLens_le_of_injective t s σ h k
 
 open YoungTableau in

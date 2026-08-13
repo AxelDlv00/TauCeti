@@ -241,7 +241,6 @@ theorem conjugate_parts_sort {n : ℕ} (μ : n.Partition) :
 
 private theorem dominates_conjugate {n : ℕ} {μ ν : n.Partition} (h : Dominates μ ν) :
     Dominates (conjugate ν) (conjugate μ) := by
-  rw [dominates_iff]
   intro k
   rw [conjugate_parts_sort, conjugate_parts_sort, sum_take_transpose_rowLens,
     sum_take_transpose_rowLens]
@@ -258,7 +257,7 @@ private theorem dominates_conjugate {n : ℕ} {μ ν : n.Partition} (h : Dominat
       _ = (↑(ν.parts.sort (· ≥ ·)) : Multiset ℕ).sum :=
         congrArg Multiset.sum (Multiset.sort_eq ν.parts (· ≥ ·)).symm
       _ = (ν.parts.sort (· ≥ ·)).sum := Multiset.sum_coe _
-  · exact dominates_iff.mp h
+  · exact h
 
 /-- Conjugation of partitions reverses dominance. -/
 theorem dominates_conjugate_iff {n : ℕ} (μ ν : n.Partition) :
