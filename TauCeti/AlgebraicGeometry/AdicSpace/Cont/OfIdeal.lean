@@ -119,13 +119,10 @@ theorem not_vle_one_of_isContinuous_of_mem_idealOfDefinition (P : PairOfDefiniti
     {v : Spv A} (hv : v.IsContinuous) {a : P.ringOfDefinition}
     (ha : a ∈ P.idealOfDefinition) :
     ¬ v.toValuativeRel.vle 1 (a : A) := by
-  intro h
   have hlt : v.valuation (a : A) < 1 :=
     ((isContinuous_def v).mp hv).lt_one_of_isTopologicallyNilpotent
       (P.isTopologicallyNilpotent_of_mem_idealOfDefinition ha)
-  have hle : (1 : _) ≤ v.valuation (a : A) := by
-    simpa using (valuation_le_iff v 1 (a : A)).mpr h
-  exact absurd hle (not_le.mpr hlt)
+  exact (valuation_lt_iff v (a : A) 1).mp (by simpa using hlt)
 
 /-- **Wedhorn Theorem 7.10, the converse inclusion.** A point of `Spv (A, IA)` that is sub-unit
 on the ideal of definition is continuous.
