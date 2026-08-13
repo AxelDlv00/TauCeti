@@ -4,10 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import Mathlib.GroupTheory.QuotientGroup.Basic
 public import Mathlib.LinearAlgebra.Dimension.Finite
 public import Mathlib.LinearAlgebra.FiniteDimensional.Defs
-public import Mathlib.LinearAlgebra.Prod
 public import Mathlib.LinearAlgebra.Quotient.Basic
 
 /-!
@@ -24,7 +22,7 @@ which is the form module-theoretic consumers need. There is no submodule form up
 
 ## Main declarations
 
-* `Submodule.prodSubtypeEquiv`: `↥(p.prod q) ≃ₗ p × q`.
+* `Submodule.prodEquiv`: `↥(p.prod q) ≃ₗ p × q`.
 * `Submodule.quotientProdEquiv`: `(M × N) ⧸ p.prod q ≃ₗ (M ⧸ p) × (N ⧸ q)`.
 * `Submodule.finrank_quotient_prod`: the ranks of the quotients add.
 -/
@@ -42,7 +40,7 @@ variable [Module R M] [Module R N]
 
 This is the module refinement of `AddSubgroup.prodEquiv`, and is stated here over an arbitrary
 semiring and additive commutative monoids, where that additive-group statement does not apply. -/
-def prodSubtypeEquiv (p : Submodule R M) (q : Submodule R N) : ↥(p.prod q) ≃ₗ[R] p × q where
+def prodEquiv (p : Submodule R M) (q : Submodule R N) : ↥(p.prod q) ≃ₗ[R] p × q where
   toFun x := (⟨x.1.1, x.2.1⟩, ⟨x.1.2, x.2.2⟩)
   invFun x := ⟨(x.1.1, x.2.1), x.1.2, x.2.2⟩
   left_inv _ := rfl
@@ -52,12 +50,12 @@ def prodSubtypeEquiv (p : Submodule R M) (q : Submodule R N) : ↥(p.prod q) ≃
 
 @[simp]
 theorem prodSubtypeEquiv_apply (p : Submodule R M) (q : Submodule R N) (x : ↥(p.prod q)) :
-    prodSubtypeEquiv p q x = (⟨x.1.1, x.2.1⟩, ⟨x.1.2, x.2.2⟩) :=
+    prodEquiv p q x = (⟨x.1.1, x.2.1⟩, ⟨x.1.2, x.2.2⟩) :=
   (rfl)
 
 @[simp]
 theorem prodSubtypeEquiv_symm_apply (p : Submodule R M) (q : Submodule R N) (x : p × q) :
-    (prodSubtypeEquiv p q).symm x = ⟨(x.1.1, x.2.1), x.1.2, x.2.2⟩ :=
+    (prodEquiv p q).symm x = ⟨(x.1.1, x.2.1), x.1.2, x.2.2⟩ :=
   (rfl)
 
 end Subtype

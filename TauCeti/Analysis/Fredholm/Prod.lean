@@ -54,7 +54,7 @@ lemma _root_.ContinuousLinearMap.IsFredholm.prodMap
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
     exact hT.isClosed_range.prod hS.isClosed_range
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
-    exact (Submodule.prodSubtypeEquiv _ _).symm.finiteDimensional
+    exact (Submodule.prodEquiv _ _).symm.finiteDimensional
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.range_prodMap]
     exact (Submodule.quotientProdEquiv _ _).symm.finiteDimensional
   · rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap]
@@ -85,7 +85,7 @@ private lemma index_prodMap_of_finiteDimensional (T : E₁ →L[K] F₁) (S : E�
     index (T.prodMap S) = index T + index S := by
   simp only [index_eq_finrank_sub]
   rw [ContinuousLinearMap.coe_prodMap T S, LinearMap.ker_prodMap, LinearMap.range_prodMap]
-  simp only [(Submodule.prodSubtypeEquiv _ _).finrank_eq,
+  simp only [(Submodule.prodEquiv _ _).finrank_eq,
     Submodule.finrank_quotient_prod, finrank_prod]
   omega
 
