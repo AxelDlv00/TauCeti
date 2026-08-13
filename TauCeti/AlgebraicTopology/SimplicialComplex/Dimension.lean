@@ -30,25 +30,23 @@ roadmap (`TauCetiRoadmap/GeometricTopology/README.md`, layer 11) asks for on top
 
 ## Main definitions
 
-* `TauCeti.PreAbstractSimplicialComplex.dimension`: the dimension of a precomplex.
-* `TauCeti.AbstractSimplicialComplex.dimension`: the dimension of an abstract complex.
+* `PreAbstractSimplicialComplex.dimension`: the dimension of a precomplex.
+* `AbstractSimplicialComplex.dimension`: the dimension of an abstract complex.
 
 ## Main results
 
-* `TauCeti.PreAbstractSimplicialComplex.le_dimension`: every face's dimension bounds the complex's.
-* `TauCeti.PreAbstractSimplicialComplex.dimension_le_iff`: the dimension is bounded exactly when
+* `PreAbstractSimplicialComplex.le_dimension`: every face's dimension bounds the complex's.
+* `PreAbstractSimplicialComplex.dimension_le_iff`: the dimension is bounded exactly when
   every face's dimension is.
-* `TauCeti.PreAbstractSimplicialComplex.dimension_mono`: dimension is monotone in the complex.
-* `TauCeti.PreAbstractSimplicialComplex.dimension_eq_bot_iff`: only the void complex has dimension
+* `PreAbstractSimplicialComplex.dimension_mono`: dimension is monotone in the complex.
+* `PreAbstractSimplicialComplex.dimension_eq_bot_iff`: only the void complex has dimension
   `⊥`.
-* `TauCeti.PreAbstractSimplicialComplex.dimension_simplex` /
-  `TauCeti.PreAbstractSimplicialComplex.dimension_simplexBoundary`: the dimensions of the standard
+* `PreAbstractSimplicialComplex.dimension_simplex` /
+  `PreAbstractSimplicialComplex.dimension_simplexBoundary`: the dimensions of the standard
   simplex on `V` (namely `V.card - 1`) and of its boundary (namely `V.card - 2`).
 -/
 
 public section
-
-namespace TauCeti
 
 open Finset
 
@@ -154,4 +152,3 @@ theorem dimension_mono (h : K ≤ L) : dimension K ≤ dimension L :=
 
 end AbstractSimplicialComplex
 
-end TauCeti
