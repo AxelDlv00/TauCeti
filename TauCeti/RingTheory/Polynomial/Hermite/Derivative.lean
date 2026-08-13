@@ -40,8 +40,10 @@ open Polynomial
 
 /-- **Lowering (derivative) identity for the Hermite polynomials.** Differentiating the
 `(n + 1)`-st probabilists' Hermite polynomial lowers the index:
-`H'_{n+1} = (n + 1) · Hₙ`. -/
-@[simp]
+`H'_{n+1} = (n + 1) · Hₙ`.
+
+This is not a `simp` lemma because its left-hand side is already reduced by the `n`-indexed
+form `Polynomial.derivative_hermite`. -/
 theorem _root_.Polynomial.derivative_hermite_succ (n : ℕ) :
     derivative (hermite (n + 1)) = (n + 1) • hermite n := by
   induction n with
