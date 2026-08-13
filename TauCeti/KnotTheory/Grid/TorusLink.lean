@@ -101,8 +101,11 @@ def torusLink : GridDiagram (p + 1 + (q + 1)) where
   X := ⟨finRotate (p + 1 + (q + 1)) ^ (q + 1)⟩
   disjoint := by
     intro c h
-    exact (isCycle_finRotate_torus p q).pow_apply_ne_self (not_card_dvd_torus p q)
-      (by rw [support_finRotate_torus]; exact Finset.mem_univ c) (by simpa using h.symm)
+    have hx : finRotate (p + 1 + (q + 1)) c ≠ c :=
+      Equiv.Perm.mem_support.mp (by rw [support_finRotate_torus]; exact Finset.mem_univ c)
+    refine not_card_dvd_torus p q ?_
+    rw [← (isCycle_finRotate_torus p q).orderOf]
+    exact ((isCycle_finRotate_torus p q).pow_apply_eq_self_iff hx).mp (by simpa using h.symm)
 
 -- The body of `torusLink` is deliberately not exposed, so the projection lemmas below are
 -- written `(rfl)` rather than `rfl`: the parentheses opt out of exporting the definitional

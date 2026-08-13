@@ -33,6 +33,11 @@ The declarations are stated in the `Equiv.Perm.IsCycle` namespace, giving dot no
 
 ## References
 
+* [Mathlib PR #42723](https://github.com/leanprover-community/mathlib4/pull/42723)
+  (Kim Morrison) — the draft upstream adaptation of this file; the `Equiv.Perm.IsCycle`
+  namespace, the `orderOf`-based statement of the fixed-point lemma, and the dropped
+  support-card wrapper all follow the form prepared for that PR.
+
 This supplies a prerequisite for `TauCetiRoadmap/CombinatorialHeegaardFloer/README.md`, Lane
 G.1 and Lane G.7: the component permutation of the standard grid diagram of the `(p, q)` torus
 link is a power of the cyclic shift `finRotate`, and its cycle decomposition is what counts the
@@ -48,19 +53,12 @@ open Equiv Equiv.Perm
 /-- A power of a cycle fixes a point moved by the cycle exactly when the exponent is a multiple
 of the order of the cycle. Since the right-hand side does not depend on the point, a power of a
 cycle either moves every point the cycle moves, or fixes all of them. -/
+@[simp]
 theorem _root_.Equiv.Perm.IsCycle.pow_apply_eq_self_iff {β : Type*} [Finite β] {f : Perm β}
     (hf : f.IsCycle) {n : ℕ} {x : β} (hx : f x ≠ x) : (f ^ n) x = x ↔ orderOf f ∣ n := by
   rw [← hf.pow_eq_one_iff' hx, orderOf_dvd_iff_pow_eq_one]
 
 variable {α : Type*} [DecidableEq α] [Fintype α] {f : Perm α}
-
-/-- A power of a cycle moves every point of the support of that cycle, unless its exponent is a
-multiple of the length of the cycle. -/
-theorem _root_.Equiv.Perm.IsCycle.pow_apply_ne_self (hf : f.IsCycle) {k : ℕ}
-    (hk : ¬f.support.card ∣ k) {x : α} (hx : x ∈ f.support) : (f ^ k) x ≠ x := fun h =>
-  hk <| by
-    rw [← hf.orderOf]
-    exact (hf.pow_apply_eq_self_iff (mem_support.mp hx)).mp h
 
 /-- Every cycle of a power of a cycle of length `n` has the same length, namely the order
 `n / gcd n k` of that power. -/
