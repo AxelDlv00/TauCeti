@@ -93,9 +93,13 @@ def merged_pr_authors():
 
 
 def already_admitted():
-    """Logins that already have access, or have been asked. Collaborators cover org members who
-    inherit it; invitations cover people who have not clicked yet (workers accept their own
-    invitation, but an operator who has not started one since the grant still has it pending)."""
+    """Logins that already have access, or have been asked: direct collaborators plus people who have
+    not clicked yet (workers accept their own invitation, but an operator who has not started one
+    since the grant still has it pending).
+
+    This does NOT see people whose access comes from the organization. The collaborators endpoint
+    resolves those only for a caller that can read org membership, and this App is installed on one
+    repository and has no organization permissions at all, by design. `has_access` covers them."""
     collaborators = gh_lines(
         ["api", "--paginate", f"/repos/{CLAIMS_REPO}/collaborators?per_page=100", "--jq", ".[].login"],
         CLAIMS_TOKEN,
@@ -107,29 +111,47 @@ def already_admitted():
     return set(collaborators) | set(invitations)
 
 
+def has_access(login):
+    """Can this login already push, however they got it? Asked per candidate rather than read off the
+    collaborator list, because that list omits organization members (see `already_admitted`), and
+    without this an org member is a candidate on every single run, forever."""
+    p = gh(
+        ["api", f"/repos/{CLAIMS_REPO}/collaborators/{login}/permission", "--jq", ".permission"],
+        CLAIMS_TOKEN,
+        check=False,
+    )
+    return p.returncode == 0 and p.stdout.strip() in ("write", "maintain", "admin")
+
+
 def grant():
     """Invite every author who is not in yet. A failure on one login does not stop the others, but
     the job still ends red so somebody looks (an org that forbids outside collaborators, or requires
     2FA of them, fails exactly here)."""
-    missing = sorted(merged_pr_authors() - already_admitted())
-    if not missing:
-        print("grant: every merged-PR author already has the claim namespace")
-        return 0
+    candidates = sorted(merged_pr_authors() - already_admitted())
+    invited = 0
     failures = 0
-    for login in missing:
+    for login in candidates:
+        if has_access(login):
+            continue  # an organization member; nothing to grant and nothing to report
         if DRY_RUN:
             print(f"grant: would invite {login}")
+            invited += 1
             continue
         p = gh(
             ["api", "-X", "PUT", f"/repos/{CLAIMS_REPO}/collaborators/{login}", "-f", "permission=push"],
             CLAIMS_TOKEN,
             check=False,
         )
-        if p.returncode == 0:
-            print(f"grant: invited {login} to {CLAIMS_REPO}")
-        else:
+        if p.returncode != 0:
             failures += 1
             print(f"grant: FAILED to invite {login}: {(p.stderr or p.stdout).strip()}", file=sys.stderr)
+            continue
+        # 201 answers with the invitation; 204 (empty) means they could already push after all, so
+        # say what happened rather than claiming an invitation that was never sent.
+        print(f"grant: invited {login} to {CLAIMS_REPO}" if p.stdout.strip() else f"grant: {login} already had access")
+        invited += 1
+    if not invited:
+        print("grant: every merged-PR author already has the claim namespace")
     return failures
 
 

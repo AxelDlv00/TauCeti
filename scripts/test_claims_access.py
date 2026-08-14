@@ -5,6 +5,8 @@ Run with: python3 scripts/test_claims_access.py
 
 import json
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 import claims_access as ca
 
@@ -31,6 +33,29 @@ class HumanAuthors(unittest.TestCase):
     def test_no_merged_prs_admits_nobody(self):
         self.assertEqual(ca.human_authors([]), set())
         self.assertEqual(ca.human_authors(None), set())
+
+
+class HasAccess(unittest.TestCase):
+    """Access inherited from the organization is invisible to the collaborator list this App can see,
+    so without an explicit check every org member is a candidate to invite on every single run."""
+
+    def answer(self, returncode, stdout):
+        return lambda args, token, check=True: SimpleNamespace(returncode=returncode, stdout=stdout, stderr="")
+
+    def test_anyone_who_can_already_push_is_left_alone(self):
+        for permission in ("admin", "maintain", "write"):
+            with self.subTest(permission=permission), mock.patch.object(ca, "gh", self.answer(0, permission + "\n")):
+                self.assertTrue(ca.has_access("an-org-member"))
+
+    def test_read_only_or_no_access_still_needs_an_invitation(self):
+        for permission in ("read", "none", ""):
+            with self.subTest(permission=permission), mock.patch.object(ca, "gh", self.answer(0, permission + "\n")):
+                self.assertFalse(ca.has_access("a-contributor"))
+
+    def test_an_unreadable_answer_falls_towards_inviting(self):
+        # A redundant invitation is a no-op; a missed one is a fleet that never coordinates.
+        with mock.patch.object(ca, "gh", self.answer(1, "")):
+            self.assertFalse(ca.has_access("a-contributor"))
 
 
 class Sweepable(unittest.TestCase):
