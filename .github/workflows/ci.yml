@@ -90,12 +90,10 @@ jobs:
           use-github-cache: false
 
       - name: Fetch Mathlib oleans, retrying with a forced full refetch
-        shell: bash
         run: |
-          set -o pipefail
-          if ! lake exe cache get 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"; then
+          if ! lake exe cache get; then
             echo "::warning::lake exe cache get failed; forcing a full refetch"
-            lake exe cache get! 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"
+            lake exe cache get!
           fi
 
       # No aggregator check: the root TauCeti.lean is intentionally empty and imports nothing.

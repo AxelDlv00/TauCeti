@@ -371,7 +371,8 @@ jobs:
         uses: ./gate/.github/actions/restore-mathlib-ltars
         with:
           # The action's default cache directory is outside base/, which is later mounted into
-          # landrun, and it exports MATHLIB_CACHE_DIR only for the trusted fetch steps.
+          # landrun. Although MATHLIB_CACHE_DIR is job-wide, landrun's explicit `--env` allowlist
+          # excludes it and the cache directory is not mounted, so the sandbox never receives it.
           project-dir: base
 
       # `lake exe cache get` runs the `cache` exe built from the pinned Mathlib, unsandboxed,
