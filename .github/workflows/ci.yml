@@ -23,6 +23,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Keep the Mathlib download cache at one explicit runner-local path. The cache tool honors
+      # this variable, and using the same path for the GitHub cache avoids silently drifting if a
+      # runner image starts setting XDG_CACHE_HOME.
+      MATHLIB_CACHE_DIR: ${{ github.workspace }}/.mathlib-ltar-cache
     steps:
       - uses: actions/checkout@v4
 
@@ -63,18 +68,74 @@ jobs:
       # No aggregator check: the root TauCeti.lean is intentionally empty and imports nothing.
       # The build globs every TauCeti/ module directly, so nothing depends on a root that
       # re-exports the library.
-      - name: Build
+      #
+      # Restore only Mathlib's compressed, content-addressed `.ltar` download store. This is
+      # deliberately separate from lean-action's multi-gigabyte `./.lake` cache below: `lake exe
+      # cache get` remains authoritative, locally selects and unpacks the linked hashes, and
+      # downloads anything this best-effort snapshot does not contain. The exact key makes a
+      # repeated pin cheap; the same-toolchain prefix lets a new Mathlib pin reuse unchanged
+      # blobs. Bump `mathlib-ltar-v1` if an incompatible or poisoned immutable entry must be
+      # abandoned.
+      - name: Restore Mathlib's compressed download cache
+        id: mathlib_ltar_restore
+        uses: actions/cache/restore@v4
+        with:
+          # Cache only content-addressed artifacts, never cache-tool scratch files or executables.
+          path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
+          key: mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
+          restore-keys: |
+            mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+
+      # Use lean-action for toolchain setup, but keep the fetch as an explicit step so a malformed
+      # restored `.ltar` can be quarantined and force-refetched instead of taking main down until
+      # a human deletes an immutable GitHub cache entry.
+      - name: Set up Lean
         uses: leanprover/lean-action@v1
         with:
+          auto-config: false
+          build: false
           test: false
           lint: false
-          # Fetch prebuilt oleans from Mathlib's own cache server (`lake exe
-          # cache get`); this takes only a few seconds and never builds Mathlib.
-          use-mathlib-cache: true
-          # Skip lean-action's GitHub `actions/cache` of `./.lake`. That archive
-          # is ~2.4 GB; saving and restoring it costs ~40s per run, far more than
-          # the ~6s `lake exe cache get` it would save. Net win to leave it off.
+          use-mathlib-cache: false
+          # Keep lean-action's broad GitHub cache off. It archives the whole `./.lake` tree;
+          # the narrow restore/save steps here cache only Mathlib's compressed `.ltar` files.
           use-github-cache: false
+
+      - name: Fetch Mathlib oleans, retrying without a malformed restored cache
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! lake exe cache get 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"; then
+            echo "::warning::Mathlib cache get failed over the restored snapshot; quarantining it and forcing a full refetch"
+            if [ -e "$MATHLIB_CACHE_DIR" ]; then
+              mv "$MATHLIB_CACHE_DIR" "$RUNNER_TEMP/mathlib-ltar-cache.failed"
+            fi
+            lake exe cache get! 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"
+          fi
+
+      - name: Build
+        run: lake build
+
+      # Main is the sole publisher. PR and merge-group builds restore these trusted snapshots
+      # but never save, so candidate code cannot populate a cache consumed by later builds.
+      # GitHub cache keys are immutable; an exact restore needs no redundant save, while a
+      # prefix restore is extended with the newly downloaded hashes under the exact current key.
+      # Pruning is essential: without it, every prefix restore would carry all old pins forward
+      # and each immutable snapshot would grow monotonically. If pruning itself breaks, leave main
+      # green but skip publication rather than saving an unbounded snapshot.
+      - name: Prune Mathlib's download cache to the current pin
+        id: mathlib_ltar_prune
+        if: ${{ steps.mathlib_ltar_restore.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        run: lake exe cache clean
+
+      - name: Save Mathlib's compressed download cache
+        if: ${{ steps.mathlib_ltar_restore.outputs.cache-hit != 'true' && steps.mathlib_ltar_prune.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
+          key: ${{ steps.mathlib_ltar_restore.outputs.cache-primary-key }}
 
       # Axiom audit (replaces the old textual no-sorry grep). Inspects the built
       # TauCeti environment and rejects any axiom outside {propext, Classical.choice,
