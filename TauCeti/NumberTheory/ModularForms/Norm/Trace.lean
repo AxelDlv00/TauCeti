@@ -31,6 +31,8 @@ translates of `f` times a `1`-periodic remainder analytic at `∞`.
 * `TauCeti.ModularForm.normRest_ne_zero_of_norm_ne_zero`, with
   `TauCeti.ModularForm.normRest_ne_zero` as its modular-form corollary: the remainder of a
   nonzero form is nonzero.
+* `TauCeti.ModularForm.qExpansion_one_norm_order_eq`: the `q`-expansion order of the norm at
+  `∞` splits as the order of `f` plus the order of the remainder.
 
 The remainder and the decomposition itself are algebraic, so they are stated for
 `SlashInvariantForm.norm` under `SlashInvariantFormClass`; only analyticity at the cusp
@@ -41,6 +43,9 @@ needs `f` to be a modular form.
 * [Mathlib PR #39083](https://github.com/leanprover-community/mathlib4/pull/39083) and
   [Mathlib PR #39088](https://github.com/leanprover-community/mathlib4/pull/39088)
   (Chris Birkbeck) — the upstream drafts this file ports onto the current Mathlib pin.
+* [Mathlib PR #39000](https://github.com/leanprover-community/mathlib4/pull/39000)
+  (Chris Birkbeck) — the source of `qExpansion_one_norm_order_eq`, whose proof moved here
+  from the Sturm-bound development.
 -/
 
 public noncomputable section
@@ -329,6 +334,39 @@ public lemma normRest_ne_zero (hf : (⇑f : ℍ → ℂ) ≠ 0) : normRest f ≠
   have h : (⇑(_root_.ModularForm.norm 𝒮ℒ f) : ℍ → ℂ) ≠ 0 := fun hz =>
     _root_.ModularForm.norm_ne_zero 𝒮ℒ hf (DFunLike.coe_injective (by simpa using hz))
   rwa [_root_.ModularForm.coe_norm, ← _root_.SlashInvariantForm.coe_norm] at h
+/-- The `q`-expansion order of the norm at the cusp `∞` splits as the order of `f` at width
+`Subgroup.integerCuspWidth 𝒢` plus the order of the remainder factor `normRest f`.
+
+No discreteness hypothesis is needed here. Discreteness is what converts `𝒢.strictWidthInfty`
+into `Subgroup.integerCuspWidth 𝒢` — see
+`Subgroup.exists_pos_nat_integerCuspWidth_eq_mul_strictWidthInfty` — and that conversion
+belongs to the Sturm-bound inequality derived from this identity, not to the identity.
+
+Not `@[simp]`: `ModularForm.coe_norm` is itself an unconditional simp lemma, so the
+left-hand side is not in simp normal form — it simplifies on to the raw coset product. -/
+public lemma qExpansion_one_norm_order_eq :
+    (qExpansion 1 (_root_.ModularForm.norm 𝒮ℒ f)).order =
+      (qExpansion ((Subgroup.integerCuspWidth 𝒢 : ℕ) : ℝ) f).order
+        + (qExpansion 1 (normRest f)).order := by
+  have hn_pos : 0 < Subgroup.integerCuspWidth 𝒢 := Subgroup.integerCuspWidth_pos
+  have hf_bdd : IsBoundedAtImInfty f := OnePoint.isBoundedAt_infty_iff.mp <|
+    ModularFormClass.bdd_at_cusps f Subgroup.isCusp_infty_of_finiteRelIndex
+  have hf_n_per : Function.Periodic (⇑f ∘ ofComplex)
+      ((Subgroup.integerCuspWidth 𝒢 : ℕ) : ℝ) :=
+    SlashInvariantFormClass.periodic_comp_ofComplex f
+      Subgroup.integerCuspWidth_mem_strictPeriods
+  -- `norm_apply_eq_galoisProd_mul_normRest` is a pointwise identity; `funext` converts it
+  -- to an equality of functions so the `q`-expansion of the norm literally becomes that of
+  -- the product, and `qExpansion_mul` (both cusp functions being analytic at `0`) splits it.
+  have h_qexp : qExpansion 1 (_root_.ModularForm.norm 𝒮ℒ f) =
+      qExpansion 1 (galoisProd (Subgroup.integerCuspWidth 𝒢) ⇑f) *
+        qExpansion 1 (normRest f) := by
+    rw [funext (norm_apply_eq_galoisProd_mul_normRest f)]
+    exact qExpansion_mul (analyticAt_cuspFunction_zero one_pos
+      (galoisProd_periodic_one hf_n_per) (mdifferentiable_galoisProd (ModularFormClass.holo f))
+      (isBoundedAtImInfty_galoisProd hf_bdd)) (analyticAt_cuspFunction_normRest f)
+  rw [h_qexp, PowerSeries.order_mul,
+    qExpansion_one_galoisProd_order_eq hn_pos hf_n_per hf_bdd (ModularFormClass.holo f)]
 
 end Analytic
 
