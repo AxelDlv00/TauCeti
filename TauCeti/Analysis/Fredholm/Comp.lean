@@ -9,12 +9,9 @@ public import TauCeti.Analysis.Fredholm.Basic
 /-!
 # Composition of Fredholm operators
 
-This file proves that, over a complete nontrivially normed scalar field, the composite of two
-Fredholm operators between normed spaces is Fredholm and that its index is the sum of their
-indices. It also records the corresponding statements for powers of a Fredholm endomorphism.
-
-Fredholmness of a composite follows by composing the continuous quasi-inverses supplied by
-Mathlib's Fredholm API.
+This file proves that the Fredholm index of a composite is the sum of the indices. It also records
+the corresponding statements for powers of a Fredholm endomorphism, using Mathlib's theorem that
+a composite of Fredholm operators is Fredholm.
 Index additivity reuses Mathlib's `LinearMap.index_comp`, whose proof is the six-term exact
 sequence
 
@@ -25,7 +22,6 @@ Lane F0 of the analytic Heegaard Floer roadmap.
 
 ## Main declarations
 
-* `ContinuousLinearMap.IsFredholm.comp`: a composite of Fredholm operators is Fredholm.
 * `TauCeti.ContinuousLinearMap.index_comp`: the index of a composite is the sum of the indices.
 * `ContinuousLinearMap.IsFredholm.pow`: every power of a Fredholm endomorphism is Fredholm.
 * `TauCeti.ContinuousLinearMap.index_pow`: the index of the `n`th power is `n` times the index.
@@ -45,18 +41,6 @@ variable {E F G : Type*}
 variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
 variable [NormedAddCommGroup G] [NormedSpace 𝕜 G]
-
-variable {T : E →L[𝕜] F} {S : F →L[𝕜] G}
-
-/-- Over a complete nontrivially normed scalar field, the composite of two Fredholm operators is
-Fredholm. -/
-theorem _root_.ContinuousLinearMap.IsFredholm.comp
-    (hS : ContinuousLinearMap.IsFredholm S) (hT : ContinuousLinearMap.IsFredholm T) :
-    ContinuousLinearMap.IsFredholm (S.comp T) := by
-  obtain ⟨T', hT'⟩ := hT.exists_isQuasiInverse
-  obtain ⟨S', hS'⟩ := hS.exists_isQuasiInverse
-  refine ContinuousLinearMap.IsFredholm.of_isQuasiInverse (v := T'.comp S') ?_
-  simpa only [ContinuousLinearMap.toLinearMap_comp] using hT'.comp hS'
 
 namespace ContinuousLinearMap
 
