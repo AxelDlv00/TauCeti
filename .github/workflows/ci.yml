@@ -65,17 +65,15 @@ jobs:
             exit 1
           fi
 
-      # No aggregator check: the root TauCeti.lean is intentionally empty and imports nothing.
-      # The build globs every TauCeti/ module directly, so nothing depends on a root that
-      # re-exports the library.
-      #
       # Restore only Mathlib's compressed, content-addressed `.ltar` download store. This is
       # deliberately separate from lean-action's multi-gigabyte `./.lake` cache below: `lake exe
       # cache get` remains authoritative, locally selects and unpacks the linked hashes, and
       # downloads anything this best-effort snapshot does not contain. The exact key makes a
       # repeated pin cheap; the same-toolchain prefix lets a new Mathlib pin reuse unchanged
-      # blobs. Bump `mathlib-ltar-v1` if an incompatible or poisoned immutable entry must be
-      # abandoned.
+      # blobs. This mirrors Mathlib's cache-snapshot warming in
+      # `.github/workflows/build_template.yml` and `.github/actions/get-cache`, using
+      # `actions/cache` instead of run artifacts. Bump `mathlib-ltar-v1` in both workflows (see
+      # pr-build.yml) if an incompatible or poisoned immutable entry must be abandoned.
       - name: Restore Mathlib's compressed download cache
         id: mathlib_ltar_restore
         uses: actions/cache/restore@v4
@@ -101,18 +99,21 @@ jobs:
           # the narrow restore/save steps here cache only Mathlib's compressed `.ltar` files.
           use-github-cache: false
 
-      - name: Fetch Mathlib oleans, retrying without a malformed restored cache
+      - name: Fetch Mathlib oleans, retrying from an empty download cache
         shell: bash
         run: |
           set -o pipefail
           if ! lake exe cache get 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"; then
-            echo "::warning::Mathlib cache get failed over the restored snapshot; quarantining it and forcing a full refetch"
+            echo "::warning::lake exe cache get failed; discarding any local .ltar store and forcing a full refetch"
             if [ -e "$MATHLIB_CACHE_DIR" ]; then
               mv "$MATHLIB_CACHE_DIR" "$RUNNER_TEMP/mathlib-ltar-cache.failed"
             fi
             lake exe cache get! 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"
           fi
 
+      # No aggregator check: the root TauCeti.lean is intentionally empty and imports nothing.
+      # The build globs every TauCeti/ module directly, so nothing depends on a root that
+      # re-exports the library.
       - name: Build
         run: lake build
 

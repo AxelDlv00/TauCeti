@@ -2,6 +2,29 @@
 
 Where the build cache lives, who owns it, and which knob feeds which workflow.
 
+## Mathlib download cache (GitHub Actions)
+
+The main `ci.yml` workflow publishes a narrow snapshot of Mathlib's compressed download store:
+`$MATHLIB_CACHE_DIR/*.ltar`. The `.ltar` files are content-addressed; cache-tool scratch files,
+executables, and the unpacked `.lake` tree are not included. Before publishing, main runs
+`lake exe cache clean` so the snapshot contains only files needed by the current pin. PR and
+merge-group jobs in `pr-build.yml` may restore this trusted snapshot but never publish one.
+
+Keys have the shape
+`mathlib-ltar-v1-<os>-<arch>-<lean-toolchain hash>-<lake-manifest hash>`. An exact match reuses the
+current pin. The restore prefix omits the manifest hash, so a Mathlib-only pin bump can start from
+the newest snapshot for the same Lean toolchain and fetch only missing files. A toolchain bump has
+no prefix match. In every case, `lake exe cache get` remains authoritative and downloads whatever
+the snapshot lacks. This design mirrors Mathlib's own cache-snapshot warming in
+`.github/workflows/build_template.yml` and `.github/actions/get-cache`, using `actions/cache`
+instead of per-run artifacts.
+
+GitHub Actions cache entries are immutable. If an entry is poisoned or the format becomes
+incompatible, bump `mathlib-ltar-v1` in both `ci.yml` and `pr-build.yml`. To discard a single entry
+instead, find it with `gh cache list --repo TauCetiProject/TauCeti` and delete its exact key with
+`gh cache delete <key> --repo TauCetiProject/TauCeti`. A failed fetch also retries once after
+moving the local `.ltar` directory aside, so a bad restored file does not permanently block CI.
+
 ## Cloudflare account
 
 | | |
