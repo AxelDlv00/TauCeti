@@ -21,7 +21,9 @@ translates of `f` times a `1`-periodic remainder analytic at `∞`.
 
 * `TauCeti.SlashInvariantForm.mdifferentiable_quotientFunc`.
 * `TauCeti.SlashInvariantForm.isBoundedAtImInfty_quotientFunc`.
-* `TauCeti.ModularForm.normRest`, `TauCeti.ModularForm.periodic_normRest` and
+* `TauCeti.ModularForm.normRest`, with `TauCeti.ModularForm.periodic_normRest`,
+  `TauCeti.ModularForm.mdifferentiable_normRest`,
+  `TauCeti.ModularForm.isBoundedAtImInfty_normRest` and
   `TauCeti.ModularForm.analyticAt_cuspFunction_normRest`.
 * `TauCeti.ModularForm.slashInvariantForm_norm_apply_eq_galoisProd_mul_normRest`, with
   `TauCeti.ModularForm.norm_apply_eq_galoisProd_mul_normRest` as its modular-form corollary.
@@ -300,16 +302,25 @@ section Analytic
 
 variable [ModularFormClass F 𝒢 k]
 
-/-- The cusp function of `normRest` is analytic at `0`. -/
-public lemma analyticAt_cuspFunction_normRest :
-    AnalyticAt ℂ (cuspFunction 1 (normRest f)) 0 := by
+/-- `normRest` is holomorphic: it is a product of coset factors, each of which is. -/
+public lemma mdifferentiable_normRest : MDiff (normRest f) := by
   classical
   let _ : Fintype (𝒮ℒ ⧸ (𝒢.subgroupOf 𝒮ℒ)) := Fintype.ofFinite _
-  exact analyticAt_cuspFunction_zero one_pos (periodic_normRest f)
-    (normRest_eq_prod_tPowCosets f ▸ MDifferentiable.prod fun q _ ↦
-      SlashInvariantForm.mdifferentiable_quotientFunc f q)
-    (normRest_eq_prod_tPowCosets f ▸ Filter.BoundedAtFilter.prod _ fun q _ ↦
-      SlashInvariantForm.isBoundedAtImInfty_quotientFunc f q)
+  exact normRest_eq_prod_tPowCosets f ▸ MDifferentiable.prod fun q _ ↦
+    SlashInvariantForm.mdifferentiable_quotientFunc f q
+
+/-- `normRest` is bounded at `∞`: it is a product of coset factors, each of which is. -/
+public lemma isBoundedAtImInfty_normRest : IsBoundedAtImInfty (normRest f) := by
+  classical
+  let _ : Fintype (𝒮ℒ ⧸ (𝒢.subgroupOf 𝒮ℒ)) := Fintype.ofFinite _
+  exact normRest_eq_prod_tPowCosets f ▸ Filter.BoundedAtFilter.prod _ fun q _ ↦
+    SlashInvariantForm.isBoundedAtImInfty_quotientFunc f q
+
+/-- The cusp function of `normRest` is analytic at `0`. -/
+public lemma analyticAt_cuspFunction_normRest :
+    AnalyticAt ℂ (cuspFunction 1 (normRest f)) 0 :=
+  analyticAt_cuspFunction_zero one_pos (periodic_normRest f)
+    (mdifferentiable_normRest f) (isBoundedAtImInfty_normRest f)
 
 /-- **Decomposition of the norm at the cusp** for a modular form: the norm of `f` from `𝒢`
 down to `𝒮ℒ` is the Galois product of the first `Subgroup.integerCuspWidth 𝒢` integer
