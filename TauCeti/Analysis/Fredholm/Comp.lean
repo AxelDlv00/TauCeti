@@ -4,14 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import TauCeti.Analysis.Fredholm.Basic
+public import TauCeti.Analysis.Fredholm.Index
 
 /-!
 # Composition of Fredholm operators
 
-This file proves that the Fredholm index of a composite is the sum of the indices. It also records
-the corresponding statements for powers of a Fredholm endomorphism, using Mathlib's theorem that
-a composite of Fredholm operators is Fredholm.
+This file proves that the index of a composite of Fredholm operators between normed spaces is the
+sum of their indices, over an arbitrary nontrivially normed scalar field. It also records the
+corresponding statements for powers of a Fredholm endomorphism, which do assume a complete scalar
+field, since they go through Mathlib's `ContinuousLinearMap.IsFredholm.comp`.
+
+That a composite is Fredholm is Mathlib's `ContinuousLinearMap.IsFredholm.comp`.
 Index additivity reuses Mathlib's `LinearMap.index_comp`, whose proof is the six-term exact
 sequence
 
@@ -42,6 +45,8 @@ variable [NormedAddCommGroup E] [NormedSpace 𝕜 E]
 variable [NormedAddCommGroup F] [NormedSpace 𝕜 F]
 variable [NormedAddCommGroup G] [NormedSpace 𝕜 G]
 
+variable {T : E →L[𝕜] F} {S : F →L[𝕜] G}
+
 namespace ContinuousLinearMap
 
 omit [CompleteSpace 𝕜] in
@@ -54,10 +59,8 @@ theorem index_comp (S : F →L[𝕜] G) (T : E →L[𝕜] F)
   let := hT.finite_coker
   let := hS.finite_ker
   let := hS.finite_coker
-  simp only [index_eq_finrank_sub]
-  rw [ContinuousLinearMap.toLinearMap_comp]
-  have h := LinearMap.index_comp (f := (T : E →ₗ[𝕜] F)) (S : F →ₗ[𝕜] G)
-  simpa only [LinearMap.index_eq_finrank_sub] using h
+  simpa only [index_def, ContinuousLinearMap.toLinearMap_comp] using
+    (LinearMap.index_comp (f := (T : E →ₗ[𝕜] F)) (S : F →ₗ[𝕜] G))
 
 end ContinuousLinearMap
 
@@ -72,7 +75,7 @@ theorem _root_.ContinuousLinearMap.IsFredholm.pow (hA : ContinuousLinearMap.IsFr
     ∀ n : ℕ, ContinuousLinearMap.IsFredholm (A ^ n)
   | 0 => by
       rw [pow_zero, ContinuousLinearMap.one_def]
-      exact isFredholm_id
+      exact .id
   | n + 1 => by
       rw [pow_succ, ContinuousLinearMap.mul_def]
       exact (hA.pow n).comp hA
