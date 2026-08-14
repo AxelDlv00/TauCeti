@@ -11,8 +11,10 @@ restore: an exact key is immutable and already contains this pin's snapshot. Bef
 main runs `lake exe cache clean` so the snapshot contains only files needed by the current pin; if
 pruning fails, it skips publication instead of saving an unpruned snapshot. PR and merge-group jobs
 in `pr-build.yml` may restore this trusted snapshot but never publish one. `pages.yml` and
-`pr-profile.yml` are intentionally outside this initial rollout, limiting the change to the two
-highest-volume build paths; they continue fetching into Mathlib's default cache directory.
+`pr-profile.yml` are intentionally outside this initial rollout: `ci.yml` is included as the sole
+publisher and `pr-build.yml` as the highest-volume consumer. `pr-profile.yml` has comparable
+per-PR fetch volume but remains outside as a rollout control. Both excluded workflows continue
+fetching into Mathlib's default cache directory.
 
 Keys have the shape
 `mathlib-ltar-v1-<os>-<arch>-<lean-toolchain hash>-<lake-manifest hash>`. An exact match reuses the

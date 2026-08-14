@@ -59,9 +59,6 @@ jobs:
       LAKE_ARTIFACT_CACHE: ""
       LAKE_RESTORE_ARTIFACTS: ""
       LAKE_CACHE_DIR: ""
-      # Explicitly share only Mathlib's compressed, content-addressed artifacts with the trusted
-      # main publisher; this path is outside the base/ tree mounted into landrun.
-      MATHLIB_CACHE_DIR: ${{ github.workspace }}/.mathlib-ltar-cache
     steps:
       # --- Trusted setup: no PR code runs until the landrun build phase ---
       - name: Resolve PR head
@@ -373,6 +370,8 @@ jobs:
         if: ${{ env.INFRA != '1' }}
         uses: ./gate/.github/actions/restore-mathlib-ltars
         with:
+          # The action's default cache directory is outside base/, which is later mounted into
+          # landrun, and it exports MATHLIB_CACHE_DIR only for the trusted fetch steps.
           project-dir: base
 
       # `lake exe cache get` runs the `cache` exe built from the pinned Mathlib, unsandboxed,

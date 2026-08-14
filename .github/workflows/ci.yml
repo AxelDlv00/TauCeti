@@ -23,11 +23,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # Keep the Mathlib download cache at one explicit runner-local path. The cache tool honors
-      # this variable, and using the same path for the GitHub cache avoids silently drifting if a
-      # runner image starts setting XDG_CACHE_HOME.
-      MATHLIB_CACHE_DIR: ${{ github.workspace }}/.mathlib-ltar-cache
     steps:
       - uses: actions/checkout@v4
 
@@ -127,7 +122,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
+          path: ${{ steps.mathlib_ltar_restore.outputs.cache-dir }}/*.ltar
           key: ${{ steps.mathlib_ltar_restore.outputs.cache-primary-key }}
 
       # Axiom audit (replaces the old textual no-sorry grep). Inspects the built
