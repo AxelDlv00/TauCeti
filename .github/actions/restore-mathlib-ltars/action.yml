@@ -1,0 +1,31 @@
+name: Restore Mathlib compressed download cache
+description: Restore the trusted GitHub Actions snapshot of Mathlib's content-addressed .ltar files.
+
+inputs:
+  project-dir:
+    description: Directory containing lean-toolchain and lake-manifest.json.
+    required: true
+
+outputs:
+  cache-hit:
+    description: Whether the exact toolchain and manifest key was restored.
+    value: ${{ steps.restore.outputs.cache-hit }}
+  cache-primary-key:
+    description: Exact key to use when the trusted main workflow publishes a new snapshot.
+    value: ${{ steps.restore.outputs.cache-primary-key }}
+
+runs:
+  using: composite
+  steps:
+    # This mirrors Mathlib's cache-snapshot warming in `.github/workflows/build_template.yml` and
+    # `.github/actions/get-cache`, using `actions/cache` instead of run artifacts. Keep the key
+    # namespace here so publishers and restore-only consumers cannot silently drift apart.
+    - name: Restore compressed download cache
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        # Cache only content-addressed artifacts, never cache-tool scratch files or executables.
+        path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
+        key: mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(format('{0}/lean-toolchain', inputs.project-dir)) }}-${{ hashFiles(format('{0}/lake-manifest.json', inputs.project-dir)) }}
+        restore-keys: |
+          mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(format('{0}/lean-toolchain', inputs.project-dir)) }}-

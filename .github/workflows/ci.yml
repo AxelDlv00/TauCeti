@@ -70,23 +70,18 @@ jobs:
       # cache get` remains authoritative, locally selects and unpacks the linked hashes, and
       # downloads anything this best-effort snapshot does not contain. The exact key makes a
       # repeated pin cheap; the same-toolchain prefix lets a new Mathlib pin reuse unchanged
-      # blobs. This mirrors Mathlib's cache-snapshot warming in
-      # `.github/workflows/build_template.yml` and `.github/actions/get-cache`, using
-      # `actions/cache` instead of run artifacts. Bump `mathlib-ltar-v1` in both workflows (see
-      # pr-build.yml) if an incompatible or poisoned immutable entry must be abandoned.
+      # blobs. The local action credits the corresponding Mathlib design and owns the shared key
+      # namespace. Bump its `mathlib-ltar-v1` token if an incompatible or poisoned immutable entry
+      # must be abandoned.
       - name: Restore Mathlib's compressed download cache
         id: mathlib_ltar_restore
-        uses: actions/cache/restore@v4
+        uses: ./.github/actions/restore-mathlib-ltars
         with:
-          # Cache only content-addressed artifacts, never cache-tool scratch files or executables.
-          path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
-          key: mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
-          restore-keys: |
-            mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+          project-dir: .
 
-      # Use lean-action for toolchain setup, but keep the fetch as an explicit step so a malformed
-      # restored `.ltar` can be quarantined and force-refetched instead of taking main down until
-      # a human deletes an immutable GitHub cache entry.
+      # Use lean-action for toolchain setup, but keep the fetch as an explicit step so a failed
+      # normal fetch can be retried with `get!`, which force-downloads and unpacks every linked
+      # file instead of trusting a possibly malformed restored `.ltar`.
       - name: Set up Lean
         uses: leanprover/lean-action@v1
         with:
@@ -99,15 +94,12 @@ jobs:
           # the narrow restore/save steps here cache only Mathlib's compressed `.ltar` files.
           use-github-cache: false
 
-      - name: Fetch Mathlib oleans, retrying from an empty download cache
+      - name: Fetch Mathlib oleans, retrying with a forced full refetch
         shell: bash
         run: |
           set -o pipefail
           if ! lake exe cache get 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"; then
-            echo "::warning::lake exe cache get failed; discarding any local .ltar store and forcing a full refetch"
-            if [ -e "$MATHLIB_CACHE_DIR" ]; then
-              mv "$MATHLIB_CACHE_DIR" "$RUNNER_TEMP/mathlib-ltar-cache.failed"
-            fi
+            echo "::warning::lake exe cache get failed; forcing a full refetch"
             lake exe cache get! 2>&1 | tee "$RUNNER_TEMP/mathlib-cache-get.log"
           fi
 

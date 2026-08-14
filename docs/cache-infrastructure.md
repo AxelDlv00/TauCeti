@@ -4,11 +4,15 @@ Where the build cache lives, who owns it, and which knob feeds which workflow.
 
 ## Mathlib download cache (GitHub Actions)
 
-The main `ci.yml` workflow publishes a narrow snapshot of Mathlib's compressed download store:
+The main `ci.yml` workflow maintains a narrow snapshot of Mathlib's compressed download store:
 `$MATHLIB_CACHE_DIR/*.ltar`. The `.ltar` files are content-addressed; cache-tool scratch files,
-executables, and the unpacked `.lake` tree are not included. Before publishing, main runs
-`lake exe cache clean` so the snapshot contains only files needed by the current pin. PR and
-merge-group jobs in `pr-build.yml` may restore this trusted snapshot but never publish one.
+executables, and the unpacked `.lake` tree are not included. Main publishes only after a non-exact
+restore: an exact key is immutable and already contains this pin's snapshot. Before publishing,
+main runs `lake exe cache clean` so the snapshot contains only files needed by the current pin; if
+pruning fails, it skips publication instead of saving an unpruned snapshot. PR and merge-group jobs
+in `pr-build.yml` may restore this trusted snapshot but never publish one. `pages.yml` and
+`pr-profile.yml` are intentionally outside this initial rollout, limiting the change to the two
+highest-volume build paths; they continue fetching into Mathlib's default cache directory.
 
 Keys have the shape
 `mathlib-ltar-v1-<os>-<arch>-<lean-toolchain hash>-<lake-manifest hash>`. An exact match reuses the
@@ -20,10 +24,11 @@ the snapshot lacks. This design mirrors Mathlib's own cache-snapshot warming in
 instead of per-run artifacts.
 
 GitHub Actions cache entries are immutable. If an entry is poisoned or the format becomes
-incompatible, bump `mathlib-ltar-v1` in both `ci.yml` and `pr-build.yml`. To discard a single entry
-instead, find it with `gh cache list --repo TauCetiProject/TauCeti` and delete its exact key with
-`gh cache delete <key> --repo TauCetiProject/TauCeti`. A failed fetch also retries once after
-moving the local `.ltar` directory aside, so a bad restored file does not permanently block CI.
+incompatible, bump `mathlib-ltar-v1` once in
+`.github/actions/restore-mathlib-ltars/action.yml`. To discard a single entry instead, find it with
+`gh cache list --repo TauCetiProject/TauCeti` and delete its exact key with
+`gh cache delete <key> --repo TauCetiProject/TauCeti`. A failed fetch also retries once with
+`lake exe cache get!`, which forces every linked file to be downloaded and unpacked again.
 
 ## Cloudflare account
 

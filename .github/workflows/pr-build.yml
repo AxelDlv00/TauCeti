@@ -366,20 +366,14 @@ jobs:
       # already-overlaid files under base/, so an exact new-pin snapshot is preferred. A
       # Mathlib-only bump can fall back to the newest same-toolchain main snapshot; a toolchain
       # bump misses both keys and refetches from Mathlib's server. `lake exe cache get` below
-      # remains authoritative and downloads every applicable hash that is still absent. This
-      # mirrors Mathlib's cache-snapshot warming in `.github/workflows/build_template.yml` and
-      # `.github/actions/get-cache`, using `actions/cache` instead of run artifacts. It is
-      # separate from the much larger `./.lake` cache. Bump `mathlib-ltar-v1` in both workflows
-      # to abandon an incompatible or poisoned immutable entry.
+      # remains authoritative and downloads every applicable hash that is still absent. The
+      # workflow-pinned local action credits the corresponding Mathlib design and owns the key
+      # namespace shared with ci.yml. This is separate from the much larger `./.lake` cache.
       - name: Restore Mathlib's compressed download cache from main
         if: ${{ env.INFRA != '1' }}
-        uses: actions/cache/restore@v4
+        uses: ./gate/.github/actions/restore-mathlib-ltars
         with:
-          # Cache only content-addressed artifacts, never cache-tool scratch files or executables.
-          path: ${{ env.MATHLIB_CACHE_DIR }}/*.ltar
-          key: mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('base/lean-toolchain') }}-${{ hashFiles('base/lake-manifest.json') }}
-          restore-keys: |
-            mathlib-ltar-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('base/lean-toolchain') }}-
+          project-dir: base
 
       # `lake exe cache get` runs the `cache` exe built from the pinned Mathlib, unsandboxed,
       # with network (to download oleans) but deliberately NO token in env. For a normal PR that
@@ -398,10 +392,7 @@ jobs:
         run: |
           set -o pipefail
           if ! ( cd base && lake exe cache get ) 2>&1 | tee "$GITHUB_WORKSPACE/cache-get.log"; then
-            echo "::warning::lake exe cache get failed; discarding any local .ltar store and forcing a full refetch"
-            if [ -e "$MATHLIB_CACHE_DIR" ]; then
-              mv "$MATHLIB_CACHE_DIR" "$RUNNER_TEMP/mathlib-ltar-cache.failed"
-            fi
+            echo "::warning::lake exe cache get failed; forcing a full refetch"
             ( cd base && lake exe cache get! ) 2>&1 | tee "$GITHUB_WORKSPACE/cache-get.log"
           fi
           mkdir -p base/.lake/tmp
