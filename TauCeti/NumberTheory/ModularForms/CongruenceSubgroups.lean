@@ -519,6 +519,24 @@ private lemma mem_Gamma_and_inv_mul_mem_Gamma_of_map_eq {a b : ℕ}
     rw [hβ_b]
     exact inv_mul_cancel _
 
+/-- **The Chinese remainder theorem lifts a matrix of `Γ(gcd a b)` simultaneously.** For
+`γ ∈ Γ(gcd a b)` there is an integer matrix congruent to the identity modulo `a` and to `γ`
+modulo `b`. -/
+private lemma exists_matrix_modEq_one_modEq_of_mem_Gamma_gcd {a b : ℕ} {γ : SL(2, ℤ)}
+    (hγ : γ ∈ Gamma (Nat.gcd a b)) :
+    ∃ M : Matrix (Fin 2) (Fin 2) ℤ,
+      (∀ i j, M i j ≡ ((1 : SL(2, ℤ)) i j : ℤ) [ZMOD (a : ℤ)]) ∧
+        ∀ i j, M i j ≡ (γ i j : ℤ) [ZMOD (b : ℤ)] := by
+  have hcompat : ∀ i j : Fin 2,
+      ((1 : SL(2, ℤ)) i j : ℤ) ≡ (γ i j : ℤ) [ZMOD ↑(Int.gcd (a : ℤ) (b : ℤ))] := by
+    -- `Int.gcd` of two casts is the `Nat.gcd` of the naturals; the two spellings of the
+    -- modulus are equal but not syntactically interchangeable.
+    have hgcd : (↑(Int.gcd (a : ℤ) (b : ℤ)) : ℤ) = ↑(Nat.gcd a b) := by simp [Int.gcd]
+    rw [hgcd]
+    exact intCast_apply_modEq_one_of_mem_Gamma _ γ hγ
+  choose z hza hzb using fun i j => exists_int_modEq_of_modEq_gcd (hcompat i j)
+  exact ⟨Matrix.of z, hza, hzb⟩
+
 /-- **Shimura, Lemma 3.28.** `Γ(gcd a b) = Γ(a) ⊔ Γ(b)`: the join of two principal congruence
 subgroups is the principal congruence subgroup of the gcd.
 
@@ -541,24 +559,7 @@ theorem Gamma_gcd_eq_sup (a b : ℕ) : Gamma (Nat.gcd a b) = Gamma a ⊔ Gamma b
   have : (Gamma a).Normal := Gamma_normal a
   intro γ hγ
   rw [Subgroup.mem_sup_of_normal_left]
-  have hcompat : ∀ i j : Fin 2,
-      ((1 : SL(2, ℤ)) i j : ℤ) ≡ (γ i j : ℤ) [ZMOD ↑(Int.gcd (a : ℤ) (b : ℤ))] := by
-    -- `Int.gcd` of two casts is the `Nat.gcd` of the naturals; the two spellings of the
-    -- modulus are equal but not syntactically interchangeable.
-    have hgcd : (↑(Int.gcd (a : ℤ) (b : ℤ)) : ℤ) = ↑(Nat.gcd a b) := by simp [Int.gcd]
-    rw [hgcd]
-    exact intCast_apply_modEq_one_of_mem_Gamma _ γ hγ
-  obtain ⟨z00, hz00a, hz00b⟩ := exists_int_modEq_of_modEq_gcd (hcompat 0 0)
-  obtain ⟨z01, hz01a, hz01b⟩ := exists_int_modEq_of_modEq_gcd (hcompat 0 1)
-  obtain ⟨z10, hz10a, hz10b⟩ := exists_int_modEq_of_modEq_gcd (hcompat 1 0)
-  obtain ⟨z11, hz11a, hz11b⟩ := exists_int_modEq_of_modEq_gcd (hcompat 1 1)
-  set M : Matrix (Fin 2) (Fin 2) ℤ := !![z00, z01; z10, z11]
-  have hMa : ∀ i j, M i j ≡ ((1 : SL(2, ℤ)) i j : ℤ) [ZMOD (a : ℤ)] := by
-    intro i j
-    fin_cases i <;> fin_cases j <;> assumption
-  have hMb : ∀ i j, M i j ≡ (γ i j : ℤ) [ZMOD (b : ℤ)] := by
-    intro i j
-    fin_cases i <;> fin_cases j <;> assumption
+  obtain ⟨M, hMa, hMb⟩ := exists_matrix_modEq_one_modEq_of_mem_Gamma_gcd hγ
   have hM_det : (M.map (Int.castRingHom (ZMod (Nat.lcm a b)))).det = 1 := by
     simp only [Matrix.det_fin_two, Matrix.map_apply, Int.coe_castRingHom]
     have h := (ZMod.intCast_eq_intCast_iff _ _ _).mpr (det_fin_two_modEq_one_lcm hMa hMb)
