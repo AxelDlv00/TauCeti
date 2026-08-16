@@ -6,6 +6,7 @@ module
 
 public import TauCeti.RingTheory.Huber.LocalizationTopology.UniversalProperty
 public import TauCeti.RingTheory.Huber.Completion
+public import TauCeti.RingTheory.Localization.Completion
 
 /-!
 # The completion `A⟨T/s⟩`
@@ -34,9 +35,15 @@ complete Hausdorff targets.
   `completionLocalization_ringOfDefinition` and `mem_completionLocalization_idealOfDefinition`:
   the completed pair's API, reducing to the concrete `D` and `J`.
 * `continuous_toCompletionLoc`: the structure map `A → A⟨T/s⟩` is continuous.
-* `isHuberRing_completion_locTopology` and
-  `existsUnique_continuous_ringHom_completion_locTopology`: `A⟨T/s⟩` is Huber, and the universal
-  property holds across it for complete Hausdorff targets.
+* `isHuberRing_completion_locTopology`: `A⟨T/s⟩` is a Huber ring — the completed pair above is a
+  pair of definition for it.
+* `existsUnique_continuous_ringHom_completion_locTopology`: the universal property, for complete
+  Hausdorff targets.
+* `completion_locTopology_ringHom_ext_of_continuous`: two continuous ring homomorphisms out of
+  `A⟨T/s⟩` agreeing on `A` are equal, so a map out of `A⟨T/s⟩` is determined by its restriction to
+  `A`. Unlike the universal property this needs no hypothesis on `s` or the fractions — those
+  govern which maps exist, not when two agree — and its target need only be a semiring carrying a
+  Hausdorff topology.
 
 ## Provenance
 
@@ -311,6 +318,34 @@ theorem isHuberRing_completion_locTopology [IsTopologicalRing A] (P : PairOfDefi
   letI := isTopologicalRing_locUniformSpace P T s S hden
   ⟨⟨completionLocalization P T s S hden⟩⟩
 
+/-- **Maps out of `A⟨T/s⟩` are determined on `A`.** Two continuous ring homomorphisms into a
+semiring carrying a Hausdorff topology that agree after composing with the structure map
+from `A` are equal.
+
+This is `TauCeti.completion_localization_ringHom_ext_of_continuous` at `Submonoid.powers s`. The
+bridge it crosses is the unexported body of `toCompletionLoc`, namely
+`UniformSpace.Completion.coeRingHom.comp (algebraMap A S)`: reassociating that composition turns
+`g.comp (toCompletionLoc …)` into `(g.comp coeRingHom).comp (algebraMap A S)`, which is the
+hypothesis that lemma takes. Nothing is unfolded at the level of coercions — the argument stays
+with bundled `RingHom`s throughout. Crossing the unexported body once here keeps it out of every
+consumer. -/
+theorem completion_locTopology_ringHom_ext_of_continuous [IsTopologicalRing A]
+    (P : PairOfDefinition A) (T : Finset A) (s : A) (S : Type*) [CommRing S] [Algebra A S]
+    [IsLocalization.Away s S] (hden : HasDenominatorPower P T s S)
+    {B : Type*} [Semiring B] [TopologicalSpace B] [T2Space B] :
+    letI := locUniformSpace P T s S hden
+    letI := isUniformAddGroup_locUniformSpace P T s S hden
+    letI := isTopologicalRing_locUniformSpace P T s S hden
+    ∀ (g h : UniformSpace.Completion S →+* B), Continuous g → Continuous h →
+      g.comp (toCompletionLoc P T s S hden) = h.comp (toCompletionLoc P T s S hden) → g = h := by
+  let _ := locUniformSpace P T s S hden
+  have _ := isUniformAddGroup_locUniformSpace P T s S hden
+  have _ := isTopologicalRing_locUniformSpace P T s S hden
+  intro g h hg hh hcomp
+  refine TauCeti.completion_localization_ringHom_ext_of_continuous (Submonoid.powers s) hg hh
+    (RingHom.ext fun a ↦ ?_)
+  exact congrArg (fun k : A →+* B ↦ k a) hcomp
+
 /-- **The universal property of `A⟨T/s⟩`**, for complete Hausdorff targets: a ring homomorphism
 `φ : A →+* B` continuous at zero, with `φ s` a unit and each fraction `φ t / φ s` power-bounded,
 extends to the completion in exactly one continuous way.
@@ -334,23 +369,17 @@ theorem existsUnique_continuous_ringHom_completion_locTopology {B : Type*} [Comm
   have _ := isTopologicalRing_locUniformSpace P T s S hden
   obtain ⟨f, ⟨hfc, hfe⟩, huniq⟩ :=
     existsUnique_continuous_ringHom_locTopology P T s S hden hφ hs hpow
-  refine ⟨UniformSpace.Completion.extensionHom f hfc,
-    ⟨UniformSpace.Completion.continuous_extension, ?_⟩, ?_⟩
-  · ext a
+  have hext : (UniformSpace.Completion.extensionHom f hfc).comp
+      (toCompletionLoc P T s S hden) = φ := by
+    ext a
     simpa [UniformSpace.Completion.extensionHom_coe, UniformSpace.Completion.coeRingHom] using
       congrArg (fun h => h a) hfe
-  · rintro g ⟨hgc, hge⟩
-    have hcomp : (g.comp UniformSpace.Completion.coeRingHom).comp (algebraMap A S) = φ := by
-      refine RingHom.ext fun a ↦ ?_
-      have h := congrArg (fun h ↦ h a) hge
-      simp only [RingHom.comp_apply, toCompletionLoc_apply] at h
-      simpa [UniformSpace.Completion.coeRingHom] using h
-    have hcoe : g.comp UniformSpace.Completion.coeRingHom = f :=
-      huniq _ ⟨hgc.comp UniformSpace.Completion.continuous_coeRingHom, hcomp⟩
-    refine RingHom.coe_inj (UniformSpace.Completion.extension_unique
-      (uniformContinuous_addMonoidHom_of_continuous hfc)
-      (uniformContinuous_addMonoidHom_of_continuous hgc) fun x ↦ ?_).symm
-    simpa [UniformSpace.Completion.coeRingHom] using (congrArg (fun h ↦ h x) hcoe).symm
+  refine ⟨UniformSpace.Completion.extensionHom f hfc,
+    ⟨UniformSpace.Completion.continuous_extension, hext⟩, fun g ⟨hgc, hge⟩ ↦ ?_⟩
+  -- uniqueness is extensionality: both maps are continuous and agree after `toCompletionLoc`
+  exact completion_locTopology_ringHom_ext_of_continuous P T s S hden g _ hgc
+    UniformSpace.Completion.continuous_extension (hge.trans hext.symm)
+
 
 end PairOfDefinition
 
