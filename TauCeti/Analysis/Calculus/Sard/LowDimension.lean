@@ -11,9 +11,9 @@ import Mathlib.MeasureTheory.Measure.Haar.Unique
 # Sard's lemma when the source has smaller dimension
 
 This file proves the lower-dimensional-source case of finite-dimensional Sard's theorem. If a
-`C¹` map goes from a finite-dimensional real normed space to one of strictly larger dimension,
-then the image of every subset of the source has additive Haar measure zero. In particular, the
-whole range is null.
+differentiable map goes from a finite-dimensional real normed space to one of strictly larger
+dimension, then the image of every subset of the source has additive Haar measure zero. In
+particular, the whole range is null.
 
 Every derivative in this dimension range is nonsurjective, so the range is exactly the set of
 critical values. The proof uses the Hausdorff-dimension route already developed in Mathlib:
@@ -27,12 +27,12 @@ higher-regularity Morse--Sard argument to the remaining case where the source di
 
 ## Main declarations
 
-* `TauCeti.ContDiffOn.addHaar_image_eq_zero_of_dimH_lt_finrank`: a `C¹` map on a set sends
-  each subset of sufficiently small Hausdorff dimension to an additive-Haar-null set.
-* `TauCeti.ContDiff.addHaar_image_eq_zero_of_finrank_lt_finrank`: a `C¹` map into a
+* `TauCeti.DifferentiableOn.addHaar_image_eq_zero_of_dimH_lt_finrank`: a differentiable map on a
+  set of sufficiently small Hausdorff dimension sends it to an additive-Haar-null set.
+* `TauCeti.Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank`: a differentiable map into a
   strictly higher-dimensional space sends every subset to an additive-Haar-null set.
-* `TauCeti.ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank`: the whole range of such a map is
-  additive-Haar-null.
+* `TauCeti.ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank`: the whole range of a `C¹` map in
+  these dimensions is additive-Haar-null.
 * `TauCeti.not_surjective_fderiv_of_finrank_lt_finrank`: every derivative in this dimension range
   is nonsurjective.
 * `TauCeti.setOf_not_surjective_fderiv_eq_univ_of_finrank_lt_finrank`: every point belongs to the
@@ -58,27 +58,26 @@ variable {E F : Type*}
   (ν : Measure F) [IsAddHaarMeasure ν]
 
 omit [FiniteDimensional ℝ E] in
-/-- A `C¹` map on a set sends every subset whose Hausdorff dimension is strictly smaller
-than the dimension of the codomain to an additive-Haar-null set.
+/-- A differentiable map on a set of Hausdorff dimension strictly smaller than the dimension of
+the codomain sends that set to an additive-Haar-null set.
 
 The source may be any real normed space, the codomain may carry an arbitrary finite-dimensional
 norm, and `ν` may be any normalization of additive Haar measure. -/
-theorem ContDiffOn.addHaar_image_eq_zero_of_dimH_lt_finrank
-    (hf : ContDiffOn ℝ 1 f s) (ht : t ⊆ s)
-    (htF : dimH t < finrank ℝ F) : ν (f '' t) = 0 := by
+theorem DifferentiableOn.addHaar_image_eq_zero_of_dimH_lt_finrank
+    (hf : DifferentiableOn ℝ f s) (hsF : dimH s < finrank ℝ F) : ν (f '' s) = 0 := by
   have hν : ν ≪ (μH[(finrank ℝ F : ℝ)] : Measure F) :=
     absolutelyContinuous_isAddHaarMeasure ν _
   apply measure_zero_of_dimH_lt (d := (finrank ℝ F : NNReal)) hν
   simpa only [ENNReal.coe_natCast] using
-    (((hf.differentiableOn one_ne_zero).mono ht).dimH_image_le).trans_lt htF
+    hf.dimH_image_le.trans_lt hsF
 
-/-- A `C¹` map from a finite-dimensional real normed space to a strictly higher-dimensional one
-sends every subset of its domain to an additive-Haar-null set. -/
-theorem ContDiff.addHaar_image_eq_zero_of_finrank_lt_finrank
-    (hf : ContDiff ℝ 1 f) (hEF : finrank ℝ E < finrank ℝ F) (t : Set E) :
+/-- A differentiable map from a finite-dimensional real normed space to a strictly
+higher-dimensional one sends every subset of its domain to an additive-Haar-null set. -/
+theorem Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank
+    (hf : Differentiable ℝ f) (hEF : finrank ℝ E < finrank ℝ F) (t : Set E) :
     ν (f '' t) = 0 := by
-  apply ContDiffOn.addHaar_image_eq_zero_of_dimH_lt_finrank
-    ν hf.contDiffOn (subset_univ t)
+  apply DifferentiableOn.addHaar_image_eq_zero_of_dimH_lt_finrank
+    ν (hf.differentiableOn.mono (subset_univ t))
   exact (dimH_mono (subset_univ t)).trans_lt <| by
     simpa only [Real.dimH_univ_eq_finrank, Nat.cast_lt] using hEF
 
@@ -89,7 +88,8 @@ theorem ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank
     (hf : ContDiff ℝ 1 f) (hEF : finrank ℝ E < finrank ℝ F) :
     ν (range f) = 0 := by
   rw [← image_univ]
-  exact ContDiff.addHaar_image_eq_zero_of_finrank_lt_finrank ν hf hEF univ
+  exact Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank
+    ν (hf.differentiable one_ne_zero) hEF univ
 
 omit [FiniteDimensional ℝ F] [MeasurableSpace F] [BorelSpace F] in
 /-- When the source has strictly smaller finite dimension than the codomain, every Fréchet
