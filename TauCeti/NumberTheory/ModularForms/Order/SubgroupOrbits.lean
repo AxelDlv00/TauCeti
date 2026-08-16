@@ -84,12 +84,9 @@ public def orderOfVanishingOnSubgroupOrbit
     [SlashInvariantFormClass F (Γ : Subgroup (GL (Fin 2) ℝ)) k] (f : F)
     (q : MulAction.orbitRel.Quotient (Γ : Subgroup (GL (Fin 2) ℝ)) ℍ) : ℤ :=
   Quotient.liftOn' q (orderOfVanishingAt f) fun _ b ⟨g, hg⟩ ↦ by
-    obtain ⟨γ, -, hγ⟩ := Subgroup.mem_map.1 g.2
     have hg' : g • b = _ := hg
     rw [← hg', Subgroup.smul_def,
-      orderOfVanishingAt_smul f g.2
-        (by rw [← hγ, ← Matrix.GeneralLinearGroup.val_det_apply,
-          Matrix.SpecialLinearGroup.det_mapGL]; exact one_pos) b]
+      orderOfVanishingAt_smul f g.2 (det_pos_of_mem_slGL (Subgroup.map_le_range _ _ g.2)) b]
 
 /-- Evaluating the descended order on the orbit of `p` recovers the vanishing order at `p`. -/
 @[simp]
@@ -114,12 +111,8 @@ public lemma orderOfVanishingAt_quotientFunc_eq_orderOfVanishingOnSubgroupOrbit
   | h h =>
     rw [_root_.SlashInvariantForm.quotientFunc_mk, orbitOfCosetTranslate_mk,
       orderOfVanishingOnSubgroupOrbit_mk, orderOfVanishingAt_slash (k := k)]
-    -- the slash acts by `h⁻¹`, so what is left is that it has positive determinant: it is the
-    -- image of some `γ ∈ SL(2, ℤ)`, whose determinant is `1`
-    obtain ⟨γ, hγ⟩ := (h⁻¹).2
-    rw [← Subgroup.coe_inv, ← hγ, ← Matrix.GeneralLinearGroup.val_det_apply,
-      Matrix.SpecialLinearGroup.det_mapGL]
-    exact one_pos
+    -- the slash acts by `h⁻¹`, which lies in `𝒮ℒ` and so has positive determinant
+    exact det_pos_of_mem_slGL (inv_mem h.2)
 
 /-- A modular form for a finite-index subgroup `Γ ≤ SL(2, ℤ)` has nonzero vanishing order on
 only finitely many `Γ`-orbits in the upper half-plane.
