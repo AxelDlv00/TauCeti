@@ -90,6 +90,7 @@ the span `TauCeti.modelSubmodule` of the matrix coefficients of the models insid
   representative chosen in each class.
 * `TauCeti.stdPeterWeylBasis`: the Peter-Weyl basis of `L²(G)` on the chosen representatives, with
   no skeleton assumed.
+* `TauCeti.stdPeterWeylCoeff`: the corresponding unconditional Fourier coefficient.
 
 ## Main statements
 
@@ -101,10 +102,13 @@ the span `TauCeti.modelSubmodule` of the matrix coefficients of the models insid
   orthonormal system.
 * `TauCeti.coe_peterWeylBasis`, `TauCeti.coe_stdPeterWeylBasis`: the basis is the normalized
   matrix coefficients.
+* `TauCeti.peterWeylBasis_repr_apply`, `TauCeti.stdPeterWeylBasis_repr_apply`: the abstract basis
+  coordinates are the explicit Haar-integral Fourier coefficients.
 * `TauCeti.hasSum_peterWeyl_expansion`, `TauCeti.hasSum_stdPeterWeyl_expansion`: reconstruction
   of an `L²` function from its Peter-Weyl coefficients.
 * `TauCeti.tsum_star_peterWeylCoeff_mul_peterWeylCoeff`,
-  `TauCeti.tsum_norm_sq_peterWeylCoeff`: polarized and norm-square Parseval identities.
+  `TauCeti.tsum_norm_sq_peterWeylCoeff`, and their `stdPeterWeylCoeff` variants: polarized and
+  norm-square Parseval identities.
 * `TauCeti.isIrrepSkeleton_model`: the chosen representatives are a skeleton, so the hypothesis of
   `TauCeti.peterWeylBasis` is satisfiable and the theorem is not conditional.
 
@@ -527,24 +531,38 @@ functions is their inner product. -/
 theorem tsum_star_peterWeylCoeff_mul_peterWeylCoeff [IsAlgClosed 𝕜]
     {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
     (f g : Lp 𝕜 2 (haarProb G)) :
-    ∑' x, (starRingEnd 𝕜) (peterWeylCoeff models f x) * peterWeylCoeff models g x =
+    ∑' x, star (peterWeylCoeff models f x) * peterWeylCoeff models g x =
       inner 𝕜 f g := by
   have hfirst (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
       inner 𝕜 f (peterWeylBasis h x) =
-        (starRingEnd 𝕜) (peterWeylCoeff models f x) := by
+        star (peterWeylCoeff models f x) := by
     rw [← inner_conj_symm, ← (peterWeylBasis h).repr_apply_apply,
-      peterWeylBasis_repr_apply]
+      peterWeylBasis_repr_apply, starRingEnd_apply]
   simpa only [hfirst, ← (peterWeylBasis h).repr_apply_apply,
     peterWeylBasis_repr_apply] using (peterWeylBasis h).tsum_inner_mul_inner f g
 
 /-- **Norm-square Parseval for the Peter-Weyl basis.** The squared norms of the Fourier
-coefficients of `f` sum to `‖f‖²`. -/
+coefficients of `f` sum to `‖f‖²`, as a convergent series. -/
+theorem hasSum_norm_sq_peterWeylCoeff [IsAlgClosed 𝕜]
+    {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
+    (f : Lp 𝕜 2 (haarProb G)) :
+    HasSum (fun x ↦ ‖peterWeylCoeff models f x‖ ^ 2) (‖f‖ ^ 2) := by
+  simpa only [← (peterWeylBasis h).repr_apply_apply, peterWeylBasis_repr_apply] using
+    (peterWeylBasis h).hasSum_norm_sq_inner f
+
+/-- **Norm-square Parseval for the Peter-Weyl basis** (`tsum` form). -/
 theorem tsum_norm_sq_peterWeylCoeff [IsAlgClosed 𝕜]
     {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
     (f : Lp 𝕜 2 (haarProb G)) :
-    ∑' x, ‖peterWeylCoeff models f x‖ ^ 2 = ‖f‖ ^ 2 := by
-  simpa only [← (peterWeylBasis h).repr_apply_apply, peterWeylBasis_repr_apply] using
-    (peterWeylBasis h).tsum_norm_sq_inner f
+    ∑' x, ‖peterWeylCoeff models f x‖ ^ 2 = ‖f‖ ^ 2 :=
+  (hasSum_norm_sq_peterWeylCoeff h f).tsum_eq
+
+/-- The squared Peter-Weyl Fourier coefficients of an `L²` function are summable. -/
+theorem summable_norm_sq_peterWeylCoeff [IsAlgClosed 𝕜]
+    {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
+    (f : Lp 𝕜 2 (haarProb G)) :
+    Summable fun x ↦ ‖peterWeylCoeff models f x‖ ^ 2 :=
+  (hasSum_norm_sq_peterWeylCoeff h f).summable
 
 end Skeleton
 
@@ -622,8 +640,7 @@ variable (𝕜 G : Type*) [RCLike 𝕜] [IsAlgClosed 𝕜] [Group G] [Topologica
 /-- **The Peter-Weyl theorem, unconditionally.** The normalized matrix coefficients of the models
 chosen in the unitary equivalence classes are a Hilbert basis of `L²(G)`, indexed by
 `Σ i, Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim`. No skeleton is assumed:
-`isIrrepSkeleton_model`
-supplies one.
+`isIrrepSkeleton_model` supplies one.
 
 `TauCeti.coe_stdPeterWeylBasis` identifies the elements of this basis with
 `TauCeti.peterWeylFamily IrrepClass.model`. -/
@@ -662,36 +679,55 @@ noncomputable def stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G))
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) : 𝕜 :=
   peterWeylCoeff (IrrepClass.model (𝕜 := 𝕜) (G := G)) f x
 
+omit [IsAlgClosed 𝕜] in
+/-- The unconditional coefficient is the supplied-skeleton coefficient for the chosen
+representatives. -/
+theorem stdPeterWeylCoeff_def (f : Lp 𝕜 2 (haarProb G))
+    (x : Σ i : IrrepClass 𝕜 G,
+      Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) :
+    stdPeterWeylCoeff 𝕜 G f x =
+      peterWeylCoeff (IrrepClass.model (𝕜 := 𝕜) (G := G)) f x :=
+  by rw [stdPeterWeylCoeff]
+
 /-- A coordinate in the unconditional Peter-Weyl basis is its explicit Fourier coefficient. -/
 @[simp]
 theorem stdPeterWeylBasis_repr_apply (f : Lp 𝕜 2 (haarProb G))
     (x : Σ i : IrrepClass 𝕜 G,
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) :
     (stdPeterWeylBasis 𝕜 G).repr f x = stdPeterWeylCoeff 𝕜 G f x := by
-  simpa only [stdPeterWeylBasis, stdPeterWeylCoeff] using
+  simpa only [stdPeterWeylBasis, stdPeterWeylCoeff_def] using
     peterWeylBasis_repr_apply (isIrrepSkeleton_model 𝕜 G) f x
 
 /-- **The unconditional Peter-Weyl expansion.** Every `L²` function is reconstructed from the
 Fourier coefficients belonging to the chosen irreducible representatives. -/
 theorem hasSum_stdPeterWeyl_expansion (f : Lp 𝕜 2 (haarProb G)) :
-    HasSum (fun x ↦ stdPeterWeylCoeff 𝕜 G f x •
-      peterWeylFamily (IrrepClass.model (𝕜 := 𝕜) (G := G)) x) f := by
-  simpa only [stdPeterWeylCoeff] using
-    hasSum_peterWeyl_expansion (isIrrepSkeleton_model 𝕜 G) f
+    HasSum (fun x ↦ stdPeterWeylCoeff 𝕜 G f x • stdPeterWeylBasis 𝕜 G x) f := by
+  simpa only [stdPeterWeylBasis_repr_apply] using (stdPeterWeylBasis 𝕜 G).hasSum_repr f
 
 /-- **Polarized Parseval for the unconditional Peter-Weyl basis.** -/
 theorem tsum_star_stdPeterWeylCoeff_mul_stdPeterWeylCoeff
     (f g : Lp 𝕜 2 (haarProb G)) :
-    ∑' x, (starRingEnd 𝕜) (stdPeterWeylCoeff 𝕜 G f x) * stdPeterWeylCoeff 𝕜 G g x =
+    ∑' x, star (stdPeterWeylCoeff 𝕜 G f x) * stdPeterWeylCoeff 𝕜 G g x =
       inner 𝕜 f g := by
-  simpa only [stdPeterWeylCoeff] using
+  simpa only [stdPeterWeylCoeff_def] using
     tsum_star_peterWeylCoeff_mul_peterWeylCoeff (isIrrepSkeleton_model 𝕜 G) f g
 
-/-- **Norm-square Parseval for the unconditional Peter-Weyl basis.** -/
+/-- **Norm-square Parseval for the unconditional Peter-Weyl basis** (`HasSum` form). -/
+theorem hasSum_norm_sq_stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G)) :
+    HasSum (fun x ↦ ‖stdPeterWeylCoeff 𝕜 G f x‖ ^ 2) (‖f‖ ^ 2) := by
+  simpa only [stdPeterWeylCoeff_def] using
+    hasSum_norm_sq_peterWeylCoeff (isIrrepSkeleton_model 𝕜 G) f
+
+/-- **Norm-square Parseval for the unconditional Peter-Weyl basis** (`tsum` form). -/
 theorem tsum_norm_sq_stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G)) :
-    ∑' x, ‖stdPeterWeylCoeff 𝕜 G f x‖ ^ 2 = ‖f‖ ^ 2 := by
-  simpa only [stdPeterWeylCoeff] using
-    tsum_norm_sq_peterWeylCoeff (isIrrepSkeleton_model 𝕜 G) f
+    ∑' x, ‖stdPeterWeylCoeff 𝕜 G f x‖ ^ 2 = ‖f‖ ^ 2 :=
+  (hasSum_norm_sq_stdPeterWeylCoeff 𝕜 G f).tsum_eq
+
+/-- The squared unconditional Peter-Weyl Fourier coefficients of an `L²` function are
+summable. -/
+theorem summable_norm_sq_stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G)) :
+    Summable fun x ↦ ‖stdPeterWeylCoeff 𝕜 G f x‖ ^ 2 :=
+  (hasSum_norm_sq_stdPeterWeylCoeff 𝕜 G f).summable
 
 end StandardBasis
 
