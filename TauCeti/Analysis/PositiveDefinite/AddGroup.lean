@@ -98,16 +98,18 @@ instance : StarAddMonoid (WithNegStar G) where
   star_add a b := neg_add a b
 
 /-- The identity additive equivalence from `G` to its negation-involution copy. -/
-@[expose] def toNegStar : G ≃+ WithNegStar G := AddEquiv.refl G
+def toNegStar : G ≃+ WithNegStar G := AddEquiv.refl G
 
 /-- The identity additive equivalence from the negation-involution copy of `G` back to `G`. -/
-@[expose] def ofNegStar : WithNegStar G ≃+ G := AddEquiv.refl G
+def ofNegStar : WithNegStar G ≃+ G := toNegStar.symm
 
 @[simp]
-theorem ofNegStar_toNegStar (a : G) : ofNegStar (toNegStar a) = a := rfl
+theorem ofNegStar_toNegStar (a : G) : ofNegStar (toNegStar a) = a :=
+  toNegStar.symm_apply_apply a
 
 @[simp]
-theorem toNegStar_ofNegStar (a : WithNegStar G) : toNegStar (ofNegStar a) = a := rfl
+theorem toNegStar_ofNegStar (a : WithNegStar G) : toNegStar (ofNegStar a) = a :=
+  toNegStar.apply_symm_apply a
 
 end AddCommGroup
 

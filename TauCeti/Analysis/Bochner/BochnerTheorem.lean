@@ -82,7 +82,9 @@ than through `MeasureTheory.charFun`.
   `F 0 = 1` is the transform of a unique probability measure.
 * `TauCeti.bochnerMeasure`: the representing measure itself, with
   `TauCeti.integral_fourierAtom_bochnerMeasure` (its transform),
-  `TauCeti.eq_bochnerMeasure` (uniqueness), `TauCeti.bochnerMeasure_univ` and
+  `TauCeti.eq_bochnerMeasure` (uniqueness),
+  `TauCeti.bochnerMeasure_eq_zero_of_not` (the fallback branch),
+  `TauCeti.bochnerMeasure_univ` and
   `TauCeti.bochnerMeasure_real_univ` (total mass),
   `TauCeti.bochnerMeasure_const_mul` and `TauCeti.bochnerMeasure_add` (nonnegative real scaling
   and additivity), and `TauCeti.isProbabilityMeasure_bochnerMeasure` (normalization).
@@ -332,6 +334,12 @@ private theorem bochnerMeasure_rep (hcont : Continuous F) (hpd : IsPositiveDefin
   classical
   rw [bochnerMeasure, dite_eq_left ⟨hcont, hpd⟩]
   exact ((bochner F).mp ⟨hcont, hpd⟩).exists.choose_spec.2 v
+
+/-- Outside the hypotheses of Bochner's theorem the Bochner measure is `0`. -/
+theorem bochnerMeasure_eq_zero_of_not (h : ¬(Continuous F ∧ IsPositiveDefiniteSub F)) :
+    bochnerMeasure F = 0 := by
+  classical
+  rw [bochnerMeasure, dite_eq_right h]
 
 /-- The Bochner measure of any function is finite: for a continuous positive-definite function
 this is the finiteness of its representing measure, and otherwise the measure is `0`. -/

@@ -35,7 +35,6 @@ function API item asking for "a stated Fourier-convention conversion lemma betwe
   `charFun μ ((-2π) • a)`.
 * `TauCeti.fourier_eq_integral_fourierAtom_mul`: the Fourier transform `𝓕 F` is the
   integral of `F` against the Fourier atom.
-* `TauCeti.integrable_fourierAtom`: a Fourier atom is integrable against a finite measure.
 * `TauCeti.posSemidef_fourierConventionCharFun_sub`: the Fourier-convention
   translation-invariant kernel of a finite measure is positive definite.
 * `TauCeti.Measure.ext_of_forall_integral_fourierAtom_eq`: a finite measure is determined by its
@@ -113,13 +112,6 @@ theorem fourierConventionCharFun_isPositiveDefinite_of_star_eq_neg [StarAddMonoi
   convert hchar using 1
   ext a
   exact integral_fourierAtom_eq_charFun_neg_two_pi_smul (μ := ν) a
-
-/-- A Fourier atom, having unit norm and being continuous, is integrable against a finite
-measure. -/
-theorem integrable_fourierAtom (ν : Measure W) [IsFiniteMeasure ν] (a : W) :
-    Integrable (fourierAtom a) ν :=
-  (integrable_const (1 : ℝ)).mono' (continuous_fourierAtom a).aestronglyMeasurable
-    (.of_forall fun q => (norm_fourierAtom a q).le)
 
 /-- The translation-invariant kernel attached to the Fourier-convention transform of a finite
 measure is positive definite. This is the kernel form of
