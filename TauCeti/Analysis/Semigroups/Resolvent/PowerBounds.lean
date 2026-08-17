@@ -29,10 +29,16 @@ For a contraction semigroup, this specializes to
 
 `‖R(lambda)^n‖ ≤ lambda⁻ⁿ`.
 
+Using `generator_resolvent_eq`, the sharp bound is also transported to the generator resolvent,
+
+`‖R(lambda, generator S)^n‖ ≤ M / (lambda - omega)^n`,
+
+with the corresponding contraction-semigroup specialization.
+
 The corresponding pointwise estimates and the bound for the scaled contraction resolvent
 `lambda R(lambda)` are also recorded. This is the necessity half of the Hille--Yosida generation
-theorem: every C₀-semigroup's Laplace-transform resolvent satisfies the power bound that the
-generation theorem assumes for an abstract operator.
+theorem: every C₀-semigroup's Laplace-transform resolvent, and hence its generator resolvent,
+satisfies the sharp power bound used by the generation theorem.
 
 The sharp derivative bound obtained from the power formula is recorded here in both the general
 growth-bound and contraction cases.
