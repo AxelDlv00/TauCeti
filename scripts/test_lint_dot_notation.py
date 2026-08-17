@@ -106,6 +106,53 @@ end TauCeti
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.takesFoo"])
 
+    def test_notation_receivers_and_dotted_subtypes(self):
+        source = """\
+namespace TauCeti
+namespace ContinuousLinearMap
+def notationReceiver (T : E →L[𝕜] F) := T
+def dottedSubtype (hT : ContinuousLinearMap.IsFredholm T) := hT
+end ContinuousLinearMap
+namespace LinearMap
+def linearMapReceiver (f : M →ₗ[R] N) := f
+end LinearMap
+namespace Equiv
+def equivReceiver (e : α ≃ β) := e
+def longerNotationIsNotEquiv (e : α ≃L[𝕜] β) := e
+end Equiv
+namespace ContinuousMap
+def continuousMapReceiver (f : C(X, Y)) := f
+def continuousMapValuedFunction (f : C(X, Y) → Z) := f
+end ContinuousMap
+namespace ContinuousMultilinearMap
+def multilinearReceiver (f : E [×n]→L[𝕜] F) := f
+def multilinearValuedFunction (f : (E [×n]→L[𝕜] F) → Z) := f
+end ContinuousMultilinearMap
+namespace RingHom
+def ringHomReceiver (f : R →+* S) := f
+end RingHom
+namespace AlgEquiv
+def algEquivReceiver (e : A ≃ₐ[R] B) := e
+end AlgEquiv
+namespace LinearIsometryEquiv
+def linearIsometryEquivReceiver (e : E ≃ₗᵢ[𝕜] F) := e
+end LinearIsometryEquiv
+end TauCeti
+"""
+        result = findings(source, {"AlgEquiv", "ContinuousLinearMap", "ContinuousMap",
+                                   "ContinuousMultilinearMap", "Equiv", "LinearIsometryEquiv",
+                                   "LinearMap", "RingHom"})
+        self.assertEqual([finding.declaration for finding in result], [
+            "TauCeti.ContinuousLinearMap.notationReceiver",
+            "TauCeti.LinearMap.linearMapReceiver",
+            "TauCeti.Equiv.equivReceiver",
+            "TauCeti.ContinuousMap.continuousMapReceiver",
+            "TauCeti.ContinuousMultilinearMap.multilinearReceiver",
+            "TauCeti.RingHom.ringHomReceiver",
+            "TauCeti.AlgEquiv.algEquivReceiver",
+            "TauCeti.LinearIsometryEquiv.linearIsometryEquivReceiver",
+        ])
+
     def test_scoped_variable_and_dotted_name_are_detected(self):
         source = """\
 namespace TauCeti

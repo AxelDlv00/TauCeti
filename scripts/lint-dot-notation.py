@@ -45,6 +45,50 @@ NAMESPACE = re.compile(
 )
 TOP_LEVEL_CONNECTIVES = ("->", "→", "⟶", "⥤", "≃", "≅", "×", "⊕", "⊗", "↪", "↠")
 
+# Common type notations whose underlying receiver type is not visible as an identifier in the
+# source. Longer tokens must be tested first because several are extensions of shorter ones.
+NOTATION_RECEIVERS = (
+    ("→ₛₗᵢ[", "LinearIsometry"),
+    ("≃ₛₗᵢ[", "LinearIsometryEquiv"),
+    ("→ₗᵢ⋆[", "LinearIsometry"),
+    ("≃ₗᵢ⋆[", "LinearIsometryEquiv"),
+    ("→ₗᵢ[", "LinearIsometry"),
+    ("≃ₗᵢ[", "LinearIsometryEquiv"),
+    ("→+*", "RingHom"),
+    ("≃+*", "RingEquiv"),
+    ("→SL[", "ContinuousLinearMap"),
+    ("≃SL[", "ContinuousLinearEquiv"),
+    ("→L⋆[", "ContinuousLinearMap"),
+    ("≃L⋆[", "ContinuousLinearEquiv"),
+    ("→L[", "ContinuousLinearMap"),
+    ("→ₗ[", "LinearMap"),
+    ("→ₛₗ[", "LinearMap"),
+    ("→ₗ⋆[", "LinearMap"),
+    ("→ₐ[", "AlgHom"),
+    ("≃ₐ[", "AlgEquiv"),
+    ("≃L[", "ContinuousLinearEquiv"),
+    ("≃ₗ[", "LinearEquiv"),
+    ("≃ₛₗ[", "LinearEquiv"),
+    ("≃ₗ⋆[", "LinearEquiv"),
+    ("→A[", "ContinuousAlgHom"),
+    ("≃A[", "ContinuousAlgEquiv"),
+    ("→*", "MonoidHom"),
+    ("→+", "AddMonoidHom"),
+    ("→o", "OrderHom"),
+    ("≃*", "MulEquiv"),
+    ("≃+", "AddEquiv"),
+    ("≃o", "OrderIso"),
+    ("≃ᵢ", "IsometryEquiv"),
+    ("≃", "Equiv"),
+)
+
+SPECIAL_NOTATION_RECEIVERS = (
+    (re.compile(r"\[×[^]]*\]$"), "→L[", "ContinuousMultilinearMap"),
+    (re.compile(r"\[⋀\^[^]]*\]$"), "→L[", "ContinuousAlternatingMap"),
+    (re.compile(r"\[×[^]]*\]$"), "→ₗ[", "MultilinearMap"),
+    (re.compile(r"\[⋀\^[^]]*\]$"), "→ₗ[", "AlternatingMap"),
+)
+
 
 @dataclasses.dataclass(frozen=True)
 class Declaration:
@@ -245,6 +289,11 @@ def _declaration_tail(text: str, position: int) -> tuple[tuple[str, ...], str]:
 
 
 def declarations(text: str) -> list[Declaration]:
+    """Parse top-level declaration headers from comment/string-stripped Lean source.
+
+    This is deliberately a command-level approximation: it records explicit parenthesized
+    binders and the header up to ``:=``, ``where``, or an equation clause, without parsing terms.
+    """
     code = strip_comments_and_strings(text)
     found: dict[int, Declaration] = {}
     line_start = 0
@@ -269,6 +318,11 @@ def declarations(text: str) -> list[Declaration]:
 
 
 def scopes(text: str) -> list[tuple[int, str, str | None]]:
+    """Return positions and names of namespace, section, mutual, and end commands.
+
+    Only standalone command lines are recognized; the events are consumed in source order by the
+    namespace-stack approximation.
+    """
     code = strip_comments_and_strings(text)
     pattern = re.compile(
         r"(?m)^(?:(?:public|private|protected|noncomputable)\s+)*"
@@ -278,6 +332,11 @@ def scopes(text: str) -> list[tuple[int, str, str | None]]:
 
 
 def variable_bindings(text: str) -> list[tuple[int, list[VariableBinding]]]:
+    """Return explicit parenthesized section-variable bindings grouped by command position.
+
+    Implicit and instance-implicit variables are intentionally omitted because they cannot be
+    dot-notation receivers.
+    """
     code = strip_comments_and_strings(text)
     pattern = re.compile(r"(?m)^variable\b[^\n]*(?:\n[ \t]+[^\n]*)*")
     events: list[tuple[int, list[VariableBinding]]] = []
@@ -303,6 +362,10 @@ def variable_bindings(text: str) -> list[tuple[int, list[VariableBinding]]]:
 
 
 def mathlib_namespaces(root: pathlib.Path) -> set[str]:
+    """Collect individual namespace components occurring in Mathlib ``*.lean`` sources.
+
+    The result is a conservative name set rather than a declaration-aware namespace hierarchy.
+    """
     if not root.is_dir():
         raise FileNotFoundError(f"Mathlib source directory not found: {root}")
     names: set[str] = set()
@@ -333,6 +396,11 @@ def _update_scope(stack: list[Scope], kind: str, name: str | None) -> None:
 
 
 def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ...]]:
+    """Return fully qualified paths of type-like declarations owned by Tau Ceti.
+
+    These paths suppress namespaces that legitimately belong to a Tau Ceti declaration, including
+    uses from files other than the declaration's defining file.
+    """
     owned: set[tuple[str, ...]] = set()
     for text in sources.values():
         events: list[tuple[int, str, object]] = [
@@ -360,14 +428,45 @@ def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ..
     return owned
 
 
+def _top_level_notation_receiver(binder_type: str) -> str | None:
+    """Return the receiver namespace encoded by a common top-level type notation, if any."""
+    stripped = binder_type.lstrip()
+    continuous_map_prefix = re.match(r"C\s*\(", stripped) is not None
+
+    depth = 0
+    position = 0
+    while position < len(binder_type):
+        char = binder_type[position]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif depth == 0:
+            prefix = binder_type[:position].rstrip()
+            for pattern, token, receiver in SPECIAL_NOTATION_RECEIVERS:
+                if pattern.search(prefix) and binder_type.startswith(token, position):
+                    return receiver
+            for token, receiver in NOTATION_RECEIVERS:
+                if binder_type.startswith(token, position):
+                    end = position + len(token)
+                    if token.endswith("[") or end == len(binder_type) or binder_type[end].isspace():
+                        return receiver
+            if any(binder_type.startswith(token, position) for token in TOP_LEVEL_CONNECTIVES):
+                return None
+        position += 1
+    return "ContinuousMap" if continuous_map_prefix else None
+
+
 def _binder_has_type(binder: str, namespace: str) -> bool:
     colon = _top_level_colon(binder)
     if colon is None:
         return False
     binder_type = binder[colon + 1:].lstrip()
+    if _top_level_notation_receiver(binder_type) == namespace:
+        return True
     qualified = rf"(?:_root_\.)?(?:[\w']+\.)*{re.escape(namespace)}\b"
     match = re.match(rf"@?{qualified}", binder_type)
-    if match is None or re.match(r"\.[a-z_]", binder_type[match.end():]):
+    if match is None or binder_type[match.end():].startswith("."):
         return False
     depth = 0
     for position, char in enumerate(binder_type):
@@ -419,6 +518,12 @@ def _result_has_argument_type(header: str, namespace: str) -> bool:
 def find_violations(
     sources: dict[pathlib.Path, str], mathlib_namespace_names: set[str]
 ) -> list[Finding]:
+    """Find recreated Mathlib type namespaces in a mapping of Tau Ceti source files.
+
+    The textual analysis combines declaration, scope, and explicit section-variable events. A
+    finding requires a Mathlib namespace candidate and a corresponding explicit receiver type;
+    rooted declarations and namespaces owned by Tau Ceti are excluded.
+    """
     findings: list[Finding] = []
     owned = own_declaration_paths(sources)
     for path, text in sorted(sources.items()):
@@ -489,6 +594,10 @@ def find_violations(
 
 
 def read_baseline(path: pathlib.Path) -> list[str]:
+    """Read the grouped baseline and return its declaration names, preserving duplicates.
+
+    Each nonempty line is ``source-path<TAB>JSON-array-of-qualified-declaration-names``.
+    """
     declarations: list[str] = []
     for line in path.read_text().splitlines():
         try:
@@ -503,6 +612,7 @@ def read_baseline(path: pathlib.Path) -> list[str]:
 
 
 def write_baseline(path: pathlib.Path, findings: list[Finding]) -> None:
+    """Write findings in deterministic source-grouped JSON-line baseline format."""
     grouped: dict[pathlib.Path, list[str]] = {}
     for finding in findings:
         grouped.setdefault(finding.path, []).append(finding.declaration)
