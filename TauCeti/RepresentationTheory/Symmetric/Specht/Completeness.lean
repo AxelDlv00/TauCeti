@@ -8,7 +8,7 @@ module
 public import Mathlib.RepresentationTheory.Maschke
 public import TauCeti.RepresentationTheory.AsModule
 public import TauCeti.RepresentationTheory.CharacterTable.SimpleModuleCount
-public import TauCeti.RepresentationTheory.SimpleFDRepClasses
+public import TauCeti.RepresentationTheory.Simple.FDRepClasses
 public import TauCeti.RepresentationTheory.Symmetric.Partitions
 public import TauCeti.RepresentationTheory.Symmetric.Specht.Distinctness
 

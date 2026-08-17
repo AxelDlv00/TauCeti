@@ -5,7 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.RepresentationTheory.Simple
+public import TauCeti.RepresentationTheory.Simple.Basic
 public import TauCeti.RingTheory.Semisimple.RegularIsotypicComponent
 
 /-!
