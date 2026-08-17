@@ -4,7 +4,7 @@
 The lint finds declarations under ``TauCeti.<Mathlib namespace>`` with an explicit argument of
 the corresponding type, including explicit section variables used by the declaration. Mathlib
 type namespaces are conservatively approximated by namespace commands in Mathlib's sources;
-organisational namespaces, namespaces belonging to explicitly sort-valued Tau Ceti declarations
+organisational namespaces, namespaces belonging to sort-valued Tau Ceti declarations
 anywhere in the scanned source tree, and explicitly rooted declarations are ignored. Existing
 findings are grandfathered by the grouped ``scripts/lint-dot-notation-baseline.txt``; update it
 with ``--write-baseline``.
@@ -39,7 +39,7 @@ MODIFIERS = {
     "local", "noncomputable", "nonrec", "partial", "private", "protected", "public", "scoped",
     "unsafe",
 }
-IDENTIFIER = re.compile(r"(?:_root_\.)?[\w'.]+")
+IDENTIFIER = re.compile(r"(?:_root_\.)?[\w']+(?:\.[\w']+)*")
 WORD = re.compile(r"[A-Za-z_][\w']*")
 PAIRS = {"(": ")", "[": "]", "{": "}", "⦃": "⦄"}
 OPENERS = set(PAIRS)
@@ -120,6 +120,8 @@ SPECIAL_NOTATION_RECEIVERS = (
 
 @dataclasses.dataclass(frozen=True)
 class Declaration:
+    """A parsed command header, including source offset, keyword, name, binders, and result text."""
+
     keyword: str
     name: str | None
     binders: tuple[str, ...]
@@ -129,6 +131,8 @@ class Declaration:
 
 @dataclasses.dataclass(frozen=True)
 class Scope:
+    """A namespace, section, or mutual scope and the namespace components it contributes."""
+
     kind: str
     name: str | None
     components: tuple[str, ...]
@@ -140,6 +144,8 @@ class Scope:
 
 @dataclasses.dataclass(frozen=True)
 class Finding:
+    """A violation's source path, one-based line, and fully qualified declaration display name."""
+
     path: pathlib.Path
     line: int
     declaration: str
@@ -150,6 +156,8 @@ class Finding:
 
 @dataclasses.dataclass(frozen=True)
 class VariableBinding:
+    """A section-variable name paired with its complete textual binder for receiver matching."""
+
     name: str
     binder: str
 
@@ -455,8 +463,7 @@ def _declaration_returns_sort(declaration: Declaration) -> bool:
     colon = _top_level_colon(declaration.header)
     if colon is None:
         return False
-    codomain = _top_level_arrow_parts(declaration.header[colon + 1:])[-1].lstrip()
-    return re.match(r"(?:Prop|Sort|Type)\b", codomain) is not None
+    return _expression_returns_sort(declaration.header[colon + 1:])
 
 
 def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ...]]:
@@ -566,6 +573,29 @@ def _top_level_arrow_parts(text: str) -> list[str]:
         position += 1
     parts.append(text[part_start:])
     return parts
+
+
+def _expression_returns_sort(text: str) -> bool:
+    """Whether a result expression ends in ``Prop``, ``Sort``, or ``Type`` syntactically."""
+    expression = text.strip()
+    while expression.startswith("(") and _skip_balanced(expression, 0) == len(expression):
+        expression = expression[1:-1].strip()
+
+    if expression.startswith(("∀", "Π")):
+        depth = 0
+        for position, char in enumerate(expression):
+            if char in OPENERS:
+                depth += 1
+            elif char in CLOSERS:
+                depth -= 1
+            elif char == "," and depth == 0:
+                return _expression_returns_sort(expression[position + 1:])
+        return False
+
+    parts = _top_level_arrow_parts(expression)
+    if len(parts) > 1:
+        return _expression_returns_sort(parts[-1])
+    return re.match(r"(?:Prop|Sort|Type)\b", expression) is not None
 
 
 def _result_has_argument_type(header: str, namespace: str) -> bool:

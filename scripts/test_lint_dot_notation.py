@@ -325,6 +325,15 @@ end TauCeti
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.stillMisplaced"])
 
+    def test_explicit_receiver_after_strict_implicit_binder_is_detected(self):
+        source = """\
+namespace TauCeti.Foo
+theorem detected ⦃α : Type⦄ (x : _root_.Foo) : True := True.intro
+end TauCeti.Foo
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Foo.detected"])
+
     def test_parenthesized_arrow_domain_does_not_make_a_value_an_owned_type(self):
         source = """\
 namespace TauCeti
@@ -341,12 +350,15 @@ end TauCeti
         source = """\
 namespace TauCeti
 def Foo : Nat → Type := fun _ ↦ Nat
+def Bar : Nat -> Type := fun _ ↦ Nat
 namespace Foo
 def correctlyOwned (x : _root_.Foo 0) := x
 end Foo
 end TauCeti
 """
         self.assertEqual(findings(source), [])
+        self.assertIn(("TauCeti", "Bar"), lint.own_declaration_paths(
+            {pathlib.Path("TauCeti/Test.lean"): source}))
 
     def test_unannotated_type_alias_is_not_an_owned_type(self):
         source = """\
@@ -365,11 +377,27 @@ end TauCeti
 namespace TauCeti
 def Predicate : Prop := True
 opaque Hidden : Type
+def Family : ∀ n : Nat, Type := fun _ ↦ Nat
+def Parenthesized : (Nat → Type) := fun _ ↦ Nat
 end TauCeti
 """
         self.assertEqual(lint.own_declaration_paths(
             {pathlib.Path("TauCeti/Test.lean"): source}),
-            {("TauCeti", "Predicate"), ("TauCeti", "Hidden")})
+            {("TauCeti", "Predicate"), ("TauCeti", "Hidden"),
+             ("TauCeti", "Family"), ("TauCeti", "Parenthesized")})
+
+    def test_universe_annotation_is_not_part_of_a_declaration_name(self):
+        source = """\
+namespace TauCeti
+def Foo.{u} (X : Type u) : Type u := X
+namespace Foo
+def correctlyOwned (x : _root_.Foo Type) := x
+end Foo
+end TauCeti
+"""
+        self.assertEqual(findings(source), [])
+        self.assertIn(("TauCeti", "Foo"), lint.own_declaration_paths(
+            {pathlib.Path("TauCeti/Test.lean"): source}))
 
     def test_missing_mathlib_checkout_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:
