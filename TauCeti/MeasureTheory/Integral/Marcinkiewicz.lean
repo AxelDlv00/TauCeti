@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Analysis.SpecialFunctions.Pow.Integral
+public import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 -- `Mathlib.MeasureTheory.Measure.Prod` is imported privately: the product measure and
 -- Tonelli's theorem appear only inside the proof below.
 import Mathlib.MeasureTheory.Measure.Prod
@@ -17,11 +18,11 @@ is bounded on `L^p` for every `1 < p < ∞`. This is the diagonal case `p₀ = 1
 Marcinkiewicz interpolation theorem, and it is the mechanism that turns the Hardy–Littlewood
 maximal inequality into the strong `(p,p)` bounds, item 9 of Lane B of the PDE roadmap.
 
-## The statement proved here
+## The statements proved here
 
-Interpolation arguments run entirely on the **distribution functions** of `T f` and of `f`, so the
-theorem is stated in that form rather than in terms of a bundled operator: the sublinearity of `T`
-and its two endpoint bounds are used only to produce, for each height `t`, the single inequality
+The analytic engine is stated in terms of the **distribution functions** of `T f` and of `f`.
+The operator-level theorem then derives its hypothesis from subadditivity, weak type `(1,1)`, and
+an `L^∞` bound. For each height `t`, these hypotheses produce the single inequality
 
 `t * ν {T f > t} ≤ A * ∫⁻ x in {‖f‖ > c * t}, ‖f‖ ∂μ`,
 
@@ -31,11 +32,10 @@ conclusion is the `L^p` bound
 
 `∫⁻ (T f) ^ p ∂ν ≤ (p * c ^ (1 - p) / (p - 1)) * A * ∫⁻ ‖f‖ ^ p ∂μ`.
 
-Keeping the hypothesis in this form has three advantages. It does not force `T` to be defined on
-all of a function space; it lets `μ` and `ν` live on different spaces, as a genuine interpolation
-statement should; and it makes the dependence of the constant on `p`, on the weak-type constant
-`A` and on the truncation ratio `c` completely explicit, which matters because the constant blows
-up as `p → 1`, exactly as it must — an operator of weak type `(1,1)` need not be bounded on `L¹`.
+Retaining this distributional lemma keeps the analytic engine usable even when `T` is not defined
+on a whole function space. The operator theorem lets `μ` and `ν` live on different spaces and makes
+the dependence on the endpoint and splitting constants explicit. Its constant blows up as
+`p → 1`, exactly as it must — an operator of weak type `(1,1)` need not be bounded on `L¹`.
 
 ## The proof
 
@@ -55,6 +55,9 @@ exhausted by the level sets `{f ≥ 1 / (n + 1)}`, each of finite measure by Che
 ## Main declarations
 
 * `TauCeti.lintegral_rpow_le_of_mul_meas_ofReal_lt_le`: the interpolation estimate.
+* `TauCeti.mul_meas_ofReal_lt_operator_le_setLIntegral`: the reusable truncation argument from
+  subadditivity and the two endpoint bounds.
+* `TauCeti.lintegral_rpow_operator_le`: operator-level Marcinkiewicz interpolation.
 
 ## References
 
@@ -278,5 +281,135 @@ theorem lintegral_rpow_le_of_mul_meas_ofReal_lt_le
     fun t ht => ?_
   rw [← hset]
   exact h t ht
+
+section Operator
+
+variable {T : (α → ℝ≥0∞) → β → ℝ≥0∞} {b d : ℝ}
+
+/-- The reusable operator-level truncation argument for Marcinkiewicz interpolation.
+
+Suppose `T` respects almost-everywhere equality, is subadditive, is of weak type `(1,1)` with
+constant `A`, and obeys the `L^∞` bound `T g ≤ b · ‖g‖_∞`. Split `f` at height `c * t`.
+If `b * c + d ≤ 1`, then the low part contributes at most `b * c * t`, so `T f > t` forces
+`T (f · 1_{f > c t}) > d * t`. Applying the weak-type bound to that high part gives
+
+`t * ν {T f > t} ≤ d⁻¹ * A * ∫⁻ x in {f > c * t}, f x ∂μ`.
+
+The parameters `c` and `d` expose the choice of truncation rather than fixing the customary
+`c = d = 1 / 2` for a normalized `L^∞` bound. -/
+theorem mul_meas_ofReal_lt_operator_le_setLIntegral
+    (hf : AEMeasurable f μ) (ht : 0 < t) (hb : 0 ≤ b) (hc : 0 < c) (hd : 0 < d)
+    (hbcd : b * c + d ≤ 1)
+    (hcongr : ∀ {g h : α → ℝ≥0∞}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
+    (hadd : ∀ (g h : α → ℝ≥0∞), AEMeasurable g μ →
+      ∀ y, T (g + h) y ≤ T g y + T h y)
+    (hweak : ∀ (g : α → ℝ≥0∞) (s : ℝ≥0∞),
+      s * ν {y | s < T g y} ≤ A * ∫⁻ x, g x ∂μ)
+    (hinfty : ∀ (g : α → ℝ≥0∞) (y : β),
+      T g y ≤ ENNReal.ofReal b * eLpNormEssSup g μ) :
+    ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T f y} ≤
+      ENNReal.ofReal d⁻¹ * A *
+        ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+  have hct : 0 ≤ c * t := (mul_pos hc ht).le
+  have hdt : 0 ≤ d * t := (mul_pos hd ht).le
+  have hbct : 0 ≤ b * (c * t) := mul_nonneg hb hct
+  have hdinv : 0 ≤ d⁻¹ := inv_nonneg.2 hd.le
+  set g : α → ℝ≥0∞ := hf.mk f with hgdef
+  have hfg : f =ᵐ[μ] g := hf.ae_eq_mk
+  have hgmeas : Measurable g := hf.measurable_mk
+  set S : Set α := {x | ENNReal.ofReal (c * t) < g x} with hSdef
+  have hSmeas : MeasurableSet S := measurableSet_lt measurable_const hgmeas
+  set g₁ : α → ℝ≥0∞ := S.indicator g with hg₁def
+  set g₂ : α → ℝ≥0∞ := Sᶜ.indicator g with hg₂def
+  have hsplit : g₁ + g₂ = g := by
+    funext x
+    exact Set.indicator_self_add_compl_apply S g x
+  have hTf : T f =ᵐ[ν] T (g₁ + g₂) := by
+    apply hcongr
+    filter_upwards [hfg] with x hx
+    rw [hsplit, hx]
+  have hg₂bound : ∀ x, g₂ x ≤ ENNReal.ofReal (c * t) := by
+    intro x
+    rw [hg₂def]
+    by_cases hxS : x ∈ S
+    · rw [Set.indicator_of_notMem (by simp [hxS])]
+      exact zero_le
+    · rw [Set.indicator_of_mem (by simp [hxS])]
+      exact not_lt.1 (by simpa [hSdef] using hxS)
+  have hTg₂ : ∀ y, T g₂ y ≤ ENNReal.ofReal (b * (c * t)) := by
+    intro y
+    calc T g₂ y
+        ≤ ENNReal.ofReal b * eLpNormEssSup g₂ μ := hinfty g₂ y
+      _ ≤ ENNReal.ofReal b * ENNReal.ofReal (c * t) := by
+          gcongr
+          exact essSup_le_of_ae_le _ (.of_forall hg₂bound)
+      _ = ENNReal.ofReal (b * (c * t)) := by
+          rw [ENNReal.ofReal_mul hb]
+  have hincl : {y | ENNReal.ofReal t < T f y} ≤ᵐ[ν]
+      {y | ENNReal.ofReal (d * t) < T g₁ y} := by
+    filter_upwards [hTf] with y hTy
+    intro hy
+    have hsum : T f y ≤ T g₁ y + T g₂ y := by
+      rw [hTy]
+      exact hadd g₁ g₂ (hgmeas.indicator hSmeas).aemeasurable y
+    have hconst : ENNReal.ofReal (d * t) + ENNReal.ofReal (b * (c * t)) ≤
+        ENNReal.ofReal t := by
+      rw [← ENNReal.ofReal_add hdt hbct]
+      gcongr
+      nlinarith [mul_nonneg (sub_nonneg.2 hbcd) ht.le]
+    have hlt : ENNReal.ofReal (d * t) + ENNReal.ofReal (b * (c * t)) <
+        T g₁ y + ENNReal.ofReal (b * (c * t)) :=
+      hconst.trans_lt (hy.trans_le (hsum.trans (add_le_add le_rfl (hTg₂ y))))
+    exact (ENNReal.add_lt_add_iff_right ENNReal.ofReal_ne_top).1 hlt
+  have hint : ∫⁻ x, g₁ x ∂μ =
+      ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+    have hsets : {x | ENNReal.ofReal (c * t) < f x} =ᵐ[μ] S := by
+      filter_upwards [hfg] with x hx
+      exact congrArg (fun z : ℝ≥0∞ => ENNReal.ofReal (c * t) < z) hx
+    calc ∫⁻ x, g₁ x ∂μ
+        = ∫⁻ x in S, g x ∂μ := lintegral_indicator hSmeas g
+      _ = ∫⁻ x in S, f x ∂μ := (lintegral_congr_ae (ae_restrict_of_ae hfg)).symm
+      _ = ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+          rw [Measure.restrict_congr_set hsets]
+  calc ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T f y}
+      = ENNReal.ofReal d⁻¹ *
+          (ENNReal.ofReal (d * t) * ν {y | ENNReal.ofReal t < T f y}) := by
+        have hscale : d⁻¹ * (d * t) = t := by field_simp
+        rw [← mul_assoc, ← ENNReal.ofReal_mul hdinv, hscale]
+    _ ≤ ENNReal.ofReal d⁻¹ *
+          (ENNReal.ofReal (d * t) * ν {y | ENNReal.ofReal (d * t) < T g₁ y}) := by
+        exact mul_le_mul_right
+          (mul_le_mul_right (measure_mono_ae hincl) (ENNReal.ofReal (d * t)))
+          (ENNReal.ofReal d⁻¹)
+    _ ≤ ENNReal.ofReal d⁻¹ * (A * ∫⁻ x, g₁ x ∂μ) := by
+        exact mul_le_mul_right (hweak g₁ (ENNReal.ofReal (d * t))) (ENNReal.ofReal d⁻¹)
+    _ = ENNReal.ofReal d⁻¹ * A *
+          ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+        rw [hint, mul_assoc]
+
+/-- **Marcinkiewicz interpolation at operator level**, between weak type `(1,1)` and `L^∞`.
+
+This packages the operator-specific truncation step: a subadditive operator which respects a.e.
+equality, has weak-type constant `A`, and has `L^∞` constant `b` is strong type `(p,p)` for
+`1 < p < ∞`. The positive splitting parameters `c, d` may be chosen arbitrarily subject to
+`b * c + d ≤ 1`. -/
+theorem lintegral_rpow_operator_le
+    (hf : AEMeasurable f μ) (hTf : AEMeasurable (T f) ν) (hp : 1 < p)
+    (hb : 0 ≤ b) (hc : 0 < c) (hd : 0 < d) (hbcd : b * c + d ≤ 1)
+    (hcongr : ∀ {g h : α → ℝ≥0∞}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
+    (hadd : ∀ (g h : α → ℝ≥0∞), AEMeasurable g μ →
+      ∀ y, T (g + h) y ≤ T g y + T h y)
+    (hweak : ∀ (g : α → ℝ≥0∞) (s : ℝ≥0∞),
+      s * ν {y | s < T g y} ≤ A * ∫⁻ x, g x ∂μ)
+    (hinfty : ∀ (g : α → ℝ≥0∞) (y : β),
+      T g y ≤ ENNReal.ofReal b * eLpNormEssSup g μ) :
+    ∫⁻ y, T f y ^ p ∂ν ≤
+      ENNReal.ofReal (p * c ^ (1 - p) / (p - 1)) * (ENNReal.ofReal d⁻¹ * A) *
+        ∫⁻ x, f x ^ p ∂μ := by
+  apply lintegral_rpow_le_of_mul_meas_ofReal_lt_le hf hTf hp hc
+  intro t ht
+  exact mul_meas_ofReal_lt_operator_le_setLIntegral hf ht hb hc hd hbcd hcongr hadd hweak hinfty
+
+end Operator
 
 end TauCeti
