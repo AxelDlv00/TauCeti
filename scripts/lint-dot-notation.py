@@ -72,6 +72,16 @@ NOTATION_RECEIVERS = (
     ("≃ₗ⋆[", "LinearEquiv"),
     ("→A[", "ContinuousAlgHom"),
     ("≃A[", "ContinuousAlgEquiv"),
+    ("→ₐc[", "BialgHom"),
+    ("≃ₐc[", "BialgEquiv"),
+    ("→ₗc[", "CoalgHom"),
+    ("≃ₗc[", "CoalgEquiv"),
+    ("→ₛₗ.[", "LinearPMap"),
+    ("→ₗ.[", "LinearPMap"),
+    ("→ₗ⁅", "LieHom"),
+    ("≃ₗ⁅", "LieEquiv"),
+    ("→ₐc", "BialgHom"),
+    ("→ₗc", "CoalgHom"),
     ("≃ₘ^", "Diffeomorph"),
     ("≃ₘ⟮", "Diffeomorph"),
     ("≃ₘ[", "Diffeomorph"),
@@ -85,6 +95,14 @@ NOTATION_RECEIVERS = (
     ("≃+", "AddEquiv"),
     ("≃o", "OrderIso"),
     ("≃ᵢ", "IsometryEquiv"),
+    ("⟶", "Hom"),
+    ("⥤", "Functor"),
+    ("≅", "Iso"),
+    ("⊗[", "TensorProduct"),
+    ("⊗", "TensorProduct"),
+    ("×", "Prod"),
+    ("⊕", "Sum"),
+    ("↪", "Embedding"),
     ("≃", "Equiv"),
 )
 
@@ -455,7 +473,7 @@ def _top_level_notation_receiver(binder_type: str) -> str | None:
             for token, receiver in NOTATION_RECEIVERS:
                 if binder_type.startswith(token, position):
                     end = position + len(token)
-                    if (token.endswith(("[", "⟮", "^")) or end == len(binder_type)
+                    if (token.endswith(("[", "⟮", "⁅", "^")) or end == len(binder_type)
                             or binder_type[end].isspace()):
                         return receiver
             if any(binder_type.startswith(token, position) for token in TOP_LEVEL_CONNECTIVES):

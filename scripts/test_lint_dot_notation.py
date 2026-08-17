@@ -147,11 +147,32 @@ def withCornersInfiniteReceiver (e : M ≃ₘ⟮I, J⟯ N) := e
 def modelReceiver (e : E ≃ₘ^n[𝕜] F) := e
 def modelInfiniteReceiver (e : E ≃ₘ[𝕜] F) := e
 end Diffeomorph
+namespace BialgHom
+def bialgHomReceiver (f : A →ₐc[R] B) := f
+end BialgHom
+namespace CoalgEquiv
+def coalgEquivReceiver (e : A ≃ₗc[R] B) := e
+end CoalgEquiv
+namespace LinearPMap
+def linearPMapReceiver (f : E →ₗ.[R] F) := f
+def semilinearPMapReceiver (f : E →ₛₗ.[σ] F) := f
+end LinearPMap
+namespace Hom
+def categoryHomReceiver (f : X ⟶ Y) := f
+end Hom
+namespace TensorProduct
+def tensorProductReceiver (x : M ⊗[R] N) := x
+end TensorProduct
+namespace LieHom
+def lieHomReceiver (f : L →ₗ⁅R⁆ L') := f
+end LieHom
 end TauCeti
 """
-        result = findings(source, {"AlgEquiv", "ContinuousLinearMap", "ContinuousMap",
-                                   "ContinuousMultilinearMap", "Diffeomorph", "Equiv",
-                                   "Homeomorph", "LinearIsometryEquiv", "LinearMap", "RingHom"})
+        result = findings(source, {"AlgEquiv", "BialgHom", "CoalgEquiv",
+                                   "ContinuousLinearMap", "ContinuousMap",
+                                   "ContinuousMultilinearMap", "Diffeomorph", "Equiv", "Hom",
+                                   "Homeomorph", "LieHom", "LinearIsometryEquiv", "LinearMap",
+                                   "LinearPMap", "RingHom", "TensorProduct"})
         self.assertEqual([finding.declaration for finding in result], [
             "TauCeti.ContinuousLinearMap.notationReceiver",
             "TauCeti.LinearMap.linearMapReceiver",
@@ -166,6 +187,13 @@ end TauCeti
             "TauCeti.Diffeomorph.withCornersInfiniteReceiver",
             "TauCeti.Diffeomorph.modelReceiver",
             "TauCeti.Diffeomorph.modelInfiniteReceiver",
+            "TauCeti.BialgHom.bialgHomReceiver",
+            "TauCeti.CoalgEquiv.coalgEquivReceiver",
+            "TauCeti.LinearPMap.linearPMapReceiver",
+            "TauCeti.LinearPMap.semilinearPMapReceiver",
+            "TauCeti.Hom.categoryHomReceiver",
+            "TauCeti.TensorProduct.tensorProductReceiver",
+            "TauCeti.LieHom.lieHomReceiver",
         ])
 
     def test_scoped_variable_and_dotted_name_are_detected(self):
