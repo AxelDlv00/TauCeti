@@ -6,7 +6,7 @@ module
 
 public import TauCeti.AlgebraicGeometry.EllipticCurve.Affine.FrobeniusTower
 public import TauCeti.AlgebraicGeometry.EllipticCurve.Isogeny.Separability
-public import Mathlib.FieldTheory.Finite.Basic
+public import TauCeti.FieldTheory.Finite.Frobenius
 
 /-!
 # The Frobenius isogeny
@@ -56,8 +56,14 @@ coordinate ring, and only one extension to the fraction field exists.
 This is the `frobeniusIsogeny` seed of `TauCetiRoadmap/EllipticCurves/README.md` §Layer 1, where
 it is described as "`f ↦ f ^ q` out of the coordinate ring into the function field … whose
 `MapsInfinity` is the integrality of the coordinates over their `q`-th powers". The seed follows
-Silverman, *The Arithmetic of Elliptic Curves*, II.2.11, whose part (c) is the degree. The
-roadmap's `Suggested.lean` states both with `sorry`; the proofs here are original.
+Silverman, *The Arithmetic of Elliptic Curves*, II.2.11: part (a) identifies the pullback image
+with the `q`-th powers, part (b) proves pure inseparability, and part (c) computes the degree. The
+roadmap's `Suggested.lean` states the pullback and degree with `sorry`; the formal proofs here are
+original.
+
+## References
+
+* [J. Silverman, *The Arithmetic of Elliptic Curves*][silverman2009], II.2.
 -/
 
 public section
@@ -102,9 +108,9 @@ noncomputable def frobeniusIsogeny : Isogeny W W where
 @[simp]
 theorem frobeniusIsogeny_pullback : (frobeniusIsogeny W).pullback = frobeniusPullback W := (rfl)
 
-/-- The function field pullback of the Frobenius isogeny is the `q`-power map of the function
-field: the two agree on the coordinate ring, and an isogeny's `fieldPullback` is the only such
-extension. -/
+/-- The function field pullback of the Frobenius isogeny is the `q`-power map on the function
+field (Silverman II.2.11(a)): the two maps agree on the coordinate ring, and an isogeny's
+`fieldPullback` is the only such extension. -/
 theorem fieldPullback_frobeniusIsogeny :
     letI := Fintype.ofFinite F
     (frobeniusIsogeny W).fieldPullback = FiniteField.frobeniusAlgHom F W.FunctionField := by
@@ -113,7 +119,8 @@ theorem fieldPullback_frobeniusIsogeny :
   simp only [FiniteField.coe_frobeniusAlgHom, frobeniusIsogeny_pullback, frobeniusPullback_apply,
     Nat.card_eq_fintype_card, map_pow]
 
-/-- **The function-field pullback raises every element to the `q`-th power.** Unlike
+/-- **The function-field pullback raises every element to the `q`-th power** (Silverman
+II.2.11(a)). Unlike
 `fieldPullback_frobeniusIsogeny`, this consumer-facing pointwise form depends only on `[Finite F]`
 and `Nat.card F`; the locally chosen enumeration of `F` does not occur in its statement. -/
 @[simp]
@@ -123,23 +130,17 @@ theorem fieldPullback_frobeniusIsogeny_apply (x : W.FunctionField) :
   rw [fieldPullback_frobeniusIsogeny W, FiniteField.coe_frobeniusAlgHom,
     Nat.card_eq_fintype_card]
 
-/-- **The Frobenius isogeny is purely inseparable.** Every `x` in the function field has
-`x ^ q` in the pullback's field range, and the finite-field cardinality `q` is a power of the
-exponential characteristic. -/
+/-- **The Frobenius isogeny is purely inseparable** (Silverman II.2.11(b)). This is the
+field-generic pure-inseparability of the `q`-power map, transported across the identification of
+that map with the function-field pullback. -/
 instance isPurelyInseparable_frobeniusIsogeny :
     IsPurelyInseparable (frobeniusIsogeny W).fieldPullback.fieldRange W.FunctionField := by
   let _ := Fintype.ofFinite F
-  obtain ⟨p, hpF, n, hp, hcard⟩ := FiniteField.card' F
-  let _ : CharP F p := hpF
-  let _ : ExpChar F p := ExpChar.prime hp
-  rw [isPurelyInseparable_iff_pow_mem _ p]
-  intro x
-  refine ⟨(n : ℕ), ⟨⟨x ^ p ^ (n : ℕ), ?_⟩, rfl⟩⟩
-  rw [AlgHom.mem_fieldRange]
-  exact ⟨x, by
-    rw [fieldPullback_frobeniusIsogeny_apply W, Nat.card_eq_fintype_card, hcard]⟩
+  rw [fieldPullback_frobeniusIsogeny W]
+  exact TauCeti.FiniteField.isPurelyInseparable_fieldRange_frobeniusAlgHom
 
-/-- **The Frobenius isogeny has degree `q`.** Its function-field pullback is the `q`-power map,
+/-- **The Frobenius isogeny has degree `q`** (Silverman II.2.11(c)). Its function-field pullback is
+the `q`-power map,
 so the extension the degree measures is `K(W)` over its subfield of `q`-th powers. -/
 @[simp]
 theorem degree_frobeniusIsogeny : (frobeniusIsogeny W).degree = Nat.card F := by
@@ -147,11 +148,12 @@ theorem degree_frobeniusIsogeny : (frobeniusIsogeny W).degree = Nat.card F := by
   rw [degree_def, fieldPullback_frobeniusIsogeny W]
   exact WeierstrassCurve.Affine.finrank_fieldRange_frobeniusAlgHom W
 
-/-- **The Frobenius isogeny has separable degree one.** -/
+/-- **The Frobenius isogeny has separable degree one**, as pure inseparability in Silverman
+II.2.11(b) requires. -/
 theorem separableDegree_frobeniusIsogeny : (frobeniusIsogeny W).separableDegree = 1 :=
   separableDegree_eq_one_of_isPurelyInseparable (frobeniusIsogeny W)
 
-/-- **The Frobenius isogeny has inseparable degree `q`.** -/
+/-- **The Frobenius isogeny has inseparable degree `q`**, combining Silverman II.2.11(b,c). -/
 theorem inseparableDegree_frobeniusIsogeny :
     (frobeniusIsogeny W).inseparableDegree = Nat.card F := by
   rw [inseparableDegree_eq_degree_of_isPurelyInseparable, degree_frobeniusIsogeny]
