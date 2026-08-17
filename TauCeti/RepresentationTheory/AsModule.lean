@@ -30,8 +30,6 @@ theory counts, while the objects being classified are representations.
 * `TauCeti.fdRepIsoOfAsModuleLinearEquiv`: over a commutative ring, and for module-finite carriers,
   such an isomorphism of modules is an isomorphism of the objects of `FDRep k G` that the
   representations name.
-* `TauCeti.Representation.equivOfFDRepIso`: conversely, an isomorphism of objects of `FDRep k G` is
-  an equivalence of the representations they carry.
 * `TauCeti.nonempty_fdRepIso_iff`: the two notions of isomorphism agree on `FDRep k G`, so a
   classification proved for representations reads off as a classification of objects.
 -/
@@ -110,27 +108,18 @@ noncomputable def fdRepIsoOfAsModuleLinearEquiv (f : ρ.asModule ≃ₗ[k[G]] σ
   (CategoryTheory.forget₂ (FDRep k G) (Rep k G)).preimageIso
     (Rep.mkIso (Representation.equivOfAsModuleLinearEquiv f))
 
-/-- **An isomorphism of objects of `FDRep k G` is an equivalence of the representations they
-carry.** The underlying linear isomorphism is `FDRep.isoToLinearEquiv`, and `FDRep.Iso.conj_ρ` says
-exactly that it intertwines. -/
-noncomputable def Representation.equivOfFDRepIso {X Y : FDRep k G} (i : X ≅ Y) :
-    _root_.Representation.Equiv X.ρ Y.ρ :=
-  _root_.Representation.Equiv.mk (FDRep.isoToLinearEquiv i) fun g => by
-    have hconj := FDRep.Iso.conj_ρ i g
-    ext v
-    simp [hconj, LinearEquiv.conj_apply]
-
-@[simp]
-theorem Representation.coe_equivOfFDRepIso {X Y : FDRep k G} (i : X ≅ Y) :
-    ⇑(Representation.equivOfFDRepIso i) = ⇑(FDRep.isoToLinearEquiv i) :=
-  (rfl)
-
 /-- **The two notions of isomorphism agree on `FDRep k G`.** Two objects are isomorphic exactly when
 the representations they carry are equivalent, so a classification of representations up to
-equivalence is a classification of the objects of `FDRep k G` up to isomorphism. -/
+equivalence is a classification of the objects of `FDRep k G` up to isomorphism.
+
+Neither direction is new work: forwards it is `Representation.equivOfIso` applied to the image of
+the isomorphism in `Rep k G`, where the objects carry the very same representations, and backwards
+it is `TauCeti.fdRepIsoOfAsModuleLinearEquiv`. What is new is that the equivalence of `Nonempty`s
+is available at all, which is the form a classification statement is transported along. -/
 theorem nonempty_fdRepIso_iff {X Y : FDRep k G} :
     Nonempty (X ≅ Y) ↔ Nonempty (_root_.Representation.Equiv X.ρ Y.ρ) :=
-  ⟨fun ⟨i⟩ => ⟨Representation.equivOfFDRepIso i⟩, fun ⟨φ⟩ =>
-    ⟨fdRepIsoOfAsModuleLinearEquiv (Representation.asModuleLinearEquivOfEquiv φ)⟩⟩
+  ⟨fun ⟨i⟩ => ⟨_root_.Representation.equivOfIso
+      ((CategoryTheory.forget₂ (FDRep k G) (Rep k G)).mapIso i)⟩,
+    fun ⟨φ⟩ => ⟨fdRepIsoOfAsModuleLinearEquiv (Representation.asModuleLinearEquivOfEquiv φ)⟩⟩
 
 end TauCeti
