@@ -106,7 +106,7 @@ the span `TauCeti.modelSubmodule` of the matrix coefficients of the models insid
   coordinates are the explicit Haar-integral Fourier coefficients.
 * `TauCeti.hasSum_peterWeyl_expansion`: reconstruction of an `L²` function from its Peter-Weyl
   coefficients.
-* `TauCeti.tsum_star_peterWeylCoeff_mul_peterWeylCoeff`,
+* `TauCeti.tsum_conj_peterWeylCoeff_mul_peterWeylCoeff`,
   `TauCeti.tsum_norm_sq_peterWeylCoeff`: polarized and norm-square Parseval identities.
 * `TauCeti.isIrrepSkeleton_model`: the chosen representatives are a skeleton, so the hypothesis of
   `TauCeti.peterWeylBasis` is satisfiable and the theorem is not conditional.
@@ -555,19 +555,36 @@ theorem hasSum_peterWeyl_expansion [IsAlgClosed 𝕜] {models : ι → IrrepMode
     (peterWeylBasis h).hasSum_repr f
 
 /-- **Polarized Parseval for the Peter-Weyl basis.** The coordinate pairing of two `L²`
-functions is their inner product. -/
-theorem tsum_star_peterWeylCoeff_mul_peterWeylCoeff [IsAlgClosed 𝕜]
+functions sums to their inner product. -/
+theorem hasSum_conj_peterWeylCoeff_mul_peterWeylCoeff [IsAlgClosed 𝕜]
     {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
     (f g : Lp 𝕜 2 (haarProb G)) :
-    ∑' x, star (peterWeylCoeff models f x) * peterWeylCoeff models g x =
-      inner 𝕜 f g := by
+    HasSum (fun x ↦ (starRingEnd 𝕜) (peterWeylCoeff models f x) *
+      peterWeylCoeff models g x) (inner 𝕜 f g) := by
   have hfirst (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
       inner 𝕜 f (peterWeylBasis h x) =
-        star (peterWeylCoeff models f x) := by
+        (starRingEnd 𝕜) (peterWeylCoeff models f x) := by
     rw [← inner_conj_symm, ← (peterWeylBasis h).repr_apply_apply,
       peterWeylBasis_repr_apply, starRingEnd_apply]
   simpa only [hfirst, ← (peterWeylBasis h).repr_apply_apply,
-    peterWeylBasis_repr_apply] using (peterWeylBasis h).tsum_inner_mul_inner f g
+    peterWeylBasis_repr_apply] using (peterWeylBasis h).hasSum_inner_mul_inner f g
+
+/-- **Polarized Parseval for the Peter-Weyl basis** (`tsum` form). -/
+theorem tsum_conj_peterWeylCoeff_mul_peterWeylCoeff [IsAlgClosed 𝕜]
+    {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
+    (f g : Lp 𝕜 2 (haarProb G)) :
+    ∑' x, (starRingEnd 𝕜) (peterWeylCoeff models f x) * peterWeylCoeff models g x =
+      inner 𝕜 f g :=
+  (hasSum_conj_peterWeylCoeff_mul_peterWeylCoeff h f g).tsum_eq
+
+/-- The products of the conjugated Peter-Weyl coefficients of `f` with those of `g` are
+summable. -/
+theorem summable_conj_peterWeylCoeff_mul_peterWeylCoeff [IsAlgClosed 𝕜]
+    {models : ι → IrrepModel 𝕜 G} (h : IsIrrepSkeleton models)
+    (f g : Lp 𝕜 2 (haarProb G)) :
+    Summable fun x ↦ (starRingEnd 𝕜) (peterWeylCoeff models f x) *
+      peterWeylCoeff models g x :=
+  (hasSum_conj_peterWeylCoeff_mul_peterWeylCoeff h f g).summable
 
 /-- **Norm-square Parseval for the Peter-Weyl basis.** The squared norms of the Fourier
 coefficients of `f` sum to `‖f‖²`, as a convergent series. -/
