@@ -9,7 +9,7 @@ public import TauCeti.Probability.DeFinetti.Barycenter
 public import TauCeti.Probability.Exchangeability.PathSpace.Law.Extreme
 -- Public: the bundled convex combination of probability measures, in which the affinity of the
 -- correspondence is stated.
-public import TauCeti.MeasureTheory.Measure.ProbabilityMeasureConvex
+public import TauCeti.MeasureTheory.Measure.ProbabilityMeasure.Convex
 -- Non-public: used only inside proofs — injectivity of the mixture is what makes the
 -- correspondence injective.
 import TauCeti.MeasureTheory.Measure.MixtureInjective
