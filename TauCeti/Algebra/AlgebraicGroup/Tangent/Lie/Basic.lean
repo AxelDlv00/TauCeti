@@ -36,7 +36,7 @@ need not satisfy the Leibniz rule, the obstruction being the value commutators
 
 * the `Bracket`, `LieRing`, and `LieAlgebra R` instances on
   `Derivation R A (Bialgebra.CounitAlgebra R A B)`;
-* `TauCeti.Derivation.coe_bracket`, `TauCeti.Derivation.bracket_apply`: the bracket
+* `Derivation.coe_bracket`, `Derivation.bracket_apply`: the bracket
   is the convolution commutator.
 
 No antipode enters: everything is stated over a bialgebra. The ring (rather than
@@ -52,11 +52,9 @@ elaboration nor instance search can identify the types, and no diamond exists.
 
 public section
 
-namespace TauCeti
-
-open _root_.Coalgebra WithConv TensorProduct
-
 namespace Derivation
+
+open TauCeti _root_.Coalgebra WithConv TensorProduct
 
 section Bracket
 
@@ -116,7 +114,7 @@ private lemma convMul_ofConv_mul (d₁ d₂ : Derivation R A (Bialgebra.CounitAl
 
 /-- The Lie bracket of tangent vectors at the identity: the commutator of the
 convolution product. -/
-noncomputable instance instBracket :
+noncomputable instance instBracketCounitAlgebra :
     Bracket (Derivation R A (Bialgebra.CounitAlgebra R A B))
       (Derivation R A (Bialgebra.CounitAlgebra R A B)) :=
   ⟨fun d₁ d₂ =>
@@ -180,7 +178,7 @@ variable {R A B : Type*} [CommRing R] [CommRing A] [Bialgebra R A]
 
 /-- The tangent space at the identity is a Lie ring under the convolution
 commutator. -/
-noncomputable instance instLieRing :
+noncomputable instance instLieRingCounitAlgebra :
     LieRing (Derivation R A (Bialgebra.CounitAlgebra R A B)) where
   add_lie d₁ d₂ d₃ := Derivation.ext fun a => by
     let _ : LieRing (WithConv (A →ₗ[R] Bialgebra.CounitAlgebra R A B)) :=
@@ -218,7 +216,7 @@ noncomputable instance instLieRing :
         (toConv (↑d₃ : A →ₗ[R] Bialgebra.CounitAlgebra R A B)))) a
 
 /-- The tangent space at the identity is a Lie algebra over the base ring. -/
-noncomputable instance instLieAlgebra :
+noncomputable instance instLieAlgebraCounitAlgebra :
     LieAlgebra R (Derivation R A (Bialgebra.CounitAlgebra R A B)) where
   lie_smul r d₁ d₂ := Derivation.ext fun a => by
     let _ : LieRing (WithConv (A →ₗ[R] Bialgebra.CounitAlgebra R A B)) :=
@@ -243,5 +241,3 @@ noncomputable instance instLieAlgebraCoefficients :
 end Lie
 
 end Derivation
-
-end TauCeti
