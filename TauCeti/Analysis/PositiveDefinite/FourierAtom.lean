@@ -21,6 +21,7 @@ It uses Mathlib's `2π` Fourier convention.
 * `TauCeti.posSemidef_fourierAtom`: the subtraction kernel attached to a
   Fourier atom is positive definite.
 * `TauCeti.continuous_fourierAtom`: Fourier atoms are continuous in the spatial variable.
+* `TauCeti.norm_fourierAtom`: Fourier atoms have unit norm.
 * `TauCeti.fourierAtom_zero_left` and `TauCeti.fourierAtom_zero_right`: a Fourier atom is `1`
   when either argument is `0`.
 -/
@@ -83,6 +84,14 @@ theorem posSemidef_fourierAtom (q : V) :
   simp_rw [fourierAtom_sub]
   simpa only [RCLike.star_def] using posSemidef_rankOne
     (fun v : V => Complex.exp (2 * ((Real.pi : ℝ) : ℂ) * Complex.I * ((inner ℝ v q : ℝ) : ℂ)))
+
+/-- Fourier atoms take values on the unit circle.
+
+Not a `@[simp]` lemma: `simp` rewrites the atom through `fourierAtom_apply` first, and the
+simpNF linter reports the tagged form as unusable for the same reason as
+`fourierAtom_zero_left`. -/
+theorem norm_fourierAtom (q v : V) : ‖fourierAtom q v‖ = 1 := by
+  rw [fourierAtom_eq_fourierChar, Circle.norm_coe]
 
 /-- Fourier atoms are continuous in the spatial variable. -/
 theorem continuous_fourierAtom (q : V) : Continuous (fourierAtom q) := by

@@ -84,8 +84,8 @@ and the representation is stated in the `fourierAtom` convention rather than thr
   `TauCeti.integral_fourierAtom_bochnerMeasure` (its transform),
   `TauCeti.eq_bochnerMeasure` (uniqueness), `TauCeti.bochnerMeasure_univ` and
   `TauCeti.bochnerMeasure_real_univ` (total mass),
-  `TauCeti.bochnerMeasure_const_mul` (nonnegative real scaling), and
-  `TauCeti.isProbabilityMeasure_bochnerMeasure` (normalization).
+  `TauCeti.bochnerMeasure_const_mul` and `TauCeti.bochnerMeasure_add` (nonnegative real scaling
+  and additivity), and `TauCeti.isProbabilityMeasure_bochnerMeasure` (normalization).
 
 ## References
 
@@ -292,14 +292,15 @@ theorem bochner_euclideanSpace (d : ℕ) (F : EuclideanSpace ℝ (Fin d) → ℂ
         ∀ v, F v = ∫ q, fourierAtom v q ∂μ :=
   bochner F
 
-/-- **Bochner's theorem for normalized functions.** A function with `F 0 = 1` is continuous and
-positive definite if and only if it is the Fourier-convention transform of a unique
-*probability* measure; this is the characteristic-function form of the theorem. -/
-theorem bochner_probabilityMeasure (F : V → ℂ) (hF0 : F 0 = 1) :
-    (Continuous F ∧ IsPositiveDefiniteSub F) ↔
+/-- **Bochner's theorem for normalized functions.** A function is continuous, positive definite
+and normalized by `F 0 = 1` if and only if it is the Fourier-convention transform of a unique
+*probability* measure; this is the characteristic-function form of the theorem. Normalization is
+part of the equivalence: a probability representation forces `F 0 = 1`. -/
+theorem bochner_probabilityMeasure (F : V → ℂ) :
+    (Continuous F ∧ IsPositiveDefiniteSub F ∧ F 0 = 1) ↔
       ∃! μ : Measure V, IsProbabilityMeasure μ ∧ ∀ v, F v = ∫ q, fourierAtom v q ∂μ := by
   constructor
-  · rintro ⟨hcont, hpd⟩
+  · rintro ⟨hcont, hpd, hF0⟩
     obtain ⟨μ, hprob, hrep⟩ :=
       exists_probabilityMeasure_integral_fourierAtom_eq hpd.posSemidef hcont hF0
     refine ⟨μ, ⟨hprob, fun v => (hrep v).symm⟩, ?_⟩
@@ -310,7 +311,10 @@ theorem bochner_probabilityMeasure (F : V → ℂ) (hF0 : F 0 = 1) :
       fun v => (hνrep v).symm.trans (hrep v).symm
   · rintro ⟨μ, ⟨hprob, hrep⟩, -⟩
     have := hprob
-    exact continuous_and_isPositiveDefiniteSub_of_integral_fourierAtom_eq μ hrep
+    obtain ⟨hcont, hpd⟩ := continuous_and_isPositiveDefiniteSub_of_integral_fourierAtom_eq μ hrep
+    refine ⟨hcont, hpd, ?_⟩
+    rw [hrep 0]
+    simp
 
 /-! ### The representing measure -/
 
@@ -384,6 +388,16 @@ theorem bochnerMeasure_const_mul (hcont : Continuous F) (hpd : IsPositiveDefinit
   refine (eq_bochnerMeasure (F := fun v => (r : ℂ) * F v) _ fun v => ?_).symm
   rw [integral_smul_measure, ENNReal.toReal_ofReal hr, Complex.real_smul,
     integral_fourierAtom_bochnerMeasure hcont hpd]
+
+/-- The Bochner measure of a sum of continuous positive-definite functions is the sum of their
+Bochner measures. -/
+theorem bochnerMeasure_add {H : V → ℂ} (hFcont : Continuous F) (hFpd : IsPositiveDefiniteSub F)
+    (hHcont : Continuous H) (hHpd : IsPositiveDefiniteSub H) :
+    bochnerMeasure (fun v => F v + H v) = bochnerMeasure F + bochnerMeasure H := by
+  refine (eq_bochnerMeasure (F := fun v => F v + H v) _ fun v => ?_).symm
+  rw [integral_add_measure (integrable_fourierAtom _ v) (integrable_fourierAtom _ v),
+    integral_fourierAtom_bochnerMeasure hFcont hFpd,
+    integral_fourierAtom_bochnerMeasure hHcont hHpd]
 
 /-- The Bochner measure of the zero function is the zero measure. -/
 @[simp]

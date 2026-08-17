@@ -50,6 +50,7 @@ the predicate in which Bochner's theorem is stated, in
   origin.
 * `TauCeti.IsPositiveDefiniteSub.add`, `const_mul`, `real_smul`, `mul`, `sum`, `prod`,
   `TauCeti.isPositiveDefiniteSub_const`: closure properties.
+* `TauCeti.IsPositiveDefiniteSub.comp_addMonoidHom`, `comp_smul`, `comp_neg`: pullbacks.
 * `TauCeti.IsPositiveDefiniteSub.of_tendsto`: pointwise limits.
 * `TauCeti.IsPositiveDefiniteSub.normalize`: normalization to value `1` at the origin.
 * `TauCeti.IsPositiveDefiniteSub.uniformContinuous_of_continuousAt_zero`: continuity at `0`
@@ -235,6 +236,7 @@ theorem map_zero_re_pos_of_ne_zero (hF : IsPositiveDefiniteSub F) (h0 : F 0 ≠ 
   simpa using h0
 
 /-- A positive-definite function is conjugate symmetric: `conj (F (b - a)) = F (a - b)`. -/
+@[simp]
 theorem conj_symm (hF : IsPositiveDefiniteSub F) (a b : G) : conj (F (b - a)) = F (a - b) := by
   simpa [sub_eq_add_neg] using
     hF.isPositiveDefinite.conj_symm (WithNegStar.toNegStar a) (WithNegStar.toNegStar b)
@@ -301,6 +303,29 @@ theorem prod {ι : Type*} {s : Finset ι} {F : ι → G → ℂ}
   isPositiveDefiniteSub_iff_isPositiveDefinite.mpr
     (IsPositiveDefinite.prod fun i hi => (hF i hi).isPositiveDefinite)
 
+/-! ### Pullbacks -/
+
+/-- Positive definiteness is preserved by precomposition with an additive homomorphism; no
+compatibility with an involution is needed, since an additive homomorphism automatically
+commutes with negation. -/
+theorem comp_addMonoidHom {N : Type*} [AddCommGroup N] (hF : IsPositiveDefiniteSub F)
+    (φ : N →+ G) : IsPositiveDefiniteSub fun x => F (φ x) := by
+  intro n c v
+  simpa [← map_sub] using hF n c fun i => φ (v i)
+
+/-- Positive definiteness is preserved by rescaling the argument. -/
+theorem comp_smul {R : Type*} [DistribSMul R G] (hF : IsPositiveDefiniteSub F) (r : R) :
+    IsPositiveDefiniteSub fun x => F (r • x) := by
+  intro n c v
+  simpa [← smul_sub] using hF n c fun i => r • v i
+
+/-- Positive definiteness is preserved by negating the argument. -/
+theorem comp_neg (hF : IsPositiveDefiniteSub F) : IsPositiveDefiniteSub fun x => F (-x) := by
+  intro n c v
+  simpa [neg_sub, sub_eq_neg_add, add_comm] using hF n c fun i => -v i
+
+/-! ### Limits -/
+
 /-- Positive definiteness is preserved under pointwise limits along a nontrivial filter. -/
 theorem of_tendsto {ι : Type*} {l : Filter ι} [NeBot l] {F : ι → G → ℂ} {H : G → ℂ}
     (hF : ∀ᶠ i in l, IsPositiveDefiniteSub (F i))
@@ -320,6 +345,7 @@ theorem normalize (hF : IsPositiveDefiniteSub F) :
     simpa using hF.isPositiveDefinite.normalize)
 
 /-- The normalized function has value `1` at the origin. -/
+@[simp]
 theorem normalize_apply_zero (hF : IsPositiveDefiniteSub F) (h0 : F 0 ≠ 0) :
     (((F 0).re)⁻¹ : ℂ) * F 0 = 1 := by
   have hpos := hF.map_zero_re_pos_of_ne_zero h0
