@@ -5,7 +5,6 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import Mathlib.Analysis.InnerProductSpace.l2Space
 public import TauCeti.Analysis.InnerProductSpace.Parseval
 public import TauCeti.RepresentationTheory.Compact.Orthonormal
 public import TauCeti.RepresentationTheory.Compact.RepresentativeDensity
@@ -102,6 +101,8 @@ the span `TauCeti.modelSubmodule` of the matrix coefficients of the models insid
   orthonormal system.
 * `TauCeti.coe_peterWeylBasis`, `TauCeti.coe_stdPeterWeylBasis`: the basis is the normalized
   matrix coefficients.
+* `TauCeti.coeFn_peterWeylFamily`: the almost-everywhere representative of a normalized matrix
+  coefficient.
 * `TauCeti.peterWeylBasis_repr_apply`, `TauCeti.stdPeterWeylBasis_repr_apply`: the abstract basis
   coordinates are the explicit Haar-integral Fourier coefficients.
 * `TauCeti.hasSum_peterWeyl_expansion`, `TauCeti.hasSum_stdPeterWeyl_expansion`: reconstruction
@@ -387,6 +388,20 @@ theorem peterWeylFamily_apply (models : ι → IrrepModel 𝕜 G)
           ((models x.1).basis x.2.1) ((models x.1).basis x.2.2) :=
   (rfl)
 
+/-- A normalized Peter-Weyl matrix coefficient in `L²` is represented almost everywhere by its
+defining continuous function. -/
+theorem coeFn_peterWeylFamily (models : ι → IrrepModel 𝕜 G)
+    (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
+    peterWeylFamily models x =ᵐ[haarProb G] fun g ↦
+      (Real.sqrt (models x.1).dim : 𝕜) *
+        ⟪(models x.1).rep g ((models x.1).basis x.2.1), (models x.1).basis x.2.2⟫_𝕜 := by
+  filter_upwards [Lp.coeFn_smul (Real.sqrt (models x.1).dim : 𝕜)
+    (ContRepresentation.matrixCoeffLp (models x.1).rep (models x.1).continuous_rep
+      ((models x.1).basis x.2.1) ((models x.1).basis x.2.2)),
+    ContRepresentation.coeFn_matrixCoeffLp (models x.1).rep (models x.1).continuous_rep
+      ((models x.1).basis x.2.1) ((models x.1).basis x.2.2)] with g hsmul hcoeff
+  rw [peterWeylFamily_apply, hsmul, Pi.smul_apply, hcoeff, smul_eq_mul]
+
 /-- Every `L²` matrix coefficient of a model lies in the span of the normalized ones: expand both
 defining vectors in the canonical orthonormal basis and use sesquilinearity. -/
 theorem matrixCoeffLp_mem_span_peterWeylFamily (models : ι → IrrepModel 𝕜 G) (i : ι)
@@ -501,6 +516,28 @@ noncomputable def peterWeylCoeff (models : ι → IrrepModel 𝕜 G)
         ContRepresentation.matrixCoeff (models x.1).rep (models x.1).continuous_rep
           ((models x.1).basis x.2.1) ((models x.1).basis x.2.2) g) * f g ∂haarProb G
 
+/-- The Peter-Weyl coefficient is the Haar integral against the conjugate of the normalized
+continuous matrix coefficient. -/
+theorem peterWeylCoeff_def (models : ι → IrrepModel 𝕜 G) (f : Lp 𝕜 2 (haarProb G))
+    (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
+    peterWeylCoeff models f x =
+      ∫ g : G, (starRingEnd 𝕜)
+        ((Real.sqrt (models x.1).dim : 𝕜) *
+          ContRepresentation.matrixCoeff (models x.1).rep (models x.1).continuous_rep
+            ((models x.1).basis x.2.1) ((models x.1).basis x.2.2) g) * f g ∂haarProb G := by
+  rw [peterWeylCoeff]
+
+/-- A Peter-Weyl coefficient is the `L²` inner product against the corresponding normalized
+matrix coefficient. This characterization does not require the models to form a skeleton. -/
+theorem peterWeylCoeff_eq_inner (models : ι → IrrepModel 𝕜 G) (f : Lp 𝕜 2 (haarProb G))
+    (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
+    peterWeylCoeff models f x = inner 𝕜 (peterWeylFamily models x) f := by
+  rw [peterWeylCoeff_def, MeasureTheory.L2.inner_def]
+  refine integral_congr_ae ?_
+  filter_upwards [coeFn_peterWeylFamily models x] with g hg
+  rw [hg, ContRepresentation.matrixCoeff_apply, RCLike.inner_apply]
+  exact mul_comm _ _
+
 /-- The abstract coordinate in the Peter-Weyl Hilbert basis is the explicit Haar-integral
 Fourier coefficient. -/
 @[simp]
@@ -508,15 +545,8 @@ theorem peterWeylBasis_repr_apply [IsAlgClosed 𝕜] {models : ι → IrrepModel
     (h : IsIrrepSkeleton models) (f : Lp 𝕜 2 (haarProb G))
     (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
     (peterWeylBasis h).repr f x = peterWeylCoeff models f x := by
-  rw [(peterWeylBasis h).repr_apply_apply, peterWeylBasis_apply, MeasureTheory.L2.inner_def,
-    peterWeylCoeff]
-  refine integral_congr_ae ?_
-  filter_upwards [ContinuousMap.coeFn_toLp (E := 𝕜) (p := 2) (haarProb G) (𝕜 := 𝕜)
-    ((Real.sqrt (models x.1).dim : 𝕜) •
-      ContRepresentation.matrixCoeff (models x.1).rep (models x.1).continuous_rep
-        ((models x.1).basis x.2.1) ((models x.1).basis x.2.2))] with g hg
-  rw [hg, RCLike.inner_apply]
-  simp only [ContinuousMap.coe_smul, Pi.smul_apply, smul_eq_mul, mul_comm]
+  rw [(peterWeylBasis h).repr_apply_apply, coe_peterWeylBasis,
+    ← peterWeylCoeff_eq_inner]
 
 /-- **The Peter-Weyl expansion.** Every `L²` function is the sum of its Fourier coefficients
 times the corresponding normalized matrix coefficients. -/
@@ -679,43 +709,35 @@ noncomputable def stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G))
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) : 𝕜 :=
   peterWeylCoeff (IrrepClass.model (𝕜 := 𝕜) (G := G)) f x
 
-omit [IsAlgClosed 𝕜] in
-/-- The unconditional coefficient is the supplied-skeleton coefficient for the chosen
-representatives. -/
-theorem stdPeterWeylCoeff_def (f : Lp 𝕜 2 (haarProb G))
-    (x : Σ i : IrrepClass 𝕜 G,
-      Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) :
-    stdPeterWeylCoeff 𝕜 G f x =
-      peterWeylCoeff (IrrepClass.model (𝕜 := 𝕜) (G := G)) f x :=
-  by rw [stdPeterWeylCoeff]
-
 /-- A coordinate in the unconditional Peter-Weyl basis is its explicit Fourier coefficient. -/
 @[simp]
 theorem stdPeterWeylBasis_repr_apply (f : Lp 𝕜 2 (haarProb G))
     (x : Σ i : IrrepClass 𝕜 G,
       Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) :
     (stdPeterWeylBasis 𝕜 G).repr f x = stdPeterWeylCoeff 𝕜 G f x := by
-  simpa only [stdPeterWeylBasis, stdPeterWeylCoeff_def] using
+  simpa only [stdPeterWeylBasis, stdPeterWeylCoeff] using
     peterWeylBasis_repr_apply (isIrrepSkeleton_model 𝕜 G) f x
 
 /-- **The unconditional Peter-Weyl expansion.** Every `L²` function is reconstructed from the
 Fourier coefficients belonging to the chosen irreducible representatives. -/
 theorem hasSum_stdPeterWeyl_expansion (f : Lp 𝕜 2 (haarProb G)) :
-    HasSum (fun x ↦ stdPeterWeylCoeff 𝕜 G f x • stdPeterWeylBasis 𝕜 G x) f := by
-  simpa only [stdPeterWeylBasis_repr_apply] using (stdPeterWeylBasis 𝕜 G).hasSum_repr f
+    HasSum (fun x ↦ stdPeterWeylCoeff 𝕜 G f x •
+      peterWeylFamily (IrrepClass.model (𝕜 := 𝕜) (G := G)) x) f := by
+  simpa only [stdPeterWeylCoeff] using
+    hasSum_peterWeyl_expansion (isIrrepSkeleton_model 𝕜 G) f
 
 /-- **Polarized Parseval for the unconditional Peter-Weyl basis.** -/
 theorem tsum_star_stdPeterWeylCoeff_mul_stdPeterWeylCoeff
     (f g : Lp 𝕜 2 (haarProb G)) :
     ∑' x, star (stdPeterWeylCoeff 𝕜 G f x) * stdPeterWeylCoeff 𝕜 G g x =
       inner 𝕜 f g := by
-  simpa only [stdPeterWeylCoeff_def] using
+  simpa only [stdPeterWeylCoeff] using
     tsum_star_peterWeylCoeff_mul_peterWeylCoeff (isIrrepSkeleton_model 𝕜 G) f g
 
 /-- **Norm-square Parseval for the unconditional Peter-Weyl basis** (`HasSum` form). -/
 theorem hasSum_norm_sq_stdPeterWeylCoeff (f : Lp 𝕜 2 (haarProb G)) :
     HasSum (fun x ↦ ‖stdPeterWeylCoeff 𝕜 G f x‖ ^ 2) (‖f‖ ^ 2) := by
-  simpa only [stdPeterWeylCoeff_def] using
+  simpa only [stdPeterWeylCoeff] using
     hasSum_norm_sq_peterWeylCoeff (isIrrepSkeleton_model 𝕜 G) f
 
 /-- **Norm-square Parseval for the unconditional Peter-Weyl basis** (`tsum` form). -/
