@@ -37,7 +37,7 @@ order isomorphisms of those groups with a zero adjoined.
 
 public section
 
-namespace TauCeti.Valuation
+namespace Valuation
 
 open MonoidWithZeroHom
 
@@ -97,4 +97,4 @@ theorem _root_.Valuation.IsEquiv.valueGroupOrderIso_trans {Γ₀'' : Type*}
   simp only [Valuation.IsEquiv.valueGroupOrderIso]
   rw [withZero_symm_trans, Valuation.IsEquiv.orderMonoidIso_trans]
 
-end TauCeti.Valuation
+end Valuation

@@ -26,20 +26,20 @@ The point-level map on `Spv A` that Wedhorn's retraction `r_I` is built from liv
 
 ## Main definitions
 
-* `TauCeti.Valuation.RestrictedValues` : the value monoid the restriction lands in.
-* `TauCeti.Valuation.restrictToIdeal` : the restricted valuation `v|cΓ_v(I)`.
+* `Valuation.RestrictedValues` : the value monoid the restriction lands in.
+* `Valuation.restrictToIdeal` : the restricted valuation `v|cΓ_v(I)`.
 
 ## Main results
 
-* `TauCeti.Valuation.restrictToIdeal_apply_of_notMem`,
-  `TauCeti.Valuation.restrictToIdeal_apply_of_eq_zero` : the two vanishing branches.
-* `TauCeti.Valuation.restrictToIdeal_eq_zero_iff` : where the restriction vanishes, totally.
-* `TauCeti.Valuation.restrictToIdeal_le_iff` : how restricted values compare, totally.
-* `TauCeti.Valuation.restrictToIdeal_ne_zero_of_le` : the restriction keeps every value above a
+* `Valuation.restrictToIdeal_apply_of_notMem`,
+  `Valuation.restrictToIdeal_apply_of_eq_zero` : the two vanishing branches.
+* `Valuation.restrictToIdeal_eq_zero_iff` : where the restriction vanishes, totally.
+* `Valuation.restrictToIdeal_le_iff` : how restricted values compare, totally.
+* `Valuation.restrictToIdeal_ne_zero_of_le` : the restriction keeps every value above a
   kept value.
-* `TauCeti.Valuation.exists_mem_restrictToIdeal_ne_zero` : **Wedhorn Lemma 7.5(3)**, that the
+* `Valuation.exists_mem_restrictToIdeal_ne_zero` : **Wedhorn Lemma 7.5(3)**, that the
   restriction does not vanish identically on `I` unless `v` does.
-* `TauCeti.Valuation.restrictToIdeal_ne_zero_of_isAdmissible` : it does not kill a denominator
+* `Valuation.restrictToIdeal_ne_zero_of_isAdmissible` : it does not kill a denominator
   dominating an admissible numerator set.
 
 The *characterisation* lemmas — the vanishing branches, `restrictToIdeal_eq_zero_iff` and
@@ -72,7 +72,7 @@ is carried across by `ConvexSubgroup.comapUnitsWithZero`.
 
 public section
 
-namespace TauCeti.Valuation
+namespace Valuation
 
 open MonoidWithZeroHom TauCeti
 
@@ -328,7 +328,7 @@ private theorem characteristicSubgroup_restrictToIdeal_eq_top_of_meets (w : Valu
           (ValueGroup₀ (.ofClass w))ˣ) : ValueGroup₀ (.ofClass w)) :=
       WithZero.coe_unitsWithZeroEquiv_eq_units_val _
     rw [← hcoe, WithZero.coe_le_coe]
-    simp only [map_inv, InvMemClass.coe_inv]
+    simp only [InvMemClass.coe_inv]
     simpa using inv_le_inv_iff.mpr hginv
   · rw [← ValueGroup₀.embedding_strictMono.le_iff_le, Valuation.embedding_restrict, ← hu,
       coe_le_restrictToIdeal_iff, hga]
@@ -488,4 +488,4 @@ theorem restrictToIdeal_ne_zero_of_isAdmissible (v : Valuation A Γ₀) (I : Ide
         (Or.inl fun a ha ↦ cofinalValueFor_top_iff.mp (cofinalValueFor_of_eq_zero (hne a ha)))
     exact restrictToIdeal_ne_zero_of_mem v I hfg hu0 (htop ▸ ConvexSubgroup.mem_top) hRu
 
-end TauCeti.Valuation
+end Valuation
