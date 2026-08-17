@@ -5,7 +5,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Analysis.SpecialFunctions.Pow.Integral
-public import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
+public import Mathlib.MeasureTheory.Function.LpSeminorm.Defs
+-- The stronger seminorm API is used only in the operator-level proof.
+import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 -- `Mathlib.MeasureTheory.Measure.Prod` is imported privately: the product measure and
 -- Tonelli's theorem appear only inside the proof below.
 import Mathlib.MeasureTheory.Measure.Prod
@@ -55,7 +57,7 @@ exhausted by the level sets `{f ≥ 1 / (n + 1)}`, each of finite measure by Che
 ## Main declarations
 
 * `TauCeti.lintegral_rpow_le_of_mul_meas_ofReal_lt_le`: the interpolation estimate.
-* `TauCeti.mul_meas_ofReal_lt_operator_le_setLIntegral`: the reusable truncation argument from
+* `TauCeti.mul_measure_ofReal_lt_operator_le_setLIntegral`: the reusable truncation argument from
   subadditivity and the two endpoint bounds.
 * `TauCeti.lintegral_rpow_operator_le`: operator-level Marcinkiewicz interpolation.
 
@@ -284,74 +286,74 @@ theorem lintegral_rpow_le_of_mul_meas_ofReal_lt_le
 
 section Operator
 
-variable {T : (α → ℝ≥0∞) → β → ℝ≥0∞} {b d : ℝ}
+variable {G : Type*} [MeasurableSpace G] [TopologicalSpace G] [BorelSpace G]
+  [ESeminormedAddMonoid G] {T : (α → G) → β → ℝ≥0∞} {v : α → G} {b d t : ℝ}
 
 /-- The reusable operator-level truncation argument for Marcinkiewicz interpolation.
 
 Suppose `T` respects almost-everywhere equality, is subadditive, is of weak type `(1,1)` with
-constant `A`, and obeys the `L^∞` bound `T g ≤ b · ‖g‖_∞`. Split `f` at height `c * t`.
-If `b * c + d ≤ 1`, then the low part contributes at most `b * c * t`, so `T f > t` forces
-`T (f · 1_{f > c t}) > d * t`. Applying the weak-type bound to that high part gives
+constant `A`, and obeys the `L^∞` bound `T g ≤ b · ‖g‖_∞`. Split `v` according to whether its
+extended norm exceeds `c * t`. If `b * c + d ≤ 1`, then the low part contributes at most
+`b * c * t`, so `T v > t` forces the image of the high part to exceed `d * t`. Applying the
+weak-type bound to that high part gives
 
-`t * ν {T f > t} ≤ d⁻¹ * A * ∫⁻ x in {f > c * t}, f x ∂μ`.
+`t * ν {T v > t} ≤ d⁻¹ * A * ∫⁻ x in {‖v‖ₑ > c * t}, ‖v x‖ₑ ∂μ`.
 
 The parameters `c` and `d` expose the choice of truncation rather than fixing the customary
 `c = d = 1 / 2` for a normalized `L^∞` bound. -/
-theorem mul_meas_ofReal_lt_operator_le_setLIntegral
-    (hf : AEMeasurable f μ) (ht : 0 < t) (hb : 0 ≤ b) (hc : 0 < c) (hd : 0 < d)
+theorem mul_measure_ofReal_lt_operator_le_setLIntegral
+    (hv : AEMeasurable v μ) (ht : 0 < t) (hb : 0 ≤ b) (hc : 0 < c) (hd : 0 < d)
     (hbcd : b * c + d ≤ 1)
-    (hcongr : ∀ {g h : α → ℝ≥0∞}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
-    (hadd : ∀ (g h : α → ℝ≥0∞), AEMeasurable g μ →
-      ∀ y, T (g + h) y ≤ T g y + T h y)
-    (hweak : ∀ (g : α → ℝ≥0∞) (s : ℝ≥0∞),
-      s * ν {y | s < T g y} ≤ A * ∫⁻ x, g x ∂μ)
-    (hinfty : ∀ (g : α → ℝ≥0∞) (y : β),
-      T g y ≤ ENNReal.ofReal b * eLpNormEssSup g μ) :
-    ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T f y} ≤
+    (hcongr : ∀ {g h : α → G}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
+    (hadd : ∀ (g h : α → G), AEMeasurable g μ →
+      T (g + h) ≤ᵐ[ν] T g + T h)
+    (hweak : ∀ (g : α → G), AEMeasurable g μ → ∀ s : ℝ≥0∞,
+      s * ν {y | s < T g y} ≤ A * ∫⁻ x, ‖g x‖ₑ ∂μ)
+    (hinfty : ∀ (g : α → G), T g ≤ᵐ[ν]
+      fun _ => ENNReal.ofReal b * eLpNormEssSup g μ) :
+    ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T v y} ≤
       ENNReal.ofReal d⁻¹ * A *
-        ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+        ∫⁻ x in {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ}, ‖v x‖ₑ ∂μ := by
   have hct : 0 ≤ c * t := (mul_pos hc ht).le
   have hdt : 0 ≤ d * t := (mul_pos hd ht).le
   have hbct : 0 ≤ b * (c * t) := mul_nonneg hb hct
   have hdinv : 0 ≤ d⁻¹ := inv_nonneg.2 hd.le
-  set g : α → ℝ≥0∞ := hf.mk f with hgdef
-  have hfg : f =ᵐ[μ] g := hf.ae_eq_mk
-  have hgmeas : Measurable g := hf.measurable_mk
-  set S : Set α := {x | ENNReal.ofReal (c * t) < g x} with hSdef
-  have hSmeas : MeasurableSet S := measurableSet_lt measurable_const hgmeas
-  set g₁ : α → ℝ≥0∞ := S.indicator g with hg₁def
-  set g₂ : α → ℝ≥0∞ := Sᶜ.indicator g with hg₂def
+  set g : α → G := hv.mk v with hgdef
+  have hvg : v =ᵐ[μ] g := hv.ae_eq_mk
+  have hgmeas : Measurable g := hv.measurable_mk
+  set S : Set α := {x | ENNReal.ofReal (c * t) < ‖g x‖ₑ} with hSdef
+  have hSmeas : MeasurableSet S := measurableSet_lt measurable_const hgmeas.enorm
+  set g₁ : α → G := S.indicator g with hg₁def
+  set g₂ : α → G := Sᶜ.indicator g with hg₂def
   have hsplit : g₁ + g₂ = g := by
     funext x
     exact Set.indicator_self_add_compl_apply S g x
-  have hTf : T f =ᵐ[ν] T (g₁ + g₂) := by
+  have hTv : T v =ᵐ[ν] T (g₁ + g₂) := by
     apply hcongr
-    filter_upwards [hfg] with x hx
+    filter_upwards [hvg] with x hx
     rw [hsplit, hx]
-  have hg₂bound : ∀ x, g₂ x ≤ ENNReal.ofReal (c * t) := by
+  have hg₂bound : ∀ x, ‖g₂ x‖ₑ ≤ ENNReal.ofReal (c * t) := by
     intro x
     rw [hg₂def]
     by_cases hxS : x ∈ S
-    · rw [Set.indicator_of_notMem (by simp [hxS])]
+    · rw [Set.indicator_of_notMem (by simp [hxS]), enorm_zero]
       exact zero_le
     · rw [Set.indicator_of_mem (by simp [hxS])]
       exact not_lt.1 (by simpa [hSdef] using hxS)
-  have hTg₂ : ∀ y, T g₂ y ≤ ENNReal.ofReal (b * (c * t)) := by
-    intro y
-    calc T g₂ y
-        ≤ ENNReal.ofReal b * eLpNormEssSup g₂ μ := hinfty g₂ y
-      _ ≤ ENNReal.ofReal b * ENNReal.ofReal (c * t) := by
-          gcongr
-          exact essSup_le_of_ae_le _ (.of_forall hg₂bound)
-      _ = ENNReal.ofReal (b * (c * t)) := by
-          rw [ENNReal.ofReal_mul hb]
-  have hincl : {y | ENNReal.ofReal t < T f y} ≤ᵐ[ν]
+  have hTg₂ : ∀ᵐ y ∂ν, T g₂ y ≤ ENNReal.ofReal (b * (c * t)) := by
+    filter_upwards [hinfty g₂] with y hy
+    exact hy.trans (calc
+      ENNReal.ofReal b * eLpNormEssSup g₂ μ
+          ≤ ENNReal.ofReal b * ENNReal.ofReal (c * t) := by
+            gcongr
+            exact essSup_le_of_ae_le _ (.of_forall hg₂bound)
+      _ = ENNReal.ofReal (b * (c * t)) := by rw [ENNReal.ofReal_mul hb])
+  have hincl : {y | ENNReal.ofReal t < T v y} ≤ᵐ[ν]
       {y | ENNReal.ofReal (d * t) < T g₁ y} := by
-    filter_upwards [hTf] with y hTy
+    filter_upwards [hTv, hadd g₁ g₂ (hgmeas.indicator hSmeas).aemeasurable, hTg₂]
+      with y hTy hsum hlow
     intro hy
-    have hsum : T f y ≤ T g₁ y + T g₂ y := by
-      rw [hTy]
-      exact hadd g₁ g₂ (hgmeas.indicator hSmeas).aemeasurable y
+    have hsum' : T v y ≤ T g₁ y + T g₂ y := hTy.le.trans hsum
     have hconst : ENNReal.ofReal (d * t) + ENNReal.ofReal (b * (c * t)) ≤
         ENNReal.ofReal t := by
       rw [← ENNReal.ofReal_add hdt hbct]
@@ -359,21 +361,28 @@ theorem mul_meas_ofReal_lt_operator_le_setLIntegral
       nlinarith [mul_nonneg (sub_nonneg.2 hbcd) ht.le]
     have hlt : ENNReal.ofReal (d * t) + ENNReal.ofReal (b * (c * t)) <
         T g₁ y + ENNReal.ofReal (b * (c * t)) :=
-      hconst.trans_lt (hy.trans_le (hsum.trans (add_le_add le_rfl (hTg₂ y))))
+      hconst.trans_lt (hy.trans_le (hsum'.trans (add_le_add le_rfl hlow)))
     exact (ENNReal.add_lt_add_iff_right ENNReal.ofReal_ne_top).1 hlt
-  have hint : ∫⁻ x, g₁ x ∂μ =
-      ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
-    have hsets : {x | ENNReal.ofReal (c * t) < f x} =ᵐ[μ] S := by
-      filter_upwards [hfg] with x hx
+  have hint : ∫⁻ x, ‖g₁ x‖ₑ ∂μ =
+      ∫⁻ x in {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ}, ‖v x‖ₑ ∂μ := by
+    have henorm : (fun x => ‖v x‖ₑ) =ᵐ[μ] fun x => ‖g x‖ₑ :=
+      hvg.mono fun _ hx => congrArg enorm hx
+    have hsets : {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ} =ᵐ[μ] S := by
+      filter_upwards [henorm] with x hx
       exact congrArg (fun z : ℝ≥0∞ => ENNReal.ofReal (c * t) < z) hx
-    calc ∫⁻ x, g₁ x ∂μ
-        = ∫⁻ x in S, g x ∂μ := lintegral_indicator hSmeas g
-      _ = ∫⁻ x in S, f x ∂μ := (lintegral_congr_ae (ae_restrict_of_ae hfg)).symm
-      _ = ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+    calc ∫⁻ x, ‖g₁ x‖ₑ ∂μ
+        = ∫⁻ x in S, ‖g x‖ₑ ∂μ := by
+          rw [← lintegral_indicator hSmeas]
+          congr 1
+          funext x
+          by_cases hx : x ∈ S <;> simp [hg₁def, hx]
+      _ = ∫⁻ x in S, ‖v x‖ₑ ∂μ :=
+        (lintegral_congr_ae (ae_restrict_of_ae henorm)).symm
+      _ = ∫⁻ x in {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ}, ‖v x‖ₑ ∂μ := by
           rw [Measure.restrict_congr_set hsets]
-  calc ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T f y}
+  calc ENNReal.ofReal t * ν {y | ENNReal.ofReal t < T v y}
       = ENNReal.ofReal d⁻¹ *
-          (ENNReal.ofReal (d * t) * ν {y | ENNReal.ofReal t < T f y}) := by
+          (ENNReal.ofReal (d * t) * ν {y | ENNReal.ofReal t < T v y}) := by
         have hscale : d⁻¹ * (d * t) = t := by field_simp
         rw [← mul_assoc, ← ENNReal.ofReal_mul hdinv, hscale]
     _ ≤ ENNReal.ofReal d⁻¹ *
@@ -381,10 +390,12 @@ theorem mul_meas_ofReal_lt_operator_le_setLIntegral
         exact mul_le_mul_right
           (mul_le_mul_right (measure_mono_ae hincl) (ENNReal.ofReal (d * t)))
           (ENNReal.ofReal d⁻¹)
-    _ ≤ ENNReal.ofReal d⁻¹ * (A * ∫⁻ x, g₁ x ∂μ) := by
-        exact mul_le_mul_right (hweak g₁ (ENNReal.ofReal (d * t))) (ENNReal.ofReal d⁻¹)
+    _ ≤ ENNReal.ofReal d⁻¹ * (A * ∫⁻ x, ‖g₁ x‖ₑ ∂μ) := by
+        exact mul_le_mul_right
+          (hweak g₁ (hgmeas.indicator hSmeas).aemeasurable (ENNReal.ofReal (d * t)))
+          (ENNReal.ofReal d⁻¹)
     _ = ENNReal.ofReal d⁻¹ * A *
-          ∫⁻ x in {x | ENNReal.ofReal (c * t) < f x}, f x ∂μ := by
+          ∫⁻ x in {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ}, ‖v x‖ₑ ∂μ := by
         rw [hint, mul_assoc]
 
 /-- **Marcinkiewicz interpolation at operator level**, between weak type `(1,1)` and `L^∞`.
@@ -394,21 +405,22 @@ equality, has weak-type constant `A`, and has `L^∞` constant `b` is strong typ
 `1 < p < ∞`. The positive splitting parameters `c, d` may be chosen arbitrarily subject to
 `b * c + d ≤ 1`. -/
 theorem lintegral_rpow_operator_le
-    (hf : AEMeasurable f μ) (hTf : AEMeasurable (T f) ν) (hp : 1 < p)
+    (hv : AEMeasurable v μ) (hTv : AEMeasurable (T v) ν) (hp : 1 < p)
     (hb : 0 ≤ b) (hc : 0 < c) (hd : 0 < d) (hbcd : b * c + d ≤ 1)
-    (hcongr : ∀ {g h : α → ℝ≥0∞}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
-    (hadd : ∀ (g h : α → ℝ≥0∞), AEMeasurable g μ →
-      ∀ y, T (g + h) y ≤ T g y + T h y)
-    (hweak : ∀ (g : α → ℝ≥0∞) (s : ℝ≥0∞),
-      s * ν {y | s < T g y} ≤ A * ∫⁻ x, g x ∂μ)
-    (hinfty : ∀ (g : α → ℝ≥0∞) (y : β),
-      T g y ≤ ENNReal.ofReal b * eLpNormEssSup g μ) :
-    ∫⁻ y, T f y ^ p ∂ν ≤
+    (hcongr : ∀ {g h : α → G}, g =ᵐ[μ] h → T g =ᵐ[ν] T h)
+    (hadd : ∀ (g h : α → G), AEMeasurable g μ →
+      T (g + h) ≤ᵐ[ν] T g + T h)
+    (hweak : ∀ (g : α → G), AEMeasurable g μ → ∀ s : ℝ≥0∞,
+      s * ν {y | s < T g y} ≤ A * ∫⁻ x, ‖g x‖ₑ ∂μ)
+    (hinfty : ∀ (g : α → G), T g ≤ᵐ[ν]
+      fun _ => ENNReal.ofReal b * eLpNormEssSup g μ) :
+    ∫⁻ y, T v y ^ p ∂ν ≤
       ENNReal.ofReal (p * c ^ (1 - p) / (p - 1)) * (ENNReal.ofReal d⁻¹ * A) *
-        ∫⁻ x, f x ^ p ∂μ := by
-  apply lintegral_rpow_le_of_mul_meas_ofReal_lt_le hf hTf hp hc
+        ∫⁻ x, ‖v x‖ₑ ^ p ∂μ := by
+  apply lintegral_rpow_le_of_mul_meas_ofReal_lt_le hv.enorm hTv hp hc
   intro t ht
-  exact mul_meas_ofReal_lt_operator_le_setLIntegral hf ht hb hc hd hbcd hcongr hadd hweak hinfty
+  exact mul_measure_ofReal_lt_operator_le_setLIntegral
+    hv ht hb hc hd hbcd hcongr hadd hweak hinfty
 
 end Operator
 
