@@ -40,8 +40,9 @@ says precisely that the lattice of subrepresentations is `{⊥, ⊤}` with `⊥ 
 
 Both equivalences are also supplied as instances in each direction, so a statement proved in one
 language applies in the other without a rewrite. The type of isomorphism classes of simple objects
-that a categorical classification statement is valued in is
-`TauCeti.SimpleFDRepClasses`, in `TauCeti.RepresentationTheory.Simple.FDRepClasses`.
+that a categorical classification statement is valued in is `TauCeti.SimpleFDRepClasses`, in
+`TauCeti.RepresentationTheory.Simple.FDRepClasses`; it is Mathlib's `CategoryTheory.Skeleton` of
+the full subcategory of simple objects.
 
 ## Main results
 
