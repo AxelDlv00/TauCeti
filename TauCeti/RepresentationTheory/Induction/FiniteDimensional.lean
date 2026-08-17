@@ -15,12 +15,17 @@ public import Mathlib.RingTheory.Finiteness.Small
 
 This file constructs the finite-dimensional representation induced from a finite-index subgroup.
 The main input is a linear equivalence between coinduction and a product indexed by right cosets.
-Composing it with Mathlib's finite-index isomorphism from induction to coinduction gives the
+Composing it with the finite-index equivalence from induction to coinduction gives the
 dimension formula
 `finrank k (Ind_S^G A) = S.index * finrank k A`.
 Induction on finite-dimensional representations is packaged both objectwise, as `indFDRep`, and
 functorially, as `indFDRepFunctor`, the latter naturally isomorphic to `Rep.indFunctor` under the
 forgetful functor to `Rep k G`.
+
+The objectwise construction, its character formula, and its dimension theorem allow the scalar
+field and group to live in separate universes.  It uses a small model of Mathlib's induced carrier,
+compared by `indFDRepForgetEquiv`.  The categorical functor and natural isomorphism retain a common
+universe because a `Rep`-category is indexed by one carrier universe.
 
 ## References
 
@@ -194,8 +199,8 @@ noncomputable def indCoindEquiv [S.FiniteIndex] (A : Rep.{w} k S) :
 of the original representation indexed by the right cosets. -/
 noncomputable def indSubtypeEquivPi [S.FiniteIndex] (A : Rep.{w} k S) :
     Rep.ind S.subtype A ≃ₗ[k]
-      (Quotient (QuotientGroup.rightRel S) → A) := by
-  exact (indCoindEquiv A).toLinearEquiv.trans (coindSubtypeEquivPi A)
+      (Quotient (QuotientGroup.rightRel S) → A) :=
+  (indCoindEquiv A).toLinearEquiv.trans (coindSubtypeEquivPi A)
 
 /-- The coset model of induction transports along `TauCeti.Rep.indCoindEquiv` and then evaluates at
 the chosen representative of each right coset.
