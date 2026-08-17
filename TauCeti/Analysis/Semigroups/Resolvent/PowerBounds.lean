@@ -274,8 +274,8 @@ growth bound `(omega, M)` and `lambda > omega`,
 
 This is the necessity estimate in exactly the form consumed by the Hille--Yosida generation
 theorem. -/
-theorem norm_generator_resolvent_pow_le (hb : S.HasGrowthBound omega M) (n : ℕ)
-    {lambda : ℝ} (hlambda : omega < lambda) :
+theorem norm_generator_resolvent_pow_le (hb : S.HasGrowthBound omega M)
+    {lambda : ℝ} (hlambda : omega < lambda) (n : ℕ) :
     ‖LinearPMap.resolvent S.generator lambda ^ n‖ ≤ M / (lambda - omega) ^ n := by
   rw [S.generator_resolvent_eq hb hlambda]
   exact S.resolvent_pow_norm_le hb n hlambda
@@ -326,7 +326,7 @@ theorem norm_generator_resolvent_pow_le (S : ContractionSemigroup X) {lambda : �
     ‖LinearPMap.resolvent S.toStronglyContinuousSemigroup.generator lambda ^ n‖
       ≤ (1 / lambda) ^ n := by
   have h := S.toStronglyContinuousSemigroup.norm_generator_resolvent_pow_le
-    S.hasGrowthBound n hlambda
+    S.hasGrowthBound hlambda n
   simpa only [sub_zero, one_div_pow] using h
 
 /-- The Hille--Yosida derivative bound in the contraction case. -/

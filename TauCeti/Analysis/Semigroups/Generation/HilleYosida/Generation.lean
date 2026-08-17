@@ -37,10 +37,14 @@ This proves the Hille--Yosida milestone in Part A of the
 * `TauCeti.Semigroups.hilleYosidaLimitSemigroup_generator`: the exponent-zero limit semigroup has
   generator `A`.
 * `TauCeti.Semigroups.hilleYosidaSemigroup`: the general `(M, omega)` constructed semigroup.
+* `TauCeti.Semigroups.hilleYosidaSemigroup_apply`: evaluation of the constructed semigroup.
+* `TauCeti.Semigroups.tendsto_shiftedYosidaApproximation_hilleYosidaSemigroup`: convergence of the
+  shifted Yosida approximations.
+* `TauCeti.Semigroups.hilleYosidaSemigroup_generator`: identification of its generator.
+* `TauCeti.Semigroups.hasGrowthBound_hilleYosidaSemigroup`: its prescribed growth bound.
 * `TauCeti.Semigroups.hilleYosida_generation`: the general `(M, omega)` Hille--Yosida generation
   theorem.
-* `TauCeti.Semigroups.exists_semigroup_generator_eq_and_hasGrowthBound_iff`: the Hille--Yosida
-  characterization.
+* `TauCeti.Semigroups.hilleYosida_generation_iff`: the Hille--Yosida characterization.
 
 ## References
 
@@ -105,15 +109,21 @@ theorem hilleYosidaLimitSemigroup_generator {A : X →ₗ.[ℝ] X} {M : ℝ}
 
 /-! ## The general generation theorem -/
 
+section
+
+variable {A : X →ₗ.[ℝ] X} {M omega : ℝ}
+variable (hM : 1 ≤ M)
+variable (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
+variable (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
+  ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n)
+variable (hdense : Dense (A.domain : Set X))
+
+include hM hres hpow hdense
+
 /-- The strongly continuous semigroup constructed by the general `(M, omega)` Hille--Yosida
 theorem. It is the exponential unshift of the exponent-zero limit semigroup for
 `A - omega I`. -/
-def hilleYosidaSemigroup {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n) :
-    StronglyContinuousSemigroup X :=
+def hilleYosidaSemigroup : StronglyContinuousSemigroup X :=
   let hzero := LinearPMap.hilleYosida_zero_of hres hpow
   let hdense₀ : Dense ((LinearPMap.subScalar A omega).domain : Set X) := by
     simpa using hdense
@@ -122,41 +132,27 @@ def hilleYosidaSemigroup {A : X →ₗ.[ℝ] X} {M omega : ℝ}
 /-- Evaluating the general Hille--Yosida semigroup gives the exponentially shifted
 exponent-zero Yosida limit. -/
 @[simp]
-theorem hilleYosidaSemigroup_apply {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n)
-    (t : ℝ≥0) (x : X) :
-    hilleYosidaSemigroup hM hdense hres hpow t x =
+theorem hilleYosidaSemigroup_apply (t : ℝ≥0) (x : X) :
+    hilleYosidaSemigroup hM hres hpow hdense t x =
       Real.exp (omega * (t : ℝ)) • yosidaLimit (LinearPMap.subScalar A omega) t x := by
   simp only [hilleYosidaSemigroup, StronglyContinuousSemigroup.expShift_apply_apply,
     hilleYosidaLimitSemigroup_apply, neg_mul, neg_neg]
 
 /-- Real-time evaluation of the general Hille--Yosida semigroup at a nonnegative time. -/
 @[simp]
-theorem hilleYosidaSemigroup_realOperator_apply_of_nonneg {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n)
-    {t : ℝ} (ht : 0 ≤ t) (x : X) :
-    (hilleYosidaSemigroup hM hdense hres hpow).realOperator t x =
+theorem hilleYosidaSemigroup_realOperator_apply_of_nonneg {t : ℝ} (ht : 0 ≤ t) (x : X) :
+    (hilleYosidaSemigroup hM hres hpow hdense).realOperator t x =
       Real.exp (omega * t) • yosidaLimit (LinearPMap.subScalar A omega) t x := by
   simp only [hilleYosidaSemigroup,
     StronglyContinuousSemigroup.expShift_realOperator_apply_of_nonneg _ _ _ ht,
     hilleYosidaLimitSemigroup_realOperator_apply_of_nonneg _ _ _ _ ht, neg_mul, neg_neg]
 
 /-- The shifted Yosida approximations converge pointwise to the general Hille--Yosida semigroup. -/
-theorem tendsto_hilleYosidaSemigroup {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n)
+theorem tendsto_shiftedYosidaApproximation_hilleYosidaSemigroup
     (t : ℝ≥0) (x : X) :
     Tendsto (fun lambda : ℝ => Real.exp (omega * (t : ℝ)) •
         exp ((t : ℝ) • yosidaApproximation (LinearPMap.subScalar A omega) lambda) x)
-      atTop (𝓝 (hilleYosidaSemigroup hM hdense hres hpow t x)) := by
+      atTop (𝓝 (hilleYosidaSemigroup hM hres hpow hdense t x)) := by
   obtain ⟨hres₀, hpow₀⟩ := LinearPMap.hilleYosida_zero_of hres hpow
   have hdense₀ : Dense ((LinearPMap.subScalar A omega).domain : Set X) := by
     simpa using hdense
@@ -166,12 +162,8 @@ theorem tendsto_hilleYosidaSemigroup {A : X →ₗ.[ℝ] X} {M omega : ℝ}
 
 /-- The general Hille--Yosida semigroup has generator `A`. -/
 @[simp]
-theorem hilleYosidaSemigroup_generator {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n) :
-    (hilleYosidaSemigroup hM hdense hres hpow).generator = A := by
+theorem hilleYosidaSemigroup_generator :
+    (hilleYosidaSemigroup hM hres hpow hdense).generator = A := by
   obtain ⟨hres₀, hpow₀⟩ := LinearPMap.hilleYosida_zero_of hres hpow
   have hdense₀ : Dense ((LinearPMap.subScalar A omega).domain : Set X) := by
     simpa using hdense
@@ -179,13 +171,23 @@ theorem hilleYosidaSemigroup_generator {A : X →ₗ.[ℝ] X} {M omega : ℝ}
     hilleYosidaLimitSemigroup_generator hM hres₀ hpow₀ hdense₀,
     LinearPMap.subScalar_subScalar, add_neg_cancel, LinearPMap.subScalar_zero]
 
+/-- The domain of the general Hille--Yosida semigroup is the prescribed operator domain. -/
+@[simp]
+theorem hilleYosidaSemigroup_domain :
+    (hilleYosidaSemigroup hM hres hpow hdense).domain = A.domain := by
+  rw [← StronglyContinuousSemigroup.generator_domain,
+    hilleYosidaSemigroup_generator hM hres hpow hdense]
+
+/-- A strongly continuous semigroup with generator `A` is the Hille--Yosida semigroup constructed
+from any valid Hille--Yosida data for `A`. -/
+theorem eq_hilleYosidaSemigroup {S : StronglyContinuousSemigroup X} (hS : S.generator = A) :
+    S = hilleYosidaSemigroup hM hres hpow hdense :=
+  StronglyContinuousSemigroup.eq_of_generator_eq
+    (hS.trans (hilleYosidaSemigroup_generator hM hres hpow hdense).symm)
+
 /-- The general Hille--Yosida semigroup has the prescribed growth bound `(omega, M)`. -/
-theorem hasGrowthBound_hilleYosidaSemigroup {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n) :
-    (hilleYosidaSemigroup hM hdense hres hpow).HasGrowthBound omega M := by
+theorem hasGrowthBound_hilleYosidaSemigroup :
+    (hilleYosidaSemigroup hM hres hpow hdense).HasGrowthBound omega M := by
   obtain ⟨hres₀, hpow₀⟩ := LinearPMap.hilleYosida_zero_of hres hpow
   have hdense₀ : Dense ((LinearPMap.subScalar A omega).domain : Set X) := by
     simpa using hdense
@@ -200,21 +202,19 @@ space, let `1 ≤ M`, and suppose that every real `lambda > omega` belongs to th
 
 Then `A` generates a strongly continuous semigroup with growth bound `(omega, M)`. The produced
 semigroup is the exponential unshift of the exponent-zero Yosida limit for `A - omega I`. -/
-theorem hilleYosida_generation {A : X →ₗ.[ℝ] X} {M omega : ℝ}
-    (hM : 1 ≤ M) (hdense : Dense (A.domain : Set X))
-    (hres : ∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A)
-    (hpow : ∀ n : ℕ, 1 ≤ n → ∀ lambda : ℝ, omega < lambda →
-      ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n) :
+theorem hilleYosida_generation :
     ∃ S : StronglyContinuousSemigroup X, S.generator = A ∧ S.HasGrowthBound omega M :=
-  ⟨hilleYosidaSemigroup hM hdense hres hpow,
-    hilleYosidaSemigroup_generator hM hdense hres hpow,
-    hasGrowthBound_hilleYosidaSemigroup hM hdense hres hpow⟩
+  ⟨hilleYosidaSemigroup hM hres hpow hdense,
+    hilleYosidaSemigroup_generator hM hres hpow hdense,
+    hasGrowthBound_hilleYosidaSemigroup hM hres hpow hdense⟩
+
+end
 
 /-- **Hille--Yosida characterization.** An unbounded operator is the generator of a strongly
 continuous semigroup with growth bound `(omega, M)` if and only if `1 ≤ M`, its domain is dense,
 the half-line `(omega, ∞)` lies in its resolvent set, and its resolvent powers satisfy the sharp
 Hille--Yosida estimates. -/
-theorem exists_semigroup_generator_eq_and_hasGrowthBound_iff (A : X →ₗ.[ℝ] X) (M omega : ℝ) :
+theorem hilleYosida_generation_iff (A : X →ₗ.[ℝ] X) (M omega : ℝ) :
     (∃ S : StronglyContinuousSemigroup X, S.generator = A ∧ S.HasGrowthBound omega M) ↔
       1 ≤ M ∧ Dense (A.domain : Set X) ∧
         (∀ lambda : ℝ, omega < lambda → lambda ∈ LinearPMap.resolventSet A) ∧
@@ -222,15 +222,15 @@ theorem exists_semigroup_generator_eq_and_hasGrowthBound_iff (A : X →ₗ.[ℝ]
           ‖LinearPMap.resolvent A lambda ^ n‖ ≤ M / (lambda - omega) ^ n := by
   constructor
   · rintro ⟨S, rfl, hb⟩
-    refine ⟨hb.one_le, ?_, S.Ioi_subset_resolventSet_generator hb, ?_⟩
+    refine ⟨hb.one_le, ?_, (fun _ hlambda => S.mem_resolventSet_generator hb hlambda), ?_⟩
     · have hdom : (S.generator.domain : Set X) = (S.domain : Set X) := by
         rw [S.generator_domain]
       rw [hdom]
       exact S.dense_domain
     · intro n _hn lambda hlambda
-      exact S.norm_generator_resolvent_pow_le hb n hlambda
+      exact S.norm_generator_resolvent_pow_le hb hlambda n
   · rintro ⟨hM, hdense, hres, hpow⟩
-    exact hilleYosida_generation hM hdense hres hpow
+    exact hilleYosida_generation hM hres hpow hdense
 
 end TauCeti.Semigroups
 

@@ -167,7 +167,7 @@ theorem mem_resolventSet_generator (S : StronglyContinuousSemigroup X) [Complete
     lambda ∈ LinearPMap.resolventSet S.generator :=
   (S.isResolventAt_generator hb hlambda).mem_resolventSet
 
-/-- The half-line `(omega, ∞)` lies in the resolvent set of the generator — the hypothesis `hρ`
+/-- The half-line `(omega, ∞)` lies in the resolvent set of the generator — the hypothesis `hres`
 of the Hille--Yosida generation theorem, here in its (already available) converse direction. -/
 theorem Ioi_subset_resolventSet_generator (S : StronglyContinuousSemigroup X) [CompleteSpace X]
     {omega M : ℝ} (hb : S.HasGrowthBound omega M) :
