@@ -30,7 +30,9 @@ Injectivity is `Measure.ext_of_bind_infinitePi_eq`, surjectivity is
 exchangeable law.
 
 The correspondence is affine, `deFinettiBarycenter_add` and `deFinettiBarycenter_smul` giving
-the mixture identity on the barycenter side; and it takes the point masses of
+the mixture identity on the barycenter side and
+`deFinettiEquiv_apply_coe_of_eq_add_smul` / `deFinettiEquiv_symm_coe_of_eq_add_smul` transporting
+it to the bundled objects on both sides of the equivalence; and it takes the point masses of
 `ProbabilityMeasure α` exactly to the extreme exchangeable laws
 (`deFinettiBarycenter_mem_extremePoints_iff`, `deFinettiEquiv_dirac`). Reading
 `deFinettiBarycenter` as `deFinettiBarycenter_eq_join_map` does, this is the canonical
@@ -52,7 +54,10 @@ shift-invariant events; see `PathSpace/Exchangeable/Ergodic.lean`.
 ## Main results
 
 * `deFinettiEquiv` — mixing laws correspond bijectively to exchangeable path laws.
-* `deFinettiEquiv_dirac` — a point mass corresponds to an i.i.d. law.
+* `deFinettiEquiv_dirac`, `deFinettiEquiv_symm_eq_dirac` — a point mass corresponds to an
+  i.i.d. law, in both directions.
+* `deFinettiEquiv_apply_coe_of_eq_add_smul`, `deFinettiEquiv_symm_coe_of_eq_add_smul` — the
+  correspondence and its inverse carry mixtures of laws to mixtures of laws.
 * `deFinettiBarycenter_mem_extremePoints_iff` — a barycenter is an extreme exchangeable law
   exactly when its mixing law is a point mass.
 
@@ -139,6 +144,75 @@ theorem deFinettiEquiv_dirac [StandardBorelSpace α] (P : ProbabilityMeasure α)
     ((deFinettiEquiv ⟨Measure.dirac P, inferInstance⟩ : ProbabilityMeasure (ℕ → α)) :
         Measure (ℕ → α)) = Measure.infinitePi fun _ : ℕ => (P : Measure α) :=
   deFinettiBarycenter_dirac P
+
+/-- **The mixing law of an i.i.d. law is a point mass**, the inverse reading of
+`deFinettiEquiv_dirac`: an exchangeable law that happens to be `P^{⊗ℕ}` has `δ_P` as its mixing
+law. -/
+theorem deFinettiEquiv_symm_eq_dirac [StandardBorelSpace α] (P : ProbabilityMeasure α)
+    {ρ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}}
+    (hρ : ((ρ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = Measure.infinitePi fun _ : ℕ => (P : Measure α)) :
+    ((deFinettiEquiv.symm ρ : ProbabilityMeasure (ProbabilityMeasure α)) :
+      Measure (ProbabilityMeasure α)) = Measure.dirac P :=
+  congrArg ProbabilityMeasure.toMeasure
+    (deFinettiEquiv_symm_eq (π := ⟨Measure.dirac P, inferInstance⟩)
+      (by rw [hρ]; exact (deFinettiBarycenter_dirac P).symm))
+
+/-! ### Affinity
+
+The correspondence is affine: `deFinettiBarycenter` is additive and homogeneous, so mixing a pair
+of mixing laws mixes their exchangeable path laws by the same weights, and — the direction that
+needs de Finetti's theorem — decomposing an exchangeable law decomposes its mixing law.
+
+The statements are phrased as hypotheses and conclusions about the underlying measures of the
+bundled objects, rather than as an `AffineMap` or `AffineEquiv`. `ProbabilityMeasure` is not a
+module over anything: it carries no addition and no scalar action, only the convex structure
+inherited from the ambient `Measure` cone. There is therefore no bundled affine structure for the
+correspondence to be a morphism of, and no weight normalization is needed for the statements below
+— they hold for arbitrary `a b : ℝ≥0∞`, with `a + b = 1` the case that keeps the combination a
+probability measure. -/
+
+/-- **The correspondence carries mixtures to mixtures.** If a mixing law is the combination
+`a • π₁ + b • π₂`, its exchangeable path law is the corresponding combination of theirs. -/
+theorem deFinettiEquiv_apply_coe_of_eq_add_smul [StandardBorelSpace α] (a b : ℝ≥0∞)
+    {π π₁ π₂ : ProbabilityMeasure (ProbabilityMeasure α)}
+    (hπ : (π : Measure (ProbabilityMeasure α))
+      = a • (π₁ : Measure (ProbabilityMeasure α)) + b • (π₂ : Measure (ProbabilityMeasure α))) :
+    ((deFinettiEquiv π : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = a • ((deFinettiEquiv π₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+        + b • ((deFinettiEquiv π₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α)) := by
+  simp only [deFinettiEquiv_apply_coe, hπ, deFinettiBarycenter_add, deFinettiBarycenter_smul]
+
+/-- **The inverse correspondence carries mixtures to mixtures.** If an exchangeable law is the
+combination `a • ρ₁ + b • ρ₂` of exchangeable laws, its mixing law is the corresponding combination
+of theirs.
+
+This direction is not formal: it uses that the barycenter is injective
+(`Measure.ext_of_bind_infinitePi_eq`), which is uniqueness of the mixing law. -/
+theorem deFinettiEquiv_symm_coe_of_eq_add_smul [StandardBorelSpace α] (a b : ℝ≥0∞)
+    {ρ ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}}
+    (hρ : ((ρ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = a • ((ρ₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+        + b • ((ρ₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))) :
+    ((deFinettiEquiv.symm ρ : ProbabilityMeasure (ProbabilityMeasure α)) :
+        Measure (ProbabilityMeasure α))
+      = a • ((deFinettiEquiv.symm ρ₁ : ProbabilityMeasure (ProbabilityMeasure α)) :
+          Measure (ProbabilityMeasure α))
+        + b • ((deFinettiEquiv.symm ρ₂ : ProbabilityMeasure (ProbabilityMeasure α)) :
+          Measure (ProbabilityMeasure α)) := by
+  have key : deFinettiBarycenter
+        ((deFinettiEquiv.symm ρ : ProbabilityMeasure (ProbabilityMeasure α)) :
+          Measure (ProbabilityMeasure α))
+      = deFinettiBarycenter
+        (a • ((deFinettiEquiv.symm ρ₁ : ProbabilityMeasure (ProbabilityMeasure α)) :
+            Measure (ProbabilityMeasure α))
+          + b • ((deFinettiEquiv.symm ρ₂ : ProbabilityMeasure (ProbabilityMeasure α)) :
+            Measure (ProbabilityMeasure α))) := by
+    rw [deFinettiBarycenter_add, deFinettiBarycenter_smul, deFinettiBarycenter_smul,
+      deFinettiBarycenter_deFinettiEquiv_symm, deFinettiBarycenter_deFinettiEquiv_symm,
+      deFinettiBarycenter_deFinettiEquiv_symm, hρ]
+  rw [deFinettiBarycenter_def, deFinettiBarycenter_def] at key
+  exact TauCeti.MeasureTheory.Measure.ext_of_bind_infinitePi_eq key
 
 /-- **The extreme fibres of the correspondence are exactly the point masses.** The de Finetti
 barycenter of a mixing law is an extreme exchangeable probability law if and only if that mixing

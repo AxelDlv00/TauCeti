@@ -53,15 +53,20 @@ namespace Probability
 variable {Ω α : Type*} [MeasurableSpace Ω] [MeasurableSpace α]
 
 /-- **De Finetti's theorem, unique mixture form.** An exchangeable process under a probability law,
-with measurable coordinates in a nonempty standard Borel state space, has a unique probability
-mixing law `π` for which its path law is the `π`-mixture of the i.i.d. infinite product laws. -/
-theorem deFinetti_mixture [StandardBorelSpace α] [Nonempty α] {μ : Measure Ω}
+with measurable coordinates in a standard Borel state space, has a unique probability mixing law
+`π` for which its path law is the `π`-mixture of the i.i.d. infinite product laws.
+
+No nonemptiness hypothesis on `α` is needed, although the directing-measure construction behind the
+proof requires one: a probability measure on `Ω` exhibits a point of `Ω`, which `X 0` carries into
+`α`. -/
+theorem deFinetti_mixture [StandardBorelSpace α] {μ : Measure Ω}
     [IsProbabilityMeasure μ] {X : ℕ → Ω → α} (hX : Exchangeable μ X)
     (hX_meas : ∀ n, Measurable (X n)) :
     ∃! π : ProbabilityMeasure (ProbabilityMeasure α),
       pathLaw μ X = (π : Measure (ProbabilityMeasure α)).bind
-        fun P => Measure.infinitePi fun _ : ℕ => (P : Measure α) :=
-  (mixedIID_of_conditionallyIID (conditionallyIID_of_exchangeable hX hX_meas))
+        fun P => Measure.infinitePi fun _ : ℕ => (P : Measure α) := by
+  have : Nonempty α := (nonempty_of_isProbabilityMeasure μ).map (X 0)
+  exact (mixedIID_of_conditionallyIID (conditionallyIID_of_exchangeable hX hX_meas))
     |>.existsUnique_mixingLaw fun n => (hX_meas n).aemeasurable
 
 end Probability

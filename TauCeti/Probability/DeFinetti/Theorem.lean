@@ -12,6 +12,9 @@ import TauCeti.Probability.Exchangeability.MixedIID.Implications
 import TauCeti.Probability.Exchangeability.PathSpace.Law.Bridge
 import TauCeti.Probability.Exchangeability.ConditionallyIID.Map
 import TauCeti.Probability.Exchangeability.ConditionallyIID.Implications
+-- Non-public: used only inside the a.e.-measurable wrappers, to move between a process and a
+-- coordinatewise measurable version of it.
+import TauCeti.Probability.Exchangeability.ConditionallyIID.Congr
 
 /-!
 # The de Finetti–Ryll-Nardzewski theorem and equivalences
@@ -25,9 +28,12 @@ measure. Since exchangeability implies contractability, `conditionallyIID_of_exc
 Finetti's theorem in the same sharp form. For a process with measurable coordinates, valued in a
 nonempty standard Borel space, under a finite measure, the conditional equivalences read
 
-* exchangeable **iff** conditionally i.i.d. (`deFinetti_equivalence`), and
+* exchangeable **iff** conditionally i.i.d. (`deFinetti_equivalence`),
+* contractable **iff** conditionally i.i.d. (`contractable_iff_conditionallyIID`, the two-way
+  form), and
 * contractable **iff** exchangeable and conditionally i.i.d.
-  (`deFinetti_RyllNardzewski_equivalence`).
+  (`deFinetti_RyllNardzewski_equivalence`, the roadmap's conjunction form, derived from the
+  two-way form).
 
 Their integrated-out mixture forms read
 
@@ -66,10 +72,15 @@ a strictly weaker statement.
   i.i.d., strengthening the forward direction of `contractable_iff_mixedIID`.
 * `conditionallyIID_of_exchangeable`, `deFinetti` — de Finetti's theorem in conditional form.
 * `deFinetti_equivalence` — exchangeable iff conditionally i.i.d.
+* `contractable_iff_conditionallyIID` — the two-way Ryll-Nardzewski equivalence, conditional form.
 * `deFinetti_RyllNardzewski_equivalence` — contractable iff exchangeable and conditionally i.i.d.
 * `exchangeable_iff_mixedIID` — de Finetti's theorem as an equivalence, mixture form.
 * `contractable_iff_mixedIID` — the two-way Ryll-Nardzewski equivalence, mixture form.
 * `contractable_iff_exchangeable_and_mixedIID` — the roadmap's conjunction form.
+* `conditionallyIID_of_contractable_of_aemeasurable`,
+  `conditionallyIID_of_exchangeable_of_aemeasurable`, `deFinetti_equivalence_of_aemeasurable`,
+  `contractable_iff_conditionallyIID_of_aemeasurable` — the same statements for a process whose
+  coordinates are only a.e. measurable.
 -/
 
 public section
@@ -160,18 +171,74 @@ theorem deFinetti_equivalence [StandardBorelSpace α] [Nonempty α] {μ : Measur
   ⟨fun hX => conditionallyIID_of_exchangeable hX hX_meas,
     fun hX => hX.exchangeable⟩
 
+/-- **De Finetti–Ryll-Nardzewski, two-way conditional form.** A process with measurable
+coordinates, valued in a nonempty standard Borel space, under a finite measure, is contractable iff
+it is conditionally i.i.d. This is the sharp conditional equivalence, matching
+`contractable_iff_mixedIID` on the mixture side; the converse is `ConditionallyIID.contractable`,
+which needs no side hypotheses. -/
+theorem contractable_iff_conditionallyIID [StandardBorelSpace α] [Nonempty α]
+    {μ : Measure Ω} [IsFiniteMeasure μ] {X : ℕ → Ω → α} (hX_meas : ∀ n, Measurable (X n)) :
+    Contractable μ X ↔ ConditionallyIID μ X :=
+  ⟨fun hX => conditionallyIID_of_contractable hX hX_meas, fun hX => hX.contractable⟩
+
 /-- **The de Finetti–Ryll-Nardzewski equivalence.** A process with measurable coordinates, valued
 in a nonempty standard Borel space, is contractable iff it is both exchangeable and conditionally
-i.i.d. -/
+i.i.d. Derived from the two-way `contractable_iff_conditionallyIID`, with the exchangeability
+conjunct supplied by `ConditionallyIID.exchangeable` (the conjunct is redundant given conditional
+i.i.d.-ness, but this is the shape the roadmap names). -/
 theorem deFinetti_RyllNardzewski_equivalence [StandardBorelSpace α] [Nonempty α]
     {μ : Measure Ω} [IsFiniteMeasure μ] {X : ℕ → Ω → α}
     (hX_meas : ∀ n, Measurable (X n)) :
-    Contractable μ X ↔ Exchangeable μ X ∧ ConditionallyIID μ X := by
-  constructor
-  · intro hX
-    have hX_cond := conditionallyIID_of_contractable hX hX_meas
-    exact ⟨hX_cond.exchangeable, hX_cond⟩
-  · exact fun hX => hX.2.contractable
+    Contractable μ X ↔ Exchangeable μ X ∧ ConditionallyIID μ X :=
+  (contractable_iff_conditionallyIID hX_meas).trans
+    ⟨fun hX => ⟨hX.exchangeable, hX⟩, And.right⟩
+
+/-! ### Almost-everywhere measurable coordinates
+
+The summits above ask for exactly measurable coordinates, which is what the directing-measure
+construction consumes. The wrappers below ask only for a.e. measurable ones, by running the summit
+on a coordinatewise measurable version of the process and transporting the conclusion back with
+`ConditionallyIIDWith.congr_process`. The symmetry hypotheses transport the same way
+(`Contractable.congr`, `Exchangeable.congr`), since every predicate involved sees the process only
+through its finite-dimensional laws.
+
+The conjunction form is not repeated here: it is
+`contractable_iff_conditionallyIID_of_aemeasurable` conjoined with
+`ConditionallyIID.exchangeable`, exactly as `deFinetti_RyllNardzewski_equivalence` is derived
+above. -/
+
+/-- **The conditional summit with a.e. measurable coordinates.** A contractable process valued in a
+nonempty standard Borel space, whose coordinates are only a.e. measurable, is still conditionally
+i.i.d. -/
+theorem conditionallyIID_of_contractable_of_aemeasurable [StandardBorelSpace α] [Nonempty α]
+    {μ : Measure Ω} [IsFiniteMeasure μ] {X : ℕ → Ω → α} (hX : Contractable μ X)
+    (hX_meas : ∀ n, AEMeasurable (X n) μ) :
+    ConditionallyIID μ X :=
+  (conditionallyIID_of_contractable (hX.congr fun n => (hX_meas n).ae_eq_mk)
+    fun n => (hX_meas n).measurable_mk).congr_process fun n => ((hX_meas n).ae_eq_mk).symm
+
+/-- **De Finetti's theorem with a.e. measurable coordinates.** An exchangeable process valued in a
+nonempty standard Borel space, whose coordinates are only a.e. measurable, is conditionally
+i.i.d. -/
+theorem conditionallyIID_of_exchangeable_of_aemeasurable [StandardBorelSpace α] [Nonempty α]
+    {μ : Measure Ω} [IsFiniteMeasure μ] {X : ℕ → Ω → α} (hX : Exchangeable μ X)
+    (hX_meas : ∀ n, AEMeasurable (X n) μ) :
+    ConditionallyIID μ X :=
+  conditionallyIID_of_contractable_of_aemeasurable (hX.contractable hX_meas) hX_meas
+
+/-- **De Finetti's theorem as an equivalence**, with a.e. measurable coordinates. -/
+theorem deFinetti_equivalence_of_aemeasurable [StandardBorelSpace α] [Nonempty α] {μ : Measure Ω}
+    [IsFiniteMeasure μ] {X : ℕ → Ω → α} (hX_meas : ∀ n, AEMeasurable (X n) μ) :
+    Exchangeable μ X ↔ ConditionallyIID μ X :=
+  ⟨fun hX => conditionallyIID_of_exchangeable_of_aemeasurable hX hX_meas,
+    fun hX => hX.exchangeable⟩
+
+/-- **De Finetti–Ryll-Nardzewski, two-way conditional form**, with a.e. measurable coordinates. -/
+theorem contractable_iff_conditionallyIID_of_aemeasurable [StandardBorelSpace α] [Nonempty α]
+    {μ : Measure Ω} [IsFiniteMeasure μ] {X : ℕ → Ω → α} (hX_meas : ∀ n, AEMeasurable (X n) μ) :
+    Contractable μ X ↔ ConditionallyIID μ X :=
+  ⟨fun hX => conditionallyIID_of_contractable_of_aemeasurable hX hX_meas,
+    fun hX => hX.contractable⟩
 
 end Probability
 

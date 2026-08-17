@@ -9,14 +9,21 @@ import TauCeti.Probability.DeFinetti
 /-!
 # Worked examples: the de Finetti public API
 
-This file imports **only** `TauCeti.Probability.DeFinetti`, and that is its whole content: each
-example is a bare reference to a name Layer 7 advertises, so the file elaborates exactly when the
-curated facade exports everything it promises. Nothing is proved and nothing is declared; the
-import is not public, so this adds no second route to the API.
+This file imports **only** `TauCeti.Probability.DeFinetti`, and nothing is declared; the import is
+not public, so this adds no second route to the API.
 
-A failure here means an export went missing, not that a proof broke: a summit can be proved, and
-its module built, while the facade never re-exports it, leaving the name unreachable for a caller
-who imports only the facade.
+The first half is an export check: each example is a bare reference to a name Layer 7 advertises,
+so the file elaborates exactly when the curated facade exports everything it promises. A failure
+there means an export went missing, not that a proof broke — a summit can be proved, and its module
+built, while the facade never re-exports it, leaving the name unreachable for a caller who imports
+only the facade.
+
+The second half *uses* the de Finetti correspondence rather than naming it: the mixing law of a
+two-point mixture of i.i.d. laws is computed from the affinity lemmas and the point-mass
+identification, and a process whose path law happens to be an i.i.d. law is shown to have a point
+mass as its de Finetti measure. These check that the correspondence API composes — that a caller
+can get from an equation between path laws to an equation between mixing laws without leaving the
+facade.
 
 ## One advertised name does not exist
 
@@ -42,9 +49,15 @@ stationary but non-exchangeable 3-cycle in `Exchangeability/ThreeCycle.lean`.
   suggested home for this file is `TauCeti/Examples/Probability/DeFinetti.lean`.
 -/
 
+open MeasureTheory
+
+open scoped ENNReal
+
 namespace TauCeti
 
 namespace Probability
+
+/-! ### Export checks -/
 
 -- The process predicates.
 example := @Exchangeable
@@ -84,6 +97,56 @@ example := @exchangeable_extreme_iff_iid
 -- de Finetti endpoint. Neither is re-exported by the other.
 example := @ConditionallyIIDWith.tendsto_average_ae
 example := @deFinetti_tendsto_empiricalMeasure_apply
+
+/-! ### Using the correspondence -/
+
+section Correspondence
+
+variable {α : Type*} [MeasurableSpace α] [StandardBorelSpace α]
+
+/-- The correspondence carries a two-point mixing law to the corresponding two-point mixture of
+i.i.d. laws. -/
+example (P Q : ProbabilityMeasure α) (a b : ℝ≥0∞)
+    {π : ProbabilityMeasure (ProbabilityMeasure α)}
+    (hπ : (π : Measure (ProbabilityMeasure α)) = a • Measure.dirac P + b • Measure.dirac Q) :
+    ((deFinettiEquiv π : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = a • (Measure.infinitePi fun _ : ℕ => (P : Measure α))
+        + b • (Measure.infinitePi fun _ : ℕ => (Q : Measure α)) := by
+  have h := deFinettiEquiv_apply_coe_of_eq_add_smul a b (π := π)
+    (π₁ := ⟨Measure.dirac P, inferInstance⟩) (π₂ := ⟨Measure.dirac Q, inferInstance⟩) hπ
+  rwa [deFinettiEquiv_dirac, deFinettiEquiv_dirac] at h
+
+/-- Conversely, an exchangeable law that mixes two i.i.d. laws has the corresponding two-point
+mixing law. This is the direction that uses de Finetti's theorem. -/
+example (P Q : ProbabilityMeasure α) (a b : ℝ≥0∞)
+    {ρ ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}}
+    (hρ₁ : ((ρ₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = Measure.infinitePi fun _ : ℕ => (P : Measure α))
+    (hρ₂ : ((ρ₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = Measure.infinitePi fun _ : ℕ => (Q : Measure α))
+    (hρ : ((ρ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+      = a • ((ρ₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+        + b • ((ρ₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))) :
+    ((deFinettiEquiv.symm ρ : ProbabilityMeasure (ProbabilityMeasure α)) :
+        Measure (ProbabilityMeasure α))
+      = a • Measure.dirac P + b • Measure.dirac Q := by
+  rw [deFinettiEquiv_symm_coe_of_eq_add_smul a b hρ, deFinettiEquiv_symm_eq_dirac P hρ₁,
+    deFinettiEquiv_symm_eq_dirac Q hρ₂]
+
+/-- An exchangeable process whose path law happens to be the i.i.d. law `P^{⊗ℕ}` has the point mass
+at `P` as its de Finetti measure. -/
+example {Ω : Type*} [MeasurableSpace Ω] [Nonempty α] {μ : Measure Ω} [IsProbabilityMeasure μ]
+    {X : ℕ → Ω → α} (hX : Exchangeable μ X) (hX_meas : ∀ n, Measurable (X n))
+    (P : ProbabilityMeasure α)
+    (hpath : pathLaw μ X = Measure.infinitePi fun _ : ℕ => (P : Measure α)) :
+    (deFinettiMeasure μ X (tailProcess_le_ambient 0 fun j _ => hX_meas j) :
+        Measure (ProbabilityMeasure α)) = Measure.dirac P :=
+  congrArg ProbabilityMeasure.toMeasure
+    (eq_deFinettiMeasure_of_pathLaw_eq_bind_infinitePi (π := ⟨Measure.dirac P, inferInstance⟩)
+      hX hX_meas
+      (by rw [hpath, ← deFinettiBarycenter_dirac P, deFinettiBarycenter_def]; rfl)).symm
+
+end Correspondence
 
 end Probability
 
