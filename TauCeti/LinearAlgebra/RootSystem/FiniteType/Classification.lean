@@ -10,8 +10,9 @@ public import TauCeti.LinearAlgebra.RootSystem.FiniteType.Star.Reindex
 public import TauCeti.LinearAlgebra.RootSystem.FiniteType.TripleEdge
 -- `TauCeti.LinearAlgebra.RootSystem.Isomorphism` supplies the rigidity theorem
 -- `TauCeti.nonempty_equiv_of_hasCartanType`, which `nonempty_equiv_of_classifiedDynkinType_eq`
--- feeds the selected type to.
-public import TauCeti.LinearAlgebra.RootSystem.Isomorphism
+-- feeds the selected type to. Nothing from it appears in a statement here, so the import stays
+-- private.
+import TauCeti.LinearAlgebra.RootSystem.Isomorphism
 
 public section
 
@@ -54,11 +55,12 @@ Uniqueness among valid types is supplied by `TauCeti.DynkinType.eq_of_valid_of_f
   Dynkin type are isomorphic, the classification combined with the rigidity theorem
   `TauCeti.nonempty_equiv_of_hasCartanType`.
 
-The roadmap's summit needs one more ingredient than these: the coordinate realization of each valid
-type over `ℚ`, which would turn the type of a base into a model root system and the statements here
-into a bijection between isomorphism classes and valid types. That realization, and the
-independence of the type from the chosen base, are separate roadmap targets and are not proved
-here.
+The roadmap's summit needs two ingredients beyond these, and neither is proved here. One is the
+coordinate realization of each valid type over `ℚ`, which turns a type into a model root system and
+so supplies the existence half. The other is the independence of the type from the chosen base,
+without which the classifier below classifies bases rather than root systems. With both, the
+statements here become the advertised bijection between isomorphism classes of irreducible reduced
+crystallographic finite root systems and valid Dynkin types.
 
 ## References
 
