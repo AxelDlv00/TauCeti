@@ -12,6 +12,9 @@ public import Mathlib.Topology.Semicontinuity.Defs
 -- `TauCeti.MeasureTheory.Integral.Marcinkiewicz` is imported privately: its operator-level
 -- interpolation API is used only to prove the strong maximal inequality below.
 import TauCeti.MeasureTheory.Integral.Marcinkiewicz
+-- `Mathlib.Analysis.Normed.Group.Real` is imported privately for the extended norm of
+-- `ENNReal.toReal`, used to descend the maximal function to `Lp`.
+import Mathlib.Analysis.Normed.Group.Real
 -- `Mathlib.MeasureTheory.Constructions.BorelSpace.Order` is imported privately: it is used only
 -- for `LowerSemicontinuous.measurable`, inside the proof of `TauCeti.measurable_maximalFunction`.
 import Mathlib.MeasureTheory.Constructions.BorelSpace.Order
@@ -486,9 +489,20 @@ theorem lintegral_rpow_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure]
     rw [hinv, hsplit, ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2), ENNReal.ofReal_ofNat]
     ring
   rw [← hconst]
-  refine lintegral_rpow_le_of_mul_meas_ofReal_lt_le hf
-    (measurable_maximalFunction μ f).aemeasurable hp (by norm_num) fun t ht => ?_
-  simpa using mul_measure_lt_maximalFunction_le_setLIntegral μ hf ht
+  rw [← maximalFunction_enorm μ f]
+  simpa only [inv_inv, ENNReal.ofReal_ofNat, enorm_eq_self] using
+    lintegral_rpow_operator_le
+      (T := fun g => maximalFunction μ g) (A := 4 ^ finrank ℝ E) (b := 1)
+      (c := 2⁻¹) (d := 2⁻¹) hf
+      (measurable_maximalFunction μ fun x => ‖f x‖ₑ).aemeasurable hp
+      (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+      (fun hgh => .of_forall fun x => maximalFunction_congr_ae hgh)
+      (fun g h hg => .of_forall fun y => maximalFunction_add_le
+        (by simpa only [enorm_eq_self] using hg) y)
+      (fun g _hg s => by
+        simpa only [enorm_eq_self] using mul_measure_lt_maximalFunction_le μ g s)
+      (fun g => .of_forall fun y => by simpa only [ENNReal.ofReal_one, one_mul] using
+        maximalFunction_le_eLpNormEssSup μ g y)
 
 /-- **The Hardy–Littlewood maximal inequality**, the strong-type `(p, p)` bound for `1 < p < ∞`,
 in terms of representative-level `Lᵖ` seminorms.
@@ -541,7 +555,7 @@ theorem eLpNorm_maximalFunction_toReal_eq (hf : MemLp f p μ) (hp : 1 < p)
       eLpNorm (maximalFunction μ f) p μ := by
   apply eLpNorm_congr_enorm_ae
   filter_upwards [ae_maximalFunction_lt_top_of_memLp hf hp hp_top] with x hx
-  simp [Real.enorm_of_nonneg ENNReal.toReal_nonneg, ENNReal.ofReal_toReal hx.ne]
+  exact Real.enorm_toReal hx.ne
 
 /-- The real-valued representative of the maximal function of an `Lᵖ` function is again in
 `Lᵖ`, for `1 < p < ∞`. -/

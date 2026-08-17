@@ -326,20 +326,16 @@ theorem mul_measure_ofReal_lt_operator_le_setLIntegral
   set g₁ : α → G := S.indicator g with hg₁def
   set g₂ : α → G := Sᶜ.indicator g with hg₂def
   have hsplit : g₁ + g₂ = g := by
-    funext x
-    exact Set.indicator_self_add_compl_apply S g x
+    rw [hg₁def, hg₂def, Set.indicator_self_add_compl]
   have hTv : T v =ᵐ[ν] T (g₁ + g₂) := by
     apply hcongr
     filter_upwards [hvg] with x hx
     rw [hsplit, hx]
   have hg₂bound : ∀ x, ‖g₂ x‖ₑ ≤ ENNReal.ofReal (c * t) := by
     intro x
-    rw [hg₂def]
-    by_cases hxS : x ∈ S
-    · rw [Set.indicator_of_notMem (by simp [hxS]), enorm_zero]
-      exact zero_le
-    · rw [Set.indicator_of_mem (by simp [hxS])]
-      exact not_lt.1 (by simpa [hSdef] using hxS)
+    rw [hg₂def, enorm_indicator_eq_indicator_enorm]
+    exact Set.indicator_apply_le'
+      (fun hx => not_lt.1 (by simpa [hSdef] using hx)) (fun _ => zero_le)
   have hTg₂ : ∀ᵐ y ∂ν, T g₂ y ≤ ENNReal.ofReal (b * (c * t)) := by
     filter_upwards [hinfty g₂] with y hy
     exact hy.trans (calc
@@ -372,10 +368,9 @@ theorem mul_measure_ofReal_lt_operator_le_setLIntegral
       exact congrArg (fun z : ℝ≥0∞ => ENNReal.ofReal (c * t) < z) hx
     calc ∫⁻ x, ‖g₁ x‖ₑ ∂μ
         = ∫⁻ x in S, ‖g x‖ₑ ∂μ := by
-          rw [← lintegral_indicator hSmeas]
-          congr 1
-          funext x
-          by_cases hx : x ∈ S <;> simp [hg₁def, hx]
+          rw [hg₁def]
+          simp_rw [enorm_indicator_eq_indicator_enorm]
+          exact lintegral_indicator hSmeas _
       _ = ∫⁻ x in S, ‖v x‖ₑ ∂μ :=
         (lintegral_congr_ae (ae_restrict_of_ae henorm)).symm
       _ = ∫⁻ x in {x | ENNReal.ofReal (c * t) < ‖v x‖ₑ}, ‖v x‖ₑ ∂μ := by
