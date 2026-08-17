@@ -4,9 +4,9 @@
 The lint finds declarations under ``TauCeti.<Mathlib namespace>`` with an explicit argument of
 the corresponding type, including explicit section variables used by the declaration. Mathlib
 type namespaces are conservatively approximated by namespace commands in Mathlib's sources;
-organisational namespaces, namespaces named by a declaration in the same file, and explicitly
-rooted declarations are ignored. Existing findings are grandfathered by the grouped
-``scripts/lint-dot-notation-baseline.txt``; update it with ``--write-baseline``.
+organisational namespaces, namespaces belonging to Tau Ceti declarations anywhere in the scanned
+source tree, and explicitly rooted declarations are ignored. Existing findings are grandfathered
+by the grouped ``scripts/lint-dot-notation-baseline.txt``; update it with ``--write-baseline``.
 """
 
 from __future__ import annotations
