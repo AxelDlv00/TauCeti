@@ -33,7 +33,7 @@ instance Mathlib's map needs is installed locally where it is required.
   `q`-power map `FiniteField.frobeniusAlgHom F W.FunctionField`.
 * `TauCeti.Isogeny.fieldPullback_frobeniusIsogeny_apply`: the same result pointwise, with no
   choice of a `Fintype` instance exposed in its statement.
-* `TauCeti.Isogeny.frobeniusIsogeny_isPurelyInseparable`: the induced function-field extension
+* `TauCeti.Isogeny.isPurelyInseparable_frobeniusIsogeny`: the induced function-field extension
   is purely inseparable.
 * `TauCeti.Isogeny.degree_frobeniusIsogeny`: the Frobenius isogeny has degree `q`.
 * `TauCeti.Isogeny.separableDegree_frobeniusIsogeny` and
@@ -126,17 +126,12 @@ theorem fieldPullback_frobeniusIsogeny_apply (x : W.FunctionField) :
 /-- **The Frobenius isogeny is purely inseparable.** Every `x` in the function field has
 `x ^ q` in the pullback's field range, and the finite-field cardinality `q` is a power of the
 exponential characteristic. -/
-noncomputable instance frobeniusIsogeny_isPurelyInseparable :
+instance isPurelyInseparable_frobeniusIsogeny :
     IsPurelyInseparable (frobeniusIsogeny W).fieldPullback.fieldRange W.FunctionField := by
   let _ := Fintype.ofFinite F
   obtain ⟨p, hpF, n, hp, hcard⟩ := FiniteField.card' F
   let _ : CharP F p := hpF
   let _ : ExpChar F p := ExpChar.prime hp
-  let _ : ExpChar W.FunctionField p :=
-    expChar_of_injective_algebraMap (algebraMap F W.FunctionField).injective p
-  let _ : ExpChar (frobeniusIsogeny W).fieldPullback.fieldRange p :=
-    expChar_of_injective_algebraMap
-      (algebraMap F (frobeniusIsogeny W).fieldPullback.fieldRange).injective p
   rw [isPurelyInseparable_iff_pow_mem _ p]
   intro x
   refine ⟨(n : ℕ), ⟨⟨x ^ p ^ (n : ℕ), ?_⟩, rfl⟩⟩
@@ -153,12 +148,10 @@ theorem degree_frobeniusIsogeny : (frobeniusIsogeny W).degree = Nat.card F := by
   exact WeierstrassCurve.Affine.finrank_fieldRange_frobeniusAlgHom W
 
 /-- **The Frobenius isogeny has separable degree one.** -/
-@[simp]
 theorem separableDegree_frobeniusIsogeny : (frobeniusIsogeny W).separableDegree = 1 :=
   separableDegree_eq_one_of_isPurelyInseparable (frobeniusIsogeny W)
 
 /-- **The Frobenius isogeny has inseparable degree `q`.** -/
-@[simp]
 theorem inseparableDegree_frobeniusIsogeny :
     (frobeniusIsogeny W).inseparableDegree = Nat.card F := by
   rw [inseparableDegree_eq_degree_of_isPurelyInseparable, degree_frobeniusIsogeny]
