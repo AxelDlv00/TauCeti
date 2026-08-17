@@ -25,13 +25,15 @@ external direct sums.
   spans `M`, and whose `i`-th member is isomorphic to `N i`. This is the transport the two theorems
   below run on, and it is stated separately because it is what a client needs in order to reach any
   other statement about internal decompositions.
-* `TauCeti.exists_linearEquiv_directSum_isIndecomposableModule`: **existence**, externally: a module
-  of finite length is isomorphic to a direct sum of indecomposable modules.
+* `TauCeti.exists_linearEquiv_directSum_isIndecomposableModule`: **existence**, externally: an
+  Artinian module is isomorphic to a direct sum of indecomposable modules.
 * `TauCeti.exists_equiv_linearEquiv_of_directSum`: **the Krull-Schmidt theorem**, externally: two
   decompositions `M ≃ₗ[A] ⨁ i, N i` and `M ≃ₗ[A] ⨁ j, Q j` of a module of finite length into
   indecomposable summands are matched by a bijection `ι ≃ κ` under which corresponding summands are
   isomorphic, with `TauCeti.exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end` in Azumaya's
   generality and `TauCeti.card_eq_card_of_directSum` for the number of summands.
+* `TauCeti.exists_equiv_linearEquiv_of_directSumEquiv`: the same for two abstract families of
+  summands compared by an isomorphism `(⨁ i, N i) ≃ₗ[A] ⨁ j, Q j`, with no ambient module.
 
 ## Implementation notes
 
@@ -46,9 +48,14 @@ instead of appearing as a hypothesis. This matches the choice made in
 with `⨆ i, P i = ⊤` rather than as `DirectSum.IsInternal`.
 
 Comparing two abstract families `N` and `Q` directly, with no ambient module, is the case
-`M := ⨁ i, N i` of these statements, taking the first equivalence to be `LinearEquiv.refl`; the
-finiteness hypothesis is then read on the direct sum itself, which is why the statements are given
-with an ambient `M` rather than in that special case.
+`M := ⨁ i, N i`, taking the first equivalence to be `LinearEquiv.refl`; that is
+`TauCeti.exists_equiv_linearEquiv_of_directSumEquiv`. The statements are given with an ambient `M`
+rather than only in that special case because the finiteness hypothesis is then read on the direct
+sum itself, which is not where a client holds it.
+
+The transport lemmas need no subtraction, so they are stated for a semimodule over a semiring; the
+decomposition theorems are over a ring, which is the generality of the internal statements they
+consume.
 
 ## References
 
@@ -69,13 +76,12 @@ open DirectSum
 
 universe u v w x y z
 
-variable {A : Type u} [Ring A] {M : Type v} [AddCommGroup M] [Module A M]
-
 /-! ### An external decomposition induces an internal one -/
 
 section Transport
 
-variable {ι : Type w} {N : ι → Type y} [∀ i, AddCommGroup (N i)] [∀ i, Module A (N i)]
+variable {A : Type u} [Semiring A] {M : Type v} [AddCommMonoid M] [Module A M]
+variable {ι : Type w} {N : ι → Type y} [∀ i, AddCommMonoid (N i)] [∀ i, Module A (N i)]
 
 /-- The copies of the summands inside an external direct sum are independent: an element of the
 `i`-th copy meeting the span of the others has vanishing `i`-th component. -/
@@ -119,17 +125,20 @@ end Transport
 
 /-! ### The two halves of the Krull-Schmidt theorem, externally -/
 
-/-- **Existence of an indecomposable decomposition**, externally: a module of finite length is
-isomorphic to the direct sum of a finite family of indecomposable modules.
+variable {A : Type u} [Ring A] {M : Type v} [AddCommGroup M] [Module A M]
+
+/-- **Existence of an indecomposable decomposition**, externally: an Artinian module — in
+particular one of finite length — is isomorphic to the direct sum of a finite family of
+indecomposable modules.
 
 The summands are produced as submodules of `M`, by
-`TauCeti.exists_indecomposable_decomposition`; the point of this form is that the conclusion is a
-linear equivalence with a direct sum, which is what
+`TauCeti.exists_isInternal_isIndecomposableModule`; the point of this form is that the conclusion
+is a linear equivalence with a direct sum, which is what
 `TauCeti.exists_equiv_linearEquiv_of_directSum` consumes. -/
-theorem exists_linearEquiv_directSum_isIndecomposableModule (hM : IsFiniteLength A M) :
+theorem exists_linearEquiv_directSum_isIndecomposableModule [IsArtinian A M] :
     ∃ s : Finset (Submodule A M), (∀ N ∈ s, IsIndecomposableModule A N) ∧
       Nonempty (M ≃ₗ[A] ⨁ N : s, (N : Submodule A M)) := by
-  obtain ⟨s, hs, hsi⟩ := exists_indecomposable_decomposition hM
+  obtain ⟨s, hs, hsi⟩ := exists_isInternal_isIndecomposableModule (A := A) (M := M)
   exact ⟨s, hs, ⟨(LinearEquiv.ofBijective (coeLinearMap fun N : s ↦ (N : Submodule A M)) hsi).symm⟩⟩
 
 variable {ι : Type w} {κ : Type x} [Finite ι] [Finite κ]
@@ -155,6 +164,18 @@ theorem exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end
     (fun j ↦ (hQ j).of_linearEquiv (hRe j).some)
   exact ⟨e, fun i ↦ ⟨(hPe i).some ≪≫ₗ (he i).some ≪≫ₗ (hRe (e i)).some.symm⟩⟩
 
+/-- **The Krull-Schmidt theorem for two abstract families of summands**: a direct sum of modules
+with local endomorphism rings that is isomorphic to a direct sum of indecomposable modules has its
+summands matched by a bijection of the index sets.
+
+This is `TauCeti.exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end` with the ambient module
+taken to be the first direct sum; it is the form to use when no ambient module is in play. -/
+theorem exists_equiv_linearEquiv_of_directSumEquiv (e : (⨁ i, N i) ≃ₗ[A] ⨁ j, Q j)
+    (hN : ∀ i, IsLocalRing (Module.End A (N i)))
+    (hQ : ∀ j, IsIndecomposableModule A (Q j)) :
+    ∃ f : ι ≃ κ, ∀ i, Nonempty (N i ≃ₗ[A] Q (f i)) :=
+  exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end (LinearEquiv.refl A _) e hN hQ
+
 /-- **The Krull-Schmidt theorem for external direct sums.** Two decompositions of a module of finite
 length as a direct sum of indecomposable modules are matched by a bijection of their index sets
 under which corresponding summands are isomorphic.
@@ -167,10 +188,10 @@ theorem exists_equiv_linearEquiv_of_directSum [IsNoetherian A M] [IsArtinian A M
     (hN : ∀ i, IsIndecomposableModule A (N i))
     (hQ : ∀ j, IsIndecomposableModule A (Q j)) :
     ∃ e : ι ≃ κ, ∀ i, Nonempty (N i ≃ₗ[A] Q (e i)) := by
-  refine exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end eN eQ (fun i ↦ ?_) hQ
   -- Each summand is isomorphic to a submodule of `M`, hence of finite length, so Fitting's lemma
   -- makes its endomorphism ring local.
   obtain ⟨P, -, -, hPe⟩ := exists_iSupIndep_linearEquiv_of_directSum eN
+  refine exists_equiv_linearEquiv_of_directSum_of_isLocalRing_end eN eQ (fun i ↦ ?_) hQ
   have e := (hPe i).some.symm
   exact isLocalRing_end_of_isIndecomposable
     (isFiniteLength_iff_isNoetherian_isArtinian.mpr
