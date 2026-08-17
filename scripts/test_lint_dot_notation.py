@@ -301,6 +301,17 @@ end TauCeti.Foo
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.Owned.stillMisplaced"])
 
+    def test_owned_type_exempts_a_nested_mathlib_named_namespace(self):
+        source = """\
+namespace TauCeti
+def Owned : Type := Nat
+namespace Owned.Foo
+def correctlyOwned (x : _root_.Foo) := x
+end Owned.Foo
+end TauCeti
+"""
+        self.assertEqual(findings(source), [])
+
     def test_missing_mathlib_checkout_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
