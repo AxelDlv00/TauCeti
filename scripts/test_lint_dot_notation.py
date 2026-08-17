@@ -301,16 +301,75 @@ end TauCeti.Foo
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.Owned.stillMisplaced"])
 
-    def test_owned_type_exempts_a_nested_mathlib_named_namespace(self):
+    def test_owned_type_does_not_exempt_a_nested_mathlib_named_namespace(self):
         source = """\
 namespace TauCeti
 def Owned : Type := Nat
 namespace Owned.Foo
-def correctlyOwned (x : _root_.Foo) := x
+def stillMisplaced (x : _root_.Foo) := x
 end Owned.Foo
 end TauCeti
 """
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Owned.Foo.stillMisplaced"])
+
+    def test_strict_implicit_type_binder_does_not_make_a_value_an_owned_type(self):
+        source = """\
+namespace TauCeti
+def Foo ⦃α : Type⦄ (n : Nat) : Nat := n
+namespace Foo
+def stillMisplaced (x : _root_.Foo) := x
+end Foo
+end TauCeti
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Foo.stillMisplaced"])
+
+    def test_parenthesized_arrow_domain_does_not_make_a_value_an_owned_type(self):
+        source = """\
+namespace TauCeti
+def Foo : (Type u) → Nat := fun _ ↦ 0
+namespace Foo
+def stillMisplaced (x : _root_.Foo) := x
+end Foo
+end TauCeti
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Foo.stillMisplaced"])
+
+    def test_indexed_type_family_is_an_owned_type(self):
+        source = """\
+namespace TauCeti
+def Foo : Nat → Type := fun _ ↦ Nat
+namespace Foo
+def correctlyOwned (x : _root_.Foo 0) := x
+end Foo
+end TauCeti
+"""
         self.assertEqual(findings(source), [])
+
+    def test_unannotated_type_alias_is_not_an_owned_type(self):
+        source = """\
+namespace TauCeti
+abbrev Foo := Nat
+namespace Foo
+def stillMisplaced (x : _root_.Foo) := x
+end Foo
+end TauCeti
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Foo.stillMisplaced"])
+
+    def test_prop_and_opaque_sort_results_are_owned(self):
+        source = """\
+namespace TauCeti
+def Predicate : Prop := True
+opaque Hidden : Type
+end TauCeti
+"""
+        self.assertEqual(lint.own_declaration_paths(
+            {pathlib.Path("TauCeti/Test.lean"): source}),
+            {("TauCeti", "Predicate"), ("TauCeti", "Hidden")})
 
     def test_missing_mathlib_checkout_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:

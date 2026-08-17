@@ -4,9 +4,10 @@
 The lint finds declarations under ``TauCeti.<Mathlib namespace>`` with an explicit argument of
 the corresponding type, including explicit section variables used by the declaration. Mathlib
 type namespaces are conservatively approximated by namespace commands in Mathlib's sources;
-organisational namespaces, namespaces belonging to Tau Ceti declarations anywhere in the scanned
-source tree, and explicitly rooted declarations are ignored. Existing findings are grandfathered
-by the grouped ``scripts/lint-dot-notation-baseline.txt``; update it with ``--write-baseline``.
+organisational namespaces, namespaces belonging to explicitly sort-valued Tau Ceti declarations
+anywhere in the scanned source tree, and explicitly rooted declarations are ignored. Existing
+findings are grandfathered by the grouped ``scripts/lint-dot-notation-baseline.txt``; update it
+with ``--write-baseline``.
 """
 
 from __future__ import annotations
@@ -40,6 +41,9 @@ MODIFIERS = {
 }
 IDENTIFIER = re.compile(r"(?:_root_\.)?[\w'.]+")
 WORD = re.compile(r"[A-Za-z_][\w']*")
+PAIRS = {"(": ")", "[": "]", "{": "}", "⦃": "⦄"}
+OPENERS = set(PAIRS)
+CLOSERS = set(PAIRS.values())
 NAMESPACE = re.compile(
     r"(?m)^(?:(?:public|private|protected|noncomputable)\s+)*namespace\s+([\w'.]+)"
 )
@@ -218,15 +222,14 @@ def _skip_horizontal(text: str, position: int) -> int:
 
 
 def _skip_balanced(text: str, position: int) -> int:
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    if position >= len(text) or text[position] not in pairs:
+    if position >= len(text) or text[position] not in PAIRS:
         return position
-    stack = [pairs[text[position]]]
+    stack = [PAIRS[text[position]]]
     position += 1
     while position < len(text) and stack:
         char = text[position]
-        if char in pairs:
-            stack.append(pairs[char])
+        if char in PAIRS:
+            stack.append(PAIRS[char])
         elif char == stack[-1]:
             stack.pop()
         position += 1
@@ -255,12 +258,10 @@ def _command_prefix(text: str, line_start: int) -> tuple[int, str] | None:
 
 def _top_level_colon(group: str) -> int | None:
     depth = 0
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    closes = set(pairs.values())
     for i, char in enumerate(group):
-        if char in pairs:
+        if char in OPENERS:
             depth += 1
-        elif char in closes:
+        elif char in CLOSERS:
             depth -= 1
         elif char == ":" and depth == 0 and not group.startswith(":=", i):
             return i
@@ -289,15 +290,15 @@ def _declaration_tail(text: str, position: int) -> tuple[tuple[str, ...], str]:
                 if next_word and next_word.group() == "where" and depth == 0:
                     break
                 current = text[header_end]
-                if current in "([{":
+                if current in OPENERS:
                     depth += 1
-                elif current in ")]}":
+                elif current in CLOSERS:
                     depth -= 1
                 elif current == "|" and depth == 0:
                     break
                 header_end += 1
             return tuple(binders), text[start:header_end]
-        if char in "([{":
+        if char in OPENERS:
             end = _skip_balanced(text, position)
             group = text[position + 1:end - 1]
             if char == "(" and _top_level_colon(group) is not None:
@@ -369,7 +370,7 @@ def variable_bindings(text: str) -> list[tuple[int, list[VariableBinding]]]:
         position = len("variable")
         bindings: list[VariableBinding] = []
         while position < len(body):
-            if body[position] in "([{":
+            if body[position] in OPENERS:
                 opener = body[position]
                 end = _skip_balanced(body, position)
                 group = body[position + 1:end - 1]
@@ -398,7 +399,7 @@ def _include_commands(text: str) -> list[tuple[int, str, set[str], bool]]:
         names: set[str] = set()
         position = 0
         while position < len(body):
-            if body[position] in "([{":
+            if body[position] in OPENERS:
                 position = _skip_balanced(body, position)
                 continue
             name = re.match(r"[\w']+", body[position:])
@@ -451,23 +452,18 @@ def _declaration_returns_sort(declaration: Declaration) -> bool:
         return True
     if declaration.keyword not in {"abbrev", "def", "opaque"}:
         return False
-    depth = 0
-    for position, char in enumerate(declaration.header):
-        if char in "([{":
-            depth += 1
-        elif char in ")]}":
-            depth -= 1
-        elif char == ":" and depth == 0 and not declaration.header.startswith(":=", position):
-            result = declaration.header[position + 1:].lstrip()
-            return re.match(r"\(?\s*(?:Prop|Sort|Type)\b", result) is not None
-    return False
+    colon = _top_level_colon(declaration.header)
+    if colon is None:
+        return False
+    codomain = _top_level_arrow_parts(declaration.header[colon + 1:])[-1].lstrip()
+    return re.match(r"(?:Prop|Sort|Type)\b", codomain) is not None
 
 
 def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ...]]:
-    """Return fully qualified paths of type-like declarations owned by Tau Ceti.
+    """Return fully qualified paths of explicitly sort-valued Tau Ceti declarations.
 
-    These paths suppress namespaces that legitimately belong to a Tau Ceti declaration, including
-    uses from files other than the declaration's defining file.
+    Structures, classes, inductives, and definitions annotated with a result ending in ``Type``,
+    ``Sort``, or ``Prop`` suppress their exact namespaces, including uses from other files.
     """
     owned: set[tuple[str, ...]] = set()
     for text in sources.values():
@@ -506,9 +502,9 @@ def _top_level_notation_receiver(binder_type: str) -> str | None:
     position = 0
     while position < len(binder_type):
         char = binder_type[position]
-        if char in "([{":
+        if char in OPENERS:
             depth += 1
-        elif char in ")]}":
+        elif char in CLOSERS:
             depth -= 1
         elif depth == 0:
             prefix = binder_type[:position].rstrip()
@@ -540,9 +536,9 @@ def _binder_has_type(binder: str, namespace: str) -> bool:
         return False
     depth = 0
     for position, char in enumerate(binder_type):
-        if char in "([{":
+        if char in OPENERS:
             depth += 1
-        elif char in ")]}":
+        elif char in CLOSERS:
             depth -= 1
         elif depth == 0 and any(binder_type.startswith(op, position)
                                 for op in TOP_LEVEL_CONNECTIVES):
@@ -550,38 +546,34 @@ def _binder_has_type(binder: str, namespace: str) -> bool:
     return True
 
 
-def _result_has_argument_type(header: str, namespace: str) -> bool:
-    """Whether a top-level arrow in the result type has a domain named ``namespace``."""
+def _top_level_arrow_parts(text: str) -> list[str]:
+    """Split ``text`` at top-level ASCII or Unicode function arrows."""
     depth = 0
-    result_start: int | None = None
-    for position, char in enumerate(header):
-        if char in "([{":
-            depth += 1
-        elif char in ")]}":
-            depth -= 1
-        elif char == ":" and depth == 0 and not header.startswith(":=", position):
-            result_start = position + 1
-            break
-    if result_start is None:
-        return False
-
-    result = header[result_start:]
-    depth = 0
-    domain_start = 0
-    domains: list[str] = []
+    part_start = 0
+    parts: list[str] = []
     position = 0
-    while position < len(result):
-        char = result[position]
-        if char in "([{":
+    while position < len(text):
+        char = text[position]
+        if char in OPENERS:
             depth += 1
-        elif char in ")]}":
+        elif char in CLOSERS:
             depth -= 1
-        elif depth == 0 and (char == "→" or result.startswith("->", position)):
-            domains.append(result[domain_start:position])
+        elif depth == 0 and (char == "→" or text.startswith("->", position)):
+            parts.append(text[part_start:position])
             position += 1 if char == "→" else 2
-            domain_start = position
+            part_start = position
             continue
         position += 1
+    parts.append(text[part_start:])
+    return parts
+
+
+def _result_has_argument_type(header: str, namespace: str) -> bool:
+    """Whether a top-level arrow in the result type has a domain named ``namespace``."""
+    colon = _top_level_colon(header)
+    if colon is None:
+        return False
+    domains = _top_level_arrow_parts(header[colon + 1:])[:-1]
     return any(_binder_has_type(f"_ : {domain}", namespace) for domain in domains)
 
 
@@ -660,8 +652,7 @@ def find_violations(
             candidates = [namespace for index, namespace in enumerate(candidate_path[1:], start=1)
                           if namespace in mathlib_namespace_names
                           and namespace not in ORGANISATIONAL
-                          and not any(tuple(candidate_path[:end]) in owned
-                                      for end in range(2, index + 2))]
+                          and tuple(candidate_path[:index + 1]) not in owned]
             current_variables: dict[str, str] = {}
             for _, binding in active_variables:
                 current_variables[binding.name] = binding.binder
@@ -778,6 +769,8 @@ def main(argv: list[str] | None = None) -> int:
     print("\nA Mathlib type's namespace is nested inside `namespace TauCeti`, so dot")
     print("notation on that type does not elaborate. Move the declaration to the type's")
     print("root namespace. Watch for `open` and `variable` commands that must move with it.\n")
+    print("If the namespace belongs to a Tau Ceti type, give its definition an explicit")
+    print("result sort such as `: Type _` or `: Prop`.\n")
     for finding in new:
         print(f"  {finding.render()}")
     return 1
