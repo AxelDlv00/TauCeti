@@ -31,14 +31,14 @@ higher-regularity Morse--Sard argument to the remaining case where the source di
   set of sufficiently small Hausdorff dimension sends it to an additive-Haar-null set.
 * `TauCeti.Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank`: a differentiable map into a
   strictly higher-dimensional space sends every subset to an additive-Haar-null set.
-* `TauCeti.ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank`: the whole range of a `C¹` map in
-  these dimensions is additive-Haar-null.
+* `TauCeti.Differentiable.addHaar_range_eq_zero_of_finrank_lt_finrank`: the whole range of such a
+  map is additive-Haar-null.
 * `TauCeti.not_surjective_fderiv_of_finrank_lt_finrank`: every derivative in this dimension range
   is nonsurjective.
 * `TauCeti.setOf_not_surjective_fderiv_eq_univ_of_finrank_lt_finrank`: every point belongs to the
   critical locus in this dimension range.
-* `TauCeti.ContDiff.addHaar_image_not_surjective_fderiv_eq_zero_of_finrank_lt_finrank`: the critical
-  values are additive-Haar-null, in the form used by Sard's theorem.
+* `TauCeti.Differentiable.addHaar_image_not_surjective_fderiv_eq_zero_of_finrank_lt_finrank`: the
+  critical values are additive-Haar-null, in the form used by Sard's theorem.
 
 The Hausdorff-dimension argument follows the one used for the lower-dimensional Sard corollary in
 Mathlib's `Topology.MetricSpace.HausdorffDimension`.
@@ -81,15 +81,14 @@ theorem Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank
   exact (dimH_mono (subset_univ t)).trans_lt <| by
     simpa only [Real.dimH_univ_eq_finrank, Nat.cast_lt] using hEF
 
-/-- A `C¹` map from a finite-dimensional real normed space to a strictly higher-dimensional one
-has additive-Haar-null range. This is the lower-dimensional-source case of Sard's theorem: every
-point of the source is critical because no derivative can be surjective. -/
-theorem ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank
-    (hf : ContDiff ℝ 1 f) (hEF : finrank ℝ E < finrank ℝ F) :
+/-- A differentiable map from a finite-dimensional real normed space to a strictly
+higher-dimensional one has additive-Haar-null range. This is the lower-dimensional-source case of
+Sard's theorem: every point of the source is critical because no derivative can be surjective. -/
+theorem Differentiable.addHaar_range_eq_zero_of_finrank_lt_finrank
+    (hf : Differentiable ℝ f) (hEF : finrank ℝ E < finrank ℝ F) :
     ν (range f) = 0 := by
   rw [← image_univ]
-  exact Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank
-    ν (hf.differentiable one_ne_zero) hEF univ
+  exact Differentiable.addHaar_image_eq_zero_of_finrank_lt_finrank ν hf hEF univ
 
 omit [FiniteDimensional ℝ F] [MeasurableSpace F] [BorelSpace F] in
 /-- When the source has strictly smaller finite dimension than the codomain, every Fréchet
@@ -110,15 +109,15 @@ theorem setOf_not_surjective_fderiv_eq_univ_of_finrank_lt_finrank (f : E → F)
     {x | ¬ Surjective (fderiv ℝ f x)} = (univ : Set E) :=
   eq_univ_of_forall fun x ↦ not_surjective_fderiv_of_finrank_lt_finrank f hEF x
 
-/-- The critical values of a `C¹` map from a finite-dimensional real normed space to a strictly
-higher-dimensional one have additive Haar measure zero. In this dimension range every point is
-critical, but stating the result for the critical locus gives the Sard form consumed by later
-regular-value arguments. -/
-theorem ContDiff.addHaar_image_not_surjective_fderiv_eq_zero_of_finrank_lt_finrank
-    (hf : ContDiff ℝ 1 f) (hEF : finrank ℝ E < finrank ℝ F) :
+/-- The critical values of a differentiable map from a finite-dimensional real normed space to a
+strictly higher-dimensional one have additive Haar measure zero. In this dimension range every
+point is critical, but stating the result for the critical locus gives the Sard form consumed by
+later regular-value arguments. -/
+theorem Differentiable.addHaar_image_not_surjective_fderiv_eq_zero_of_finrank_lt_finrank
+    (hf : Differentiable ℝ f) (hEF : finrank ℝ E < finrank ℝ F) :
     ν (f '' {x | ¬ Surjective (fderiv ℝ f x)}) = 0 := by
   rw [setOf_not_surjective_fderiv_eq_univ_of_finrank_lt_finrank f hEF, image_univ]
-  exact ContDiff.addHaar_range_eq_zero_of_finrank_lt_finrank ν hf hEF
+  exact Differentiable.addHaar_range_eq_zero_of_finrank_lt_finrank ν hf hEF
 
 end TauCeti
 
