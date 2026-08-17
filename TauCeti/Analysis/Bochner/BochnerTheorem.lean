@@ -386,16 +386,36 @@ theorem isProbabilityMeasure_bochnerMeasure (hcont : Continuous F)
   isProbabilityMeasure_iff_real.mpr <| by
     rw [bochnerMeasure_real_univ hcont hpd, hF0, Complex.one_re]
 
-/-- Scaling a continuous positive-definite function by a nonnegative real scales its Bochner
-measure by the same factor. -/
-theorem bochnerMeasure_const_mul (hcont : Continuous F) (hpd : IsPositiveDefiniteSub F) {r : ℝ}
-    (hr : 0 ≤ r) :
+/-- The Bochner measure of the zero function is the zero measure. -/
+@[simp]
+theorem bochnerMeasure_zero : bochnerMeasure (fun _ : V => (0 : ℂ)) = 0 :=
+  (eq_bochnerMeasure 0 fun v => by simp).symm
+
+/-- Scaling a function by a nonnegative real scales its Bochner measure by the same factor. No
+hypothesis on `F` is needed: for a positive factor the two sides are simultaneously outside the
+hypotheses of Bochner's theorem, where both are `0`. -/
+theorem bochnerMeasure_const_mul (F : V → ℂ) {r : ℝ} (hr : 0 ≤ r) :
     bochnerMeasure (fun v => (r : ℂ) * F v) = ENNReal.ofReal r • bochnerMeasure F := by
-  have hfin : IsFiniteMeasure (ENNReal.ofReal r • bochnerMeasure F) :=
-    Measure.smul_finite _ ENNReal.ofReal_ne_top
-  refine (eq_bochnerMeasure (F := fun v => (r : ℂ) * F v) _ fun v => ?_).symm
-  rw [integral_smul_measure, ENNReal.toReal_ofReal hr, Complex.real_smul,
-    integral_fourierAtom_bochnerMeasure hcont hpd]
+  rcases hr.eq_or_lt with rfl | hpos
+  · simp
+  by_cases h : Continuous F ∧ IsPositiveDefiniteSub F
+  · have hfin : IsFiniteMeasure (ENNReal.ofReal r • bochnerMeasure F) :=
+      Measure.smul_finite _ ENNReal.ofReal_ne_top
+    refine (eq_bochnerMeasure (F := fun v => (r : ℂ) * F v) _ fun v => ?_).symm
+    rw [integral_smul_measure, ENNReal.toReal_ofReal hpos.le, Complex.real_smul,
+      integral_fourierAtom_bochnerMeasure h.1 h.2]
+  · -- rescaling by `r > 0` is invertible, so `r • F` fails Bochner's hypotheses along with `F`
+    rw [bochnerMeasure_eq_zero_of_not h, smul_zero, bochnerMeasure_eq_zero_of_not]
+    rintro ⟨hrcont, hrpd⟩
+    have hrne : (r : ℂ) ≠ 0 := by exact_mod_cast hpos.ne'
+    have hFeq : (fun v => ((r : ℂ)⁻¹ * ((r : ℂ) * F v))) = F := by
+      funext v
+      rw [← mul_assoc, inv_mul_cancel₀ hrne, one_mul]
+    have hcont : Continuous fun v => (r : ℂ)⁻¹ * ((r : ℂ) * F v) := continuous_const.mul hrcont
+    have hpd : IsPositiveDefiniteSub fun v => (r : ℂ)⁻¹ * ((r : ℂ) * F v) :=
+      hrpd.const_mul (inv_nonneg.mpr ((RCLike.ofReal_nonneg (K := ℂ)).mpr hpos.le))
+    rw [hFeq] at hcont hpd
+    exact h ⟨hcont, hpd⟩
 
 /-- The Bochner measure of a sum of continuous positive-definite functions is the sum of their
 Bochner measures. -/
@@ -406,10 +426,5 @@ theorem bochnerMeasure_add {H : V → ℂ} (hFcont : Continuous F) (hFpd : IsPos
   rw [integral_add_measure (integrable_fourierAtom _ v) (integrable_fourierAtom _ v),
     integral_fourierAtom_bochnerMeasure hFcont hFpd,
     integral_fourierAtom_bochnerMeasure hHcont hHpd]
-
-/-- The Bochner measure of the zero function is the zero measure. -/
-@[simp]
-theorem bochnerMeasure_zero : bochnerMeasure (fun _ : V => (0 : ℂ)) = 0 :=
-  (eq_bochnerMeasure 0 fun v => by simp).symm
 
 end TauCeti

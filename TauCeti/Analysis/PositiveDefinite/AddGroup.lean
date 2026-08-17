@@ -41,6 +41,7 @@ the predicate in which Bochner's theorem is stated, in
 
 * `TauCeti.WithNegStar`: the type synonym carrying the negation involution.
 * `TauCeti.IsPositiveDefiniteSub`: the subtraction-form positive-definiteness predicate.
+* `TauCeti.isPositiveDefiniteSub_iff_forall_sum_nonneg`: the defining finite-family condition.
 * `TauCeti.isPositiveDefiniteSub_iff_isPositiveDefinite`: the transfer to the generic predicate.
 * `TauCeti.isPositiveDefiniteSub_iff_posSemidef`: the PD-function ↔ PD-kernel equivalence.
 * `TauCeti.isPositiveDefinite_iff_isPositiveDefiniteSub`: agreement with the generic predicate on
@@ -136,9 +137,16 @@ for which `0 ≤ z` means `z` is real and nonnegative).
 This is the classical translation-invariant condition, the one Bochner's theorem is stated in. It
 is `TauCeti.IsPositiveDefinite` for the negation involution; see
 `TauCeti.isPositiveDefiniteSub_iff_isPositiveDefinite`. -/
-@[expose] def IsPositiveDefiniteSub (F : G → ℂ) : Prop :=
+def IsPositiveDefiniteSub (F : G → ℂ) : Prop :=
   ∀ (n : ℕ) (c : Fin n → ℂ) (v : Fin n → G),
     0 ≤ ∑ i, ∑ j, c i * conj (c j) * F (v i - v j)
+
+/-- The defining finite-family characterization, for building a positive-definite function
+directly from the quadratic-form condition. -/
+theorem isPositiveDefiniteSub_iff_forall_sum_nonneg :
+    IsPositiveDefiniteSub F ↔ ∀ (n : ℕ) (c : Fin n → ℂ) (v : Fin n → G),
+      0 ≤ ∑ i, ∑ j, c i * conj (c j) * F (v i - v j) :=
+  Iff.rfl
 
 /-- Subtraction-form positive definiteness is the generic involutive predicate for the negation
 involution, read on the type synonym `TauCeti.WithNegStar`. -/
