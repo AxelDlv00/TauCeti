@@ -545,8 +545,8 @@ in terms of representative-level `Lᵖ` seminorms.
 
 Together with `TauCeti.maximalFunction_le_eLpNormEssSup` (the case `p = ∞`) and
 `TauCeti.mul_measure_lt_maximalFunction_le` (the weak-type substitute at `p = 1`), this completes
-the `Lᵖ` theory of the maximal function. This estimate also gives the `MemLp` preservation result
-for its real-valued representative below. -/
+the `Lᵖ` theory of the maximal function. The resulting finiteness statement is recorded by
+`TauCeti.eLpNorm_maximalFunction_lt_top` below. -/
 theorem eLpNorm_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure] {f : E → F}
     (hf : AEMeasurable (fun x => ‖f x‖ₑ) μ) {p : ℝ≥0∞} (hp : 1 < p) (hp_top : p ≠ ∞) :
     eLpNorm (maximalFunction μ f) p μ ≤
@@ -562,7 +562,7 @@ theorem eLpNorm_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure] {f : E
 
 end StrongType
 
-section RealRepresentative
+section Finiteness
 
 variable {p : ℝ≥0∞} {f : E → F}
 
@@ -572,9 +572,10 @@ theorem eLpNorm_maximalFunction_lt_top (μ : Measure E) [μ.IsAddHaarMeasure]
     (hp : 1 < p) : eLpNorm (maximalFunction μ f) p μ < ∞ := by
   rcases eq_or_ne p ∞ with rfl | hp_top
   · rw [eLpNorm_exponent_top]
-    exact (essSup_le_of_ae_le _ (.of_forall fun x =>
-      maximalFunction_le_eLpNormEssSup μ f x)).trans_lt (by
+    refine (eLpNormEssSup_le_of_ae_enorm_bound (.of_forall fun x => ?_)).trans_lt (by
         simpa only [eLpNorm_exponent_top] using hf_top.lt_top)
+    rw [enorm_eq_self]
+    exact maximalFunction_le_eLpNormEssSup μ f x
   · exact (eLpNorm_maximalFunction_le μ hf hp hp_top).trans_lt
       (ENNReal.mul_lt_top (by finiteness) hf_top.lt_top)
 
@@ -599,7 +600,7 @@ theorem ae_maximalFunction_lt_top_of_eLpNorm_ne_top (μ : Measure E) [μ.IsAddHa
       ae_lt_top' ((measurable_maximalFunction μ f).pow_const p.toReal).aemeasurable hMint.ne
     exact hrpow.mono fun _ hx => (ENNReal.rpow_lt_top_iff_of_pos hpr).mp hx
 
-end RealRepresentative
+end Finiteness
 
 end Haar
 
