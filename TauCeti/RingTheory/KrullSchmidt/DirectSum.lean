@@ -38,7 +38,8 @@ external direct sums.
 ## Implementation notes
 
 The transport goes through `LinearMap.range (DirectSum.lof A ι N i)`, the copy of `N i` inside
-`⨁ i, N i`. That these ranges span is Mathlib's `DFinsupp.iSup_range_lsingle`; that they are
+`⨁ i, N i`. That these ranges span is Mathlib's `DFinsupp.iSup_range_lsingle`, `DirectSum.lof`
+being by definition `DFinsupp.lsingle`; that they are
 independent is the one private lemma below, read off the components. Their images under `e.symm`
 are the internal decomposition of `M`, independent by `LinearMap.iSupIndep_map`. The transport is
 stated existentially rather than as a named family of submodules, so that `DecidableEq ι` — which
@@ -98,12 +99,6 @@ private theorem iSupIndep_range_lof [DecidableEq ι] :
   have hb : b = 0 := by simpa using hle hx
   rw [hb, map_zero]
 
-/-- The copies of the summands inside an external direct sum span it. This is Mathlib's
-`DFinsupp.iSup_range_lsingle`, read through `DirectSum.lof`. -/
-private theorem iSup_range_lof [DecidableEq ι] :
-    ⨆ i, LinearMap.range (lof A ι N i) = ⊤ :=
-  DFinsupp.iSup_range_lsingle
-
 /-- **An external direct-sum decomposition induces an internal one.** An isomorphism
 `M ≃ₗ[A] ⨁ i, N i` carries the copies of the summands to a family of submodules of `M` that is
 independent, spans `M`, and reproduces the `N i` up to isomorphism.
@@ -116,7 +111,10 @@ theorem exists_iSupIndep_linearEquiv_of_directSum (e : M ≃ₗ[A] ⨁ i, N i) :
   refine ⟨fun i ↦ (LinearMap.range (lof A ι N i)).map (e.symm : (⨁ i, N i) →ₗ[A] M), ?_, ?_,
     fun i ↦ ⟨?_⟩⟩
   · exact LinearMap.iSupIndep_map _ e.symm.injective iSupIndep_range_lof
-  · rw [← Submodule.map_iSup, iSup_range_lof, Submodule.map_top]
+  · -- `DirectSum.lof` is by definition `DFinsupp.lsingle`, but `rw` does not unfold it, so
+    -- Mathlib's spanning statement is transferred by ascription rather than rewritten in place.
+    have htop : ⨆ i, LinearMap.range (lof A ι N i) = ⊤ := DFinsupp.iSup_range_lsingle
+    rw [← Submodule.map_iSup, htop, Submodule.map_top]
     exact LinearMap.range_eq_top.mpr e.symm.surjective
   · exact (LinearEquiv.ofInjective (lof A ι N i) DFinsupp.single_injective).trans
       (Submodule.equivMapOfInjective _ e.symm.injective _)

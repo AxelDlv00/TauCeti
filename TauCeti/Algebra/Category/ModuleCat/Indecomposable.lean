@@ -21,9 +21,8 @@ theorem, which are stated for the module predicate.
 ## Main results
 
 * `TauCeti.indecomposable_iff_isIndecomposableModule`: an object of `ModuleCat A` is indecomposable
-  exactly when its underlying module is, with
-  `TauCeti.isIndecomposableModule_iff_indecomposable` reading the same equivalence off a bare
-  module through `ModuleCat.of`.
+  exactly when its underlying module is. A bare module `M` reads the same equivalence off as
+  `indecomposable_iff_isIndecomposableModule (ModuleCat.of A M)`.
 * `TauCeti.indecomposable_iff_isLocalRing_end`: an object of `ModuleCat A` whose underlying module
   has finite length is indecomposable exactly when `CategoryTheory.End` of it is local, which is
   Fitting's lemma stated categorically.
@@ -72,12 +71,6 @@ theorem indecomposable_iff_isIndecomposableModule (M : ModuleCat.{v} A) :
   · exact (h (ModuleCat.ofHom f) (ModuleCat.hom_ext hf)).imp (congrArg ModuleCat.Hom.hom)
       (congrArg ModuleCat.Hom.hom)
   · exact (h e.hom (ModuleCat.hom_ext_iff.mp he)).imp ModuleCat.hom_ext ModuleCat.hom_ext
-
-/-- **A module is indecomposable exactly when the object it presents in `ModuleCat A` is**, the
-reading of `TauCeti.indecomposable_iff_isIndecomposableModule` for a bare module. -/
-theorem isIndecomposableModule_iff_indecomposable (M : Type v) [AddCommGroup M] [Module A M] :
-    IsIndecomposableModule A M ↔ Indecomposable (ModuleCat.of A M) :=
-  (indecomposable_iff_isIndecomposableModule (ModuleCat.of A M)).symm
 
 /-- **Fitting's lemma, categorically**: an object of `ModuleCat A` whose underlying module has
 finite length is indecomposable exactly when its ring of endomorphisms in the category is local. -/
