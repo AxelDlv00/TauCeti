@@ -59,6 +59,7 @@ instance (x : Foo) : Inhabited Foo := ⟨x⟩
 instance (priority := 100) (x : Foo) : Inhabited Foo := ⟨x⟩
 nonrec def nonrecursive (x : Foo) := x
 scoped instance namedInstance (x : Foo) : Inhabited Foo := ⟨x⟩
+local instance localInstance (x : Foo) : Inhabited Foo := ⟨x⟩
 partial def partialDefinition (x : Foo) := x
 unsafe def unsafeDefinition (x : Foo) := x
 def implicitOnly {x : Foo} := x
@@ -72,11 +73,11 @@ end TauCeti
 """
         result = findings(source)
         names = [finding.declaration for finding in result]
-        self.assertEqual(len(result), 10)
+        self.assertEqual(len(result), 11)
         self.assertEqual(sum("<anonymous instance " in name for name in names), 2)
         for expected in ("attributed", "multilineAttribute", "nonrecursive", "namedInstance",
-                         "partialDefinition", "unsafeDefinition", "ClassDeclaration",
-                         "StructureDeclaration"):
+                         "localInstance", "partialDefinition", "unsafeDefinition",
+                         "ClassDeclaration", "StructureDeclaration"):
             self.assertIn(f"TauCeti.Foo.{expected}", names)
 
     def test_root_declaration_is_not_flagged(self):
@@ -121,7 +122,7 @@ end TauCeti
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.fromVariable", "TauCeti.Foo.dotted"])
 
-    def test_owned_names_are_lowercase_and_scoped_per_file(self):
+    def test_owned_names_are_lowercase_and_matched_by_full_path(self):
         sources = {
             pathlib.Path("TauCeti/Own.lean"): """\
 namespace TauCeti
@@ -134,13 +135,31 @@ end TauCeti
             pathlib.Path("TauCeti/Other.lean"): """\
 namespace TauCeti
 namespace prod
-def misplaced (x : prod) := x
+def correctlyOwned (x : prod) := x
 end prod
 end TauCeti
 """,
+            pathlib.Path("TauCeti/Unrelated.lean"): """\
+namespace TauCeti.Other
+namespace prod
+def misplaced (x : prod) := x
+end prod
+end TauCeti.Other
+""",
+            pathlib.Path("TauCeti/Nested.lean"): """\
+namespace TauCeti
+def Quiver.IsAcyclic := Nat
+end TauCeti
+""",
+            pathlib.Path("TauCeti/NestedOther.lean"): """\
+namespace TauCeti.Quiver.IsAcyclic
+def correctlyNested (x : Quiver.IsAcyclic) := x
+end TauCeti.Quiver.IsAcyclic
+""",
         }
-        self.assertEqual([finding.declaration for finding in lint.find_violations(sources, {"prod"})],
-                         ["TauCeti.prod.misplaced"])
+        self.assertEqual([finding.declaration for finding in
+                          lint.find_violations(sources, {"prod", "Quiver", "IsAcyclic"})],
+                         ["TauCeti.Other.prod.misplaced"])
 
     def test_missing_mathlib_checkout_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -156,6 +175,10 @@ end TauCeti
                      "--baseline", str(baseline)])
         self.assertEqual(result, 2)
         self.assertIn("Mathlib source directory not found", stderr.getvalue())
+
+    def test_primed_identifier_does_not_open_a_character_literal(self):
+        cleaned = lint.strip_comments_and_strings("Homeomorph.prodAssoc F F' G' ''\ndef next := 1\n")
+        self.assertIn("def next", cleaned)
 
     def test_main_rejects_new_and_reports_ratchetable_findings(self):
         with tempfile.TemporaryDirectory() as directory:

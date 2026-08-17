@@ -19,7 +19,6 @@ import pathlib
 import re
 import sys
 from collections import Counter
-from collections.abc import Iterable
 
 
 # These organise declarations but do not themselves name receiver types. Names such as Set,
@@ -36,7 +35,8 @@ DECLARATION_KEYWORDS = {
 }
 OWN_DECLARATION_KEYWORDS = {"abbrev", "class", "def", "inductive", "structure"}
 MODIFIERS = {
-    "noncomputable", "nonrec", "partial", "private", "protected", "public", "scoped", "unsafe",
+    "local", "noncomputable", "nonrec", "partial", "private", "protected", "public", "scoped",
+    "unsafe",
 }
 IDENTIFIER = re.compile(r"(?:_root_\.)?[\w'.]+")
 WORD = re.compile(r"[A-Za-z_][\w']*")
@@ -126,7 +126,8 @@ def strip_comments_and_strings(text: str) -> str:
             chars[i] = " "
             in_string = True
             i += 1
-        elif chars[i] == "'" and i + 2 < len(chars) and (
+        elif chars[i] == "'" and (i == 0 or not (
+                chars[i - 1].isalnum() or chars[i - 1] in "_'")) and i + 2 < len(chars) and (
                 chars[i + 1] == "\\" or chars[i + 2] == "'"):
             end = i + 2
             while end < len(chars) and chars[end] not in "'\n":
@@ -235,6 +236,8 @@ def _declaration_tail(text: str, position: int) -> tuple[tuple[str, ...], str]:
                 binders.append(group)
             position = end
         elif char == "\n":
+            if _command_prefix(text, position + 1) is not None:
+                break
             position += 1
         else:
             position += 1
@@ -313,12 +316,48 @@ def mathlib_namespaces(root: pathlib.Path) -> set[str]:
     return names
 
 
-def own_declarations(parsed: Iterable[Declaration]) -> set[str]:
-    return {
-        declaration.name.removeprefix("_root_.").split(".")[-1]
-        for declaration in parsed
-        if declaration.keyword in OWN_DECLARATION_KEYWORDS and declaration.name is not None
-    }
+def _update_scope(stack: list[Scope], kind: str, name: str | None) -> None:
+    if kind == "namespace":
+        assert name is not None
+        stack.append(Scope(kind, name, tuple(name.split("."))))
+    elif kind in {"section", "mutual"}:
+        stack.append(Scope(kind, name, ()))
+    elif name is None:
+        if stack:
+            stack.pop()
+    else:
+        for index in range(len(stack) - 1, -1, -1):
+            if stack[index].matches(name):
+                del stack[index:]
+                break
+
+
+def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ...]]:
+    owned: set[tuple[str, ...]] = set()
+    for text in sources.values():
+        events: list[tuple[int, str, object]] = [
+            (position, "scope", (kind, name)) for position, kind, name in scopes(text)]
+        events.extend((declaration.position, "declaration", declaration)
+                      for declaration in declarations(text))
+        events.sort(key=lambda event: event[0])
+        stack: list[Scope] = []
+        for _, kind, payload in events:
+            if kind == "scope":
+                scope_kind, name = payload  # type: ignore[misc]
+                _update_scope(stack, scope_kind, name)
+                continue
+            declaration = payload
+            assert isinstance(declaration, Declaration)
+            if declaration.keyword not in OWN_DECLARATION_KEYWORDS or declaration.name is None:
+                continue
+            namespaces = [component for scope in stack for component in scope.components]
+            if declaration.name.startswith("_root_."):
+                path = declaration.name.removeprefix("_root_.").split(".")
+            else:
+                path = [*namespaces, *declaration.name.split(".")]
+            if path and path[0] == "TauCeti":
+                owned.add(tuple(path))
+    return owned
 
 
 def _binder_has_type(binder: str, namespace: str) -> bool:
@@ -381,9 +420,9 @@ def find_violations(
     sources: dict[pathlib.Path, str], mathlib_namespace_names: set[str]
 ) -> list[Finding]:
     findings: list[Finding] = []
+    owned = own_declaration_paths(sources)
     for path, text in sorted(sources.items()):
         parsed = declarations(text)
-        owned = own_declarations(parsed)
         events: list[tuple[int, str, object]] = [
             (position, "scope", (kind, name)) for position, kind, name in scopes(text)
         ]
@@ -397,19 +436,7 @@ def find_violations(
         for _, event_kind, payload in events:
             if event_kind == "scope":
                 kind, name = payload  # type: ignore[misc]
-                if kind == "namespace":
-                    assert name is not None
-                    stack.append(Scope(kind, name, tuple(name.split("."))))
-                elif kind in {"section", "mutual"}:
-                    stack.append(Scope(kind, name, ()))
-                elif name is None:
-                    if stack:
-                        stack.pop()
-                else:
-                    for index in range(len(stack) - 1, -1, -1):
-                        if stack[index].matches(name):
-                            del stack[index:]
-                            break
+                _update_scope(stack, kind, name)
                 active_variables = [(depth, binding) for depth, binding in active_variables
                                     if depth <= len(stack)]
                 continue
@@ -428,13 +455,11 @@ def find_violations(
                 continue
             name_prefix = declaration.name.split(".")[:-1] if declaration.name else []
             candidate_path = [*namespaces, *name_prefix]
-            candidates = [
-                namespace
-                for namespace in candidate_path[1:]
-                if namespace in mathlib_namespace_names
-                and namespace not in ORGANISATIONAL
-                and namespace not in owned
-            ]
+            candidates = [namespace for index, namespace in enumerate(candidate_path[1:], start=1)
+                          if namespace in mathlib_namespace_names
+                          and namespace not in ORGANISATIONAL
+                          and not any(tuple(candidate_path[:end]) in owned
+                                      for end in range(index + 1, len(candidate_path) + 1))]
             current_variables: dict[str, str] = {}
             for _, binding in active_variables:
                 current_variables[binding.name] = binding.binder
@@ -450,7 +475,6 @@ def find_violations(
             if not matching:
                 continue
 
-            namespace = matching[-1]
             if declaration.name is None:
                 normalized = " ".join(declaration.header.split())
                 digest = hashlib.sha256(normalized.encode()).hexdigest()[:12]
