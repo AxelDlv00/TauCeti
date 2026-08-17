@@ -5,7 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import Mathlib.RepresentationTheory.Subrepresentation
+public import Mathlib.RepresentationTheory.Intertwining
 public import Mathlib.RingTheory.SimpleModule.Basic
 
 /-!
@@ -15,9 +15,10 @@ Mathlib's `Subrepresentation` API records how `toSubmodule` interacts with the l
 operations — `Subrepresentation.toSubmodule_sup` and `Subrepresentation.toSubmodule_inf`, both
 `@[simp]` and both true by `rfl` — but not how it interacts with the bounded-lattice structure,
 nor how it interacts with the order relations themselves, nor how it interacts with membership.
-This file adds the five missing counterparts, in the same shape. It also records that the
-group-algebra action on a subrepresentation coerces to the original action, and that a
-subrepresentation is minimal exactly when the `A[G]`-submodule it carries is simple.
+This file adds the five missing counterparts, in the same shape. It also records the inclusion of
+a subrepresentation as an intertwining map, that the group-algebra action on a subrepresentation
+coerces to the original action, and that a subrepresentation is minimal exactly when the
+`A[G]`-submodule it carries is simple.
 
 They are stated at the typeclasses `Subrepresentation` itself asks for, so they apply wherever
 the abstraction does. The `⊥` and `⊤` lemmas let proofs about extreme subrepresentations avoid
@@ -40,6 +41,7 @@ the coefficients to be a commutative ring, as `Subrepresentation.asSubmodule` an
 * `Subrepresentation.toSubmodule_top`
 * `Subrepresentation.toSubmodule_le_toSubmodule`
 * `Subrepresentation.toSubmodule_lt_toSubmodule`
+* `Subrepresentation.subtype`
 * `Subrepresentation.coe_toRepresentation_asAlgebraHom_apply`
 * `Subrepresentation.isSimpleModule_asSubmodule_iff`
 -/
@@ -76,6 +78,21 @@ is. -/
 lemma toSubmodule_lt_toSubmodule {ρ₁ ρ₂ : Subrepresentation ρ} :
     ρ₁.toSubmodule < ρ₂.toSubmodule ↔ ρ₁ < ρ₂ := by
   simp only [lt_iff_le_not_ge, toSubmodule_le_toSubmodule]
+
+/-- **The inclusion of a subrepresentation**, as an intertwining map: the analogue of
+`Submodule.subtype`, which is the linear map underlying it. -/
+@[expose] def subtype (ρ' : Subrepresentation ρ) :
+    Representation.IntertwiningMap ρ'.toRepresentation ρ where
+  toLinearMap := ρ'.toSubmodule.subtype
+  isIntertwining' _ := by ext; rfl
+
+@[simp]
+lemma subtype_apply {ρ' : Subrepresentation ρ} (v : ρ'.toSubmodule) :
+    ρ'.subtype v = (v : W) := rfl
+
+@[simp]
+lemma toLinearMap_subtype (ρ' : Subrepresentation ρ) :
+    ρ'.subtype.toLinearMap = ρ'.toSubmodule.subtype := rfl
 
 /-- The group-algebra action on a subrepresentation, coerced to the ambient module, is the
 original group-algebra action. -/
