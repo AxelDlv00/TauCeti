@@ -59,10 +59,11 @@ where finiteness of `∫⁻ ‖f‖ₑ` enters: a ball whose average exceeds `t`
 `∫⁻ ‖f‖ₑ / t`, which in positive dimension bounds its radius. In dimension `0` it does not — every
 ball is the whole space — and that degenerate case is proved separately.
 
-The strong type `(p, p)` bound then comes from `TauCeti.lintegral_rpow_operator_le`, the
-operator-level diagonal case of Marcinkiewicz interpolation. That theorem performs the reusable
-split of `‖f‖ₑ` at the height `t / 2`: the low part is bounded by `t / 2`, so its maximal function
-never reaches `t`, and the weak-type bound applied to the high part gives
+The strong type `(p, p)` bound then comes from
+`TauCeti.lintegral_rpow_le_of_mul_meas_lt_le_of_le_eLpNormEssSup`, the operator-level diagonal
+case of Marcinkiewicz interpolation. That theorem performs the reusable split at height `c * t`.
+Here `c = d = 2⁻¹`, so the low part is bounded by `t / 2`, its maximal function never reaches
+`t`, and the weak-type bound applied to the high part gives
 `t * μ {M f > t} ≤ 2 * 4 ^ n * ∫⁻ x in {‖f‖ₑ > t / 2}, ‖f x‖ₑ ∂μ`.
 
 ## Main declarations
@@ -78,7 +79,7 @@ never reaches `t`, and the weak-type bound applied to the high part gives
   function unchanged.
 * `TauCeti.maximalFunction_zero`, `TauCeti.maximalFunction_add_le`,
   `TauCeti.maximalFunction_const_smul`: `M` is sublinear. Subadditivity and the endpoint bounds
-  feed directly into `TauCeti.lintegral_rpow_operator_le`.
+  feed directly into `TauCeti.lintegral_rpow_le_of_mul_meas_lt_le_of_le_eLpNormEssSup`.
 * `TauCeti.maximalFunction_le_eLpNormEssSup`: the `L^∞` endpoint.
 * `TauCeti.lowerSemicontinuous_maximalFunction`, `TauCeti.measurable_maximalFunction`: the
   superlevel sets `{x | t < M f x}` are open, so `M f` is Borel measurable.
@@ -454,18 +455,18 @@ theorem lintegral_rpow_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure]
   rw [← hconst]
   rw [← maximalFunction_enorm μ f]
   simpa only [inv_inv, ENNReal.ofReal_ofNat, enorm_eq_self] using
-    lintegral_rpow_operator_le
+    lintegral_rpow_le_of_mul_meas_lt_le_of_le_eLpNormEssSup
       (T := fun g => maximalFunction μ g) (A := 4 ^ finrank ℝ E) (b := 1)
       (c := 2⁻¹) (d := 2⁻¹) hf
       (measurable_maximalFunction μ fun x => ‖f x‖ₑ).aemeasurable hp
       (by norm_num) (by norm_num) (by norm_num) (by norm_num)
-      (fun hgh => .of_forall fun x => maximalFunction_congr_ae hgh)
-      (fun g h hg => .of_forall fun y => maximalFunction_add_le
+      (fun g h hg _hh => .of_forall fun y => maximalFunction_add_le
         (by simpa only [enorm_eq_self] using hg) y)
       (fun g _hg s => by
         simpa only [enorm_eq_self] using mul_measure_lt_maximalFunction_le μ g s)
-      (fun g => .of_forall fun y => by simpa only [ENNReal.ofReal_one, one_mul] using
-        maximalFunction_le_eLpNormEssSup μ g y)
+      (fun (g : E → ℝ≥0∞) (_hg : AEMeasurable g μ) =>
+        .of_forall fun y : E => by simpa only [ENNReal.ofReal_one, one_mul] using
+          maximalFunction_le_eLpNormEssSup μ g y)
 
 /-- **The Hardy–Littlewood maximal inequality**, the strong-type `(p, p)` bound for `1 < p < ∞`,
 in terms of representative-level `Lᵖ` seminorms.
