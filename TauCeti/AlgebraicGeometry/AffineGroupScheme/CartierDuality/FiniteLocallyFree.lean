@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 
-public import TauCeti.Algebra.HopfAlgebra.FiniteDual.CartierDuality
+public import TauCeti.Algebra.HopfAlgebra.FiniteDual.CartierDuality.Basic
 public import TauCeti.AlgebraicGeometry.AffineGroupScheme.Equivalence
 public import TauCeti.AlgebraicGeometry.AffineGroupScheme.HopfSpec
 public import TauCeti.CategoryTheory.Monoidal.Mon
