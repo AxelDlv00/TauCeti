@@ -12,9 +12,6 @@ public import Mathlib.Topology.Semicontinuity.Defs
 -- `TauCeti.lintegral_rpow_le_of_mul_meas_ofReal_lt_le`, used only inside the proof of
 -- `TauCeti.lintegral_rpow_maximalFunction_le`.
 import TauCeti.MeasureTheory.Integral.Marcinkiewicz
--- `Mathlib.Analysis.Normed.Group.Real` is imported privately for the extended norm of
--- `ENNReal.toReal`, used to descend the maximal function to `Lp`.
-import Mathlib.Analysis.Normed.Group.Real
 -- `Mathlib.MeasureTheory.Constructions.BorelSpace.Order` is imported privately: it is used only
 -- for `LowerSemicontinuous.measurable`, inside the proof of `TauCeti.measurable_maximalFunction`.
 import Mathlib.MeasureTheory.Constructions.BorelSpace.Order
@@ -95,10 +92,10 @@ to the high part gives
   truncation of `f` at half the height, the form Marcinkiewicz interpolation consumes.
 * `TauCeti.lintegral_rpow_maximalFunction_le`, `TauCeti.eLpNorm_maximalFunction_le`: the
   **strong type `(p, p)` maximal inequality** for `1 < p < ∞`, with an explicit constant.
-* `TauCeti.ae_maximalFunction_lt_top_of_eLpNorm_ne_top`,
-  `TauCeti.memLp_maximalFunction_toReal`: a function with finite `Lᵖ` seminorm has an
-  almost-everywhere-finite, real-valued maximal function which belongs to `Lᵖ` when
-  `1 < p < ∞`.
+* `TauCeti.eLpNorm_maximalFunction_lt_top`,
+  `TauCeti.ae_maximalFunction_lt_top_of_eLpNorm_ne_top`: a function with finite `Lᵖ` seminorm
+  has a maximal function with finite `Lᵖ` seminorm for `1 < p ≤ ∞`, and the maximal function
+  is finite almost everywhere for every `1 ≤ p ≤ ∞`.
 
 The maximal function defined here is the *centred* one, whose averages are over the balls centred
 at the point. The uncentred variant, over all balls containing the point, is comparable to it with
@@ -569,12 +566,17 @@ section RealRepresentative
 
 variable {p : ℝ≥0∞} {f : E → F}
 
-/-- The maximal function of an `Lᵖ` function has finite `Lᵖ` seminorm when `1 < p < ∞`. -/
+/-- The maximal function of an `Lᵖ` function has finite `Lᵖ` seminorm when `1 < p ≤ ∞`. -/
 theorem eLpNorm_maximalFunction_lt_top (μ : Measure E) [μ.IsAddHaarMeasure]
     (hf : AEMeasurable (fun x => ‖f x‖ₑ) μ) (hf_top : eLpNorm f p μ ≠ ∞)
-    (hp : 1 < p) (hp_top : p ≠ ∞) : eLpNorm (maximalFunction μ f) p μ < ∞ :=
-  (eLpNorm_maximalFunction_le μ hf hp hp_top).trans_lt
-    (ENNReal.mul_lt_top (by finiteness) hf_top.lt_top)
+    (hp : 1 < p) : eLpNorm (maximalFunction μ f) p μ < ∞ := by
+  rcases eq_or_ne p ∞ with rfl | hp_top
+  · rw [eLpNorm_exponent_top]
+    exact (essSup_le_of_ae_le _ (.of_forall fun x =>
+      maximalFunction_le_eLpNormEssSup μ f x)).trans_lt (by
+        simpa only [eLpNorm_exponent_top] using hf_top.lt_top)
+  · exact (eLpNorm_maximalFunction_le μ hf hp hp_top).trans_lt
+      (ENNReal.mul_lt_top (by finiteness) hf_top.lt_top)
 
 /-- The maximal function of a function with finite `Lᵖ` seminorm is finite almost everywhere
 when `1 ≤ p`, including both endpoints. -/
@@ -592,41 +594,10 @@ theorem ae_maximalFunction_lt_top_of_eLpNorm_ne_top (μ : Measure E) [μ.IsAddHa
     have hMint : ∫⁻ x, maximalFunction μ f x ^ p.toReal ∂μ < ∞ := by
       simpa only [enorm_eq_self] using
         (eLpNorm_lt_top_iff_lintegral_rpow_enorm_lt_top hp₀ hp_top).mp
-          (eLpNorm_maximalFunction_lt_top μ hf hf_top hp hp_top)
+          (eLpNorm_maximalFunction_lt_top μ hf hf_top hp)
     have hrpow : ∀ᵐ x ∂μ, maximalFunction μ f x ^ p.toReal < ∞ :=
       ae_lt_top' ((measurable_maximalFunction μ f).pow_const p.toReal).aemeasurable hMint.ne
     exact hrpow.mono fun _ hx => (ENNReal.rpow_lt_top_iff_of_pos hpr).mp hx
-
-omit [NormedAddCommGroup E] [NormedSpace ℝ E] [BorelSpace E] [FiniteDimensional ℝ E]
-  [μ.IsAddHaarMeasure] in
-/-- Converting an almost-everywhere-finite `ℝ≥0∞`-valued function to `ℝ` preserves its
-`Lᵖ` seminorm. -/
-private theorem eLpNorm_toReal_eq_of_ae_lt_top {g : E → ℝ≥0∞}
-    (hg : ∀ᵐ x ∂μ, g x < ∞) : eLpNorm (fun x => (g x).toReal) p μ = eLpNorm g p μ := by
-  apply eLpNorm_congr_enorm_ae
-  filter_upwards [hg] with x hx
-  rw [enorm_eq_self]
-  exact Real.enorm_toReal hx.ne
-
-omit [NormedSpace ℝ E] [BorelSpace E] [FiniteDimensional ℝ E] [μ.IsAddHaarMeasure] in
-/-- Converting the maximal function to a real-valued function does not change its `Lᵖ` seminorm
-whenever the extended-valued maximal function is finite almost everywhere. -/
-theorem eLpNorm_maximalFunction_toReal_eq (μ : Measure E)
-    (hM : ∀ᵐ x ∂μ, maximalFunction μ f x < ∞) :
-    eLpNorm (fun x => (maximalFunction μ f x).toReal) p μ =
-      eLpNorm (maximalFunction μ f) p μ :=
-  eLpNorm_toReal_eq_of_ae_lt_top hM
-
-/-- The real-valued representative of the maximal function of a function with finite `Lᵖ`
-seminorm belongs to `Lᵖ`, for `1 < p < ∞`. -/
-theorem memLp_maximalFunction_toReal (μ : Measure E) [μ.IsAddHaarMeasure]
-    (hf : AEMeasurable (fun x => ‖f x‖ₑ) μ) (hf_top : eLpNorm f p μ ≠ ∞)
-    (hp : 1 < p) (hp_top : p ≠ ∞) :
-    MemLp (fun x => (maximalFunction μ f x).toReal) p μ := by
-  have hM := ae_maximalFunction_lt_top_of_eLpNorm_ne_top μ hf hf_top hp.le
-  refine ⟨(measurable_maximalFunction μ f).ennreal_toReal.aestronglyMeasurable, ?_⟩
-  rw [eLpNorm_maximalFunction_toReal_eq μ hM]
-  exact eLpNorm_maximalFunction_lt_top μ hf hf_top hp hp_top
 
 end RealRepresentative
 
