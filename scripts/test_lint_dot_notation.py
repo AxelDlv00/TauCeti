@@ -242,7 +242,7 @@ end TauCeti
         sources = {
             pathlib.Path("TauCeti/Own.lean"): """\
 namespace TauCeti
-def prod := Nat
+def prod : Type := Nat
 namespace prod
 def fst (x : prod) := x
 end prod
@@ -264,7 +264,7 @@ end TauCeti.Other
 """,
             pathlib.Path("TauCeti/Nested.lean"): """\
 namespace TauCeti
-def Quiver.IsAcyclic := Nat
+def Quiver.IsAcyclic : Type := Nat
 end TauCeti
 """,
             pathlib.Path("TauCeti/NestedOther.lean"): """\
@@ -276,6 +276,18 @@ end TauCeti.Quiver.IsAcyclic
         self.assertEqual([finding.declaration for finding in
                           lint.find_violations(sources, {"prod", "Quiver", "IsAcyclic"})],
                          ["TauCeti.Other.prod.misplaced"])
+
+    def test_value_declaration_does_not_exempt_a_namespace(self):
+        source = """\
+namespace TauCeti
+def Foo : Nat := 0
+namespace Foo
+def stillMisplaced (x : _root_.Foo) := x
+end Foo
+end TauCeti
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)],
+                         ["TauCeti.Foo.stillMisplaced"])
 
     def test_missing_mathlib_checkout_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:

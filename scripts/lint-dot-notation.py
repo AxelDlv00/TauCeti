@@ -33,7 +33,7 @@ DECLARATION_KEYWORDS = {
     "abbrev", "class", "def", "inductive", "instance", "lemma", "opaque", "structure",
     "theorem",
 }
-OWN_DECLARATION_KEYWORDS = {"abbrev", "class", "def", "inductive", "structure"}
+OWN_DECLARATION_KEYWORDS = {"abbrev", "class", "def", "inductive", "opaque", "structure"}
 MODIFIERS = {
     "local", "noncomputable", "nonrec", "partial", "private", "protected", "public", "scoped",
     "unsafe",
@@ -445,6 +445,24 @@ def _update_scope(stack: list[Scope], kind: str, name: str | None) -> None:
                 break
 
 
+def _declaration_returns_sort(declaration: Declaration) -> bool:
+    """Whether a declaration is syntactically certain to create a type or proposition."""
+    if declaration.keyword in {"class", "inductive", "structure"}:
+        return True
+    if declaration.keyword not in {"abbrev", "def", "opaque"}:
+        return False
+    depth = 0
+    for position, char in enumerate(declaration.header):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == ":" and depth == 0 and not declaration.header.startswith(":=", position):
+            result = declaration.header[position + 1:].lstrip()
+            return re.match(r"\(?\s*(?:Prop|Sort|Type)\b", result) is not None
+    return False
+
+
 def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ...]]:
     """Return fully qualified paths of type-like declarations owned by Tau Ceti.
 
@@ -466,7 +484,8 @@ def own_declaration_paths(sources: dict[pathlib.Path, str]) -> set[tuple[str, ..
                 continue
             declaration = payload
             assert isinstance(declaration, Declaration)
-            if declaration.keyword not in OWN_DECLARATION_KEYWORDS or declaration.name is None:
+            if (declaration.keyword not in OWN_DECLARATION_KEYWORDS or declaration.name is None
+                    or not _declaration_returns_sort(declaration)):
                 continue
             namespaces = [component for scope in stack for component in scope.components]
             if declaration.name.startswith("_root_."):
