@@ -385,6 +385,32 @@ def variable_bindings(text: str) -> list[tuple[int, list[VariableBinding]]]:
     return events
 
 
+def _include_commands(text: str) -> list[tuple[int, str, set[str], bool]]:
+    """Return scoped include/omit operations as position, action, bare names, and one-shot flag."""
+    code = strip_comments_and_strings(text)
+    pattern = re.compile(r"(?m)^[ \t]*(?P<action>include|omit)\s+(?P<body>[^\n]+)$")
+    commands: list[tuple[int, str, set[str], bool]] = []
+    for match in pattern.finditer(code):
+        body = match.group("body").rstrip()
+        one_shot = re.search(r"(?:^|\s)in$", body) is not None
+        if one_shot:
+            body = re.sub(r"(?:^|\s)in$", "", body).rstrip()
+        names: set[str] = set()
+        position = 0
+        while position < len(body):
+            if body[position] in "([{":
+                position = _skip_balanced(body, position)
+                continue
+            name = re.match(r"[\w']+", body[position:])
+            if name is not None:
+                names.add(name.group())
+                position += len(name.group())
+            else:
+                position += 1
+        commands.append((match.start(), match.group("action"), names, one_shot))
+    return commands
+
+
 def mathlib_namespaces(root: pathlib.Path) -> set[str]:
     """Collect individual namespace components occurring in Mathlib ``*.lean`` sources.
 
@@ -545,9 +571,9 @@ def find_violations(
 ) -> list[Finding]:
     """Find recreated Mathlib type namespaces in a mapping of Tau Ceti source files.
 
-    The textual analysis combines declaration, scope, and explicit section-variable events. A
-    finding requires a Mathlib namespace candidate and a corresponding explicit receiver type;
-    rooted declarations and namespaces owned by Tau Ceti are excluded.
+    The textual analysis combines declaration, scope, explicit section-variable, and include/omit
+    events. A finding requires a Mathlib namespace candidate and a corresponding explicit receiver
+    type; rooted declarations and namespaces owned by Tau Ceti are excluded.
     """
     findings: list[Finding] = []
     owned = own_declaration_paths(sources)
@@ -559,14 +585,24 @@ def find_violations(
         events.extend((declaration.position, "declaration", declaration) for declaration in parsed)
         events.extend((position, "variables", bindings)
                       for position, bindings in variable_bindings(text))
+        events.extend((position, "include", (action, names, one_shot))
+                      for position, action, names, one_shot in _include_commands(text))
         events.sort(key=lambda event: event[0])
 
         stack: list[Scope] = []
         active_variables: list[tuple[int, VariableBinding]] = []
+        included_by_depth: list[set[str]] = [set()]
+        one_shot_includes: list[tuple[str, set[str]]] = []
         for _, event_kind, payload in events:
             if event_kind == "scope":
                 kind, name = payload  # type: ignore[misc]
+                old_depth = len(stack)
                 _update_scope(stack, kind, name)
+                if len(stack) > old_depth:
+                    included_by_depth.extend(
+                        set(included_by_depth[-1]) for _ in range(len(stack) - old_depth))
+                elif len(stack) < old_depth:
+                    del included_by_depth[len(stack) + 1:]
                 active_variables = [(depth, binding) for depth, binding in active_variables
                                     if depth <= len(stack)]
                 continue
@@ -576,8 +612,25 @@ def find_violations(
                 active_variables.extend((len(stack), binding) for binding in payload)
                 continue
 
+            if event_kind == "include":
+                action, names, one_shot = payload  # type: ignore[misc]
+                if one_shot:
+                    one_shot_includes.append((action, names))
+                elif action == "include":
+                    included_by_depth[-1].update(names)
+                else:
+                    included_by_depth[-1].difference_update(names)
+                continue
+
             declaration = payload
             assert isinstance(declaration, Declaration)
+            included_names = set(included_by_depth[-1])
+            for action, names in one_shot_includes:
+                if action == "include":
+                    included_names.update(names)
+                else:
+                    included_names.difference_update(names)
+            one_shot_includes.clear()
             namespaces = [component for scope in stack for component in scope.components]
             if not namespaces or namespaces[0] != "TauCeti":
                 continue
@@ -599,7 +652,9 @@ def find_violations(
                 if any(_binder_has_type(binder, namespace) for binder in declaration.binders)
                 or _result_has_argument_type(declaration.header, namespace)
                 or any(_binder_has_type(binder, namespace)
-                       and re.search(rf"(?<![\w']){re.escape(name)}(?![\w'])", declaration.header)
+                       and (name in included_names
+                            or re.search(rf"(?<![\w']){re.escape(name)}(?![\w'])",
+                                         declaration.header))
                        for name, binder in current_variables.items())
             ]
             if not matching:

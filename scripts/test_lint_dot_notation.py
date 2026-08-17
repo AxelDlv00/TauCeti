@@ -212,6 +212,32 @@ end TauCeti
         self.assertEqual([finding.declaration for finding in findings(source)],
                          ["TauCeti.Foo.fromVariable", "TauCeti.Foo.dotted"])
 
+    def test_include_and_omit_follow_scope(self):
+        source = """\
+namespace TauCeti
+namespace Foo
+variable (x : Foo)
+include x
+theorem included : True := True.intro
+section Inner
+omit x
+theorem omittedInside : True := True.intro
+end Inner
+theorem restored : True := True.intro
+omit x
+theorem omittedAfter : True := True.intro
+include x in
+theorem includedOnce : True := True.intro
+theorem omittedFinally : True := True.intro
+end Foo
+end TauCeti
+"""
+        self.assertEqual([finding.declaration for finding in findings(source)], [
+            "TauCeti.Foo.included",
+            "TauCeti.Foo.restored",
+            "TauCeti.Foo.includedOnce",
+        ])
+
     def test_owned_names_are_lowercase_and_matched_by_full_path(self):
         sources = {
             pathlib.Path("TauCeti/Own.lean"): """\
