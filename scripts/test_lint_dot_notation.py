@@ -137,11 +137,21 @@ end AlgEquiv
 namespace LinearIsometryEquiv
 def linearIsometryEquivReceiver (e : E ≃ₗᵢ[𝕜] F) := e
 end LinearIsometryEquiv
+namespace Homeomorph
+def homeomorphReceiver (e : X ≃ₜ Y) := e
+def longerHomeomorphNotation (e : G ≃ₜ* H) := e
+end Homeomorph
+namespace Diffeomorph
+def withCornersReceiver (e : M ≃ₘ^n⟮I, J⟯ N) := e
+def withCornersInfiniteReceiver (e : M ≃ₘ⟮I, J⟯ N) := e
+def modelReceiver (e : E ≃ₘ^n[𝕜] F) := e
+def modelInfiniteReceiver (e : E ≃ₘ[𝕜] F) := e
+end Diffeomorph
 end TauCeti
 """
         result = findings(source, {"AlgEquiv", "ContinuousLinearMap", "ContinuousMap",
-                                   "ContinuousMultilinearMap", "Equiv", "LinearIsometryEquiv",
-                                   "LinearMap", "RingHom"})
+                                   "ContinuousMultilinearMap", "Diffeomorph", "Equiv",
+                                   "Homeomorph", "LinearIsometryEquiv", "LinearMap", "RingHom"})
         self.assertEqual([finding.declaration for finding in result], [
             "TauCeti.ContinuousLinearMap.notationReceiver",
             "TauCeti.LinearMap.linearMapReceiver",
@@ -151,6 +161,11 @@ end TauCeti
             "TauCeti.RingHom.ringHomReceiver",
             "TauCeti.AlgEquiv.algEquivReceiver",
             "TauCeti.LinearIsometryEquiv.linearIsometryEquivReceiver",
+            "TauCeti.Homeomorph.homeomorphReceiver",
+            "TauCeti.Diffeomorph.withCornersReceiver",
+            "TauCeti.Diffeomorph.withCornersInfiniteReceiver",
+            "TauCeti.Diffeomorph.modelReceiver",
+            "TauCeti.Diffeomorph.modelInfiniteReceiver",
         ])
 
     def test_scoped_variable_and_dotted_name_are_detected(self):
