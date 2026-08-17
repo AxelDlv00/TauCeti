@@ -661,7 +661,7 @@ def find_violations(
                           if namespace in mathlib_namespace_names
                           and namespace not in ORGANISATIONAL
                           and not any(tuple(candidate_path[:end]) in owned
-                                      for end in range(index + 1, len(candidate_path) + 1))]
+                                      for end in range(2, index + 2))]
             current_variables: dict[str, str] = {}
             for _, binding in active_variables:
                 current_variables[binding.name] = binding.binder
