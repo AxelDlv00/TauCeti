@@ -19,11 +19,11 @@ built, while the facade never re-exports it, leaving the name unreachable for a 
 only the facade.
 
 The second half *uses* the de Finetti correspondence rather than naming it: the mixing law of a
-two-point mixture of i.i.d. laws is computed from the affinity lemmas and the point-mass
-identification, and a process whose path law happens to be an i.i.d. law is shown to have a point
-mass as its de Finetti measure. These check that the correspondence API composes — that a caller
-can get from an equation between path laws to an equation between mixing laws without leaving the
-facade.
+two-point mixture of i.i.d. laws is computed in both directions from the bundled affinity lemmas
+and the point-mass identification, and a process whose path law happens to be an i.i.d. law is
+shown to have a point mass as its de Finetti measure. These check that the correspondence API
+composes — that a caller can build the bundled convex combinations and get from an equation
+between path laws to an equation between mixing laws without leaving the facade.
 
 ## One advertised name does not exist
 
@@ -105,33 +105,32 @@ section Correspondence
 variable {α : Type*} [MeasurableSpace α] [StandardBorelSpace α]
 
 /-- The correspondence carries a two-point mixing law to the corresponding two-point mixture of
-i.i.d. laws. -/
-example (P Q : ProbabilityMeasure α) (a b : ℝ≥0∞)
-    {π : ProbabilityMeasure (ProbabilityMeasure α)}
-    (hπ : (π : Measure (ProbabilityMeasure α)) = a • Measure.dirac P + b • Measure.dirac Q) :
-    ((deFinettiEquiv π : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
+i.i.d. laws. The mixing law is built with `ProbabilityMeasure.convexCombo`, not assumed. -/
+example (P Q : ProbabilityMeasure α) {a b : ℝ≥0∞} (hab : a + b = 1) :
+    ((deFinettiEquiv (TauCeti.MeasureTheory.ProbabilityMeasure.convexCombo hab
+          ⟨Measure.dirac P, inferInstance⟩ ⟨Measure.dirac Q, inferInstance⟩) :
+        ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
       = a • (Measure.infinitePi fun _ : ℕ => (P : Measure α))
-        + b • (Measure.infinitePi fun _ : ℕ => (Q : Measure α)) := by
-  have h := deFinettiEquiv_apply_coe_of_eq_add_smul a b (π := π)
-    (π₁ := ⟨Measure.dirac P, inferInstance⟩) (π₂ := ⟨Measure.dirac Q, inferInstance⟩) hπ
-  rwa [deFinettiEquiv_dirac, deFinettiEquiv_dirac] at h
+        + b • (Measure.infinitePi fun _ : ℕ => (Q : Measure α)) :=
+  (congrArg (fun r : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))} =>
+      ((r : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α)))
+    (deFinettiEquiv_convexCombo hab _ _)).trans (by
+      rw [exchangeableLawConvexCombo_toMeasure, deFinettiEquiv_dirac, deFinettiEquiv_dirac])
 
 /-- Conversely, an exchangeable law that mixes two i.i.d. laws has the corresponding two-point
 mixing law. This is the direction that uses de Finetti's theorem. -/
-example (P Q : ProbabilityMeasure α) (a b : ℝ≥0∞)
-    {ρ ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}}
+example (P Q : ProbabilityMeasure α) {a b : ℝ≥0∞} (hab : a + b = 1)
+    {ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}}
     (hρ₁ : ((ρ₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
       = Measure.infinitePi fun _ : ℕ => (P : Measure α))
     (hρ₂ : ((ρ₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
-      = Measure.infinitePi fun _ : ℕ => (Q : Measure α))
-    (hρ : ((ρ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
-      = a • ((ρ₁ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
-        + b • ((ρ₂ : ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))) :
-    ((deFinettiEquiv.symm ρ : ProbabilityMeasure (ProbabilityMeasure α)) :
-        Measure (ProbabilityMeasure α))
+      = Measure.infinitePi fun _ : ℕ => (Q : Measure α)) :
+    ((deFinettiEquiv.symm (exchangeableLawConvexCombo hab ρ₁ ρ₂) :
+        ProbabilityMeasure (ProbabilityMeasure α)) : Measure (ProbabilityMeasure α))
       = a • Measure.dirac P + b • Measure.dirac Q := by
-  rw [deFinettiEquiv_symm_coe_of_eq_add_smul a b hρ, deFinettiEquiv_symm_eq_dirac P hρ₁,
-    deFinettiEquiv_symm_eq_dirac Q hρ₂]
+  rw [deFinettiEquiv_symm_convexCombo,
+    TauCeti.MeasureTheory.ProbabilityMeasure.toMeasure_convexCombo,
+    deFinettiEquiv_symm_eq_dirac P hρ₁, deFinettiEquiv_symm_eq_dirac Q hρ₂]
 
 /-- An exchangeable process whose path law happens to be the i.i.d. law `P^{⊗ℕ}` has the point mass
 at `P` as its de Finetti measure. -/

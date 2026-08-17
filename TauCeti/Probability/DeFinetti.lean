@@ -33,8 +33,8 @@ This module declares nothing of its own; it is a curated re-export, and it build
 * `conditionallyIID_of_contractable` — the summit: contractable implies conditionally i.i.d.;
 * `conditionallyIID_of_exchangeable` and `deFinetti` — de Finetti's theorem in conditional form;
 * `deFinetti_equivalence`, `contractable_iff_conditionallyIID`,
-  `deFinetti_RyllNardzewski_equivalence` — the equivalence forms, together with their
-  `_of_aemeasurable` variants for a process whose coordinates are only a.e. measurable;
+  `deFinetti_RyllNardzewski_equivalence` — the equivalence forms. These and the summits above ask
+  only for a.e. measurable coordinates, matching the uniqueness endpoints below;
 * `deFinetti_viaL2`, `conditionallyIID_of_contractable_viaL2` and
   `deFinetti_RyllNardzewski_equivalence_viaL2` — the same summits proved by the `L²` averaging
   route rather than the martingale one. The unsuffixed names above are the martingale route;
@@ -53,8 +53,8 @@ This module declares nothing of its own; it is a curated re-export, and it build
 * `deFinettiBarycenter` and `deFinettiEquiv` — the affine correspondence carrying a mixing law to
   its exchangeable path law, with `deFinettiBarycenter_mem_extremePoints_iff` identifying the
   point masses with the extreme laws and
-  `deFinettiEquiv_apply_coe_of_eq_add_smul` / `deFinettiEquiv_symm_coe_of_eq_add_smul` giving the
-  affinity in both directions;
+  `deFinettiEquiv_convexCombo` / `deFinettiEquiv_symm_convexCombo` giving the affinity in both
+  directions, at the bundled level;
 * `deFinettiMeasure` and its identifications —
   `pathLaw_eq_bind_infinitePi_deFinettiMeasure_of_exchangeable`,
   `eq_deFinettiMeasure_of_pathLaw_eq_bind_infinitePi` and

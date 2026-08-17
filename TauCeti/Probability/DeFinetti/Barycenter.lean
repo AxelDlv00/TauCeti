@@ -176,7 +176,8 @@ theorem ExchangeableLaw.existsUnique_mixingLaw [StandardBorelSpace α] {ρ : Mea
   have hexch : Exchangeable ρ (fun n (x : ℕ → α) => x n) :=
     (exchangeable_iff_exchangeableLaw_pathLaw fun n => (hcoord n).aemeasurable).2
       (by simpa [pathLaw_def] using hρ)
-  simpa [hpath, deFinettiBarycenter_def] using deFinetti_mixture hexch hcoord
+  simpa [hpath, deFinettiBarycenter_def] using
+    deFinetti_mixture hexch fun n => (hcoord n).aemeasurable
 
 end Probability
 

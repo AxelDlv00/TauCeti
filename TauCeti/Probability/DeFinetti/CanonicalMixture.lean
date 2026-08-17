@@ -43,6 +43,17 @@ has `directingProbabilityMeasure μ X` as a directing measure. No standard-Borel
 imposed on the sample space `Ω`, so neither is one imposed below; a probability base measure is
 needed only because `deFinettiMeasure` is bundled as a `ProbabilityMeasure`.
 
+`[Nonempty α]` is, as a *hypothesis*, redundant here — a probability measure on `Ω` exhibits a
+point of `Ω`, and `X 0` carries it into `α`, which is how `deFinetti_mixture` avoids assuming it.
+It cannot be dropped, because it is not only a hypothesis: `deFinettiMeasure` is built from
+`condDistrib`, so `[Nonempty α]` is needed to *elaborate the statements themselves*, not just to
+prove them.
+
+The coordinates must be exactly measurable, again because of what is named rather than what is
+proved: `directingProbabilityMeasure μ X` is the conditional law of `X 0` given the process tail.
+The witness-free statements in `DeFinetti/Theorem.lean` ask only for a.e. measurability, since they
+name no directing measure.
+
 ## Why the `L²` route supplies the witness
 
 The theorems below carry no route suffix, yet the witness comes from the `L²` route. That is not a
@@ -115,7 +126,7 @@ theorem eq_deFinettiMeasure_of_pathLaw_eq_bind_infinitePi {μ : Measure Ω} [IsP
     (hπ : pathLaw μ X = (π : Measure (ProbabilityMeasure α)).bind
       fun P => Measure.infinitePi fun _ : ℕ => (P : Measure α)) :
     π = deFinettiMeasure μ X (tailProcess_le_ambient 0 fun j _ => hX_meas j) := by
-  obtain ⟨π₀, -, huniq⟩ := deFinetti_mixture hX hX_meas
+  obtain ⟨π₀, -, huniq⟩ := deFinetti_mixture hX fun n => (hX_meas n).aemeasurable
   rw [huniq π hπ,
     huniq _ (pathLaw_eq_bind_infinitePi_deFinettiMeasure_of_exchangeable hX hX_meas)]
 
