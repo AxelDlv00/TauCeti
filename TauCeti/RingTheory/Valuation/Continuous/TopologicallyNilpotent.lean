@@ -165,7 +165,7 @@ theorem HasFullCharacteristicGroup.cofinalValue_of_isTopologicallyNilpotent
   obtain ⟨n, hgoal⟩ := exists_pow_lt_of_isTopologicallyNilpotent hmem hx
   have hemb : v.restrict x ^ n < (v.restrict t)⁻¹ := by
     refine MonoidWithZeroHom.ValueGroup₀.embedding_strictMono.lt_iff_lt.mp ?_
-    simpa only [map_pow, map_inv₀, _root_.Valuation.embedding_restrict] using hgoal
+    simpa only [map_pow, map_inv₀, embedding_restrict] using hgoal
   exact ⟨n, hemb.trans_le htle⟩
 
 end Valuation

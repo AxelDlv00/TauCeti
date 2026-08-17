@@ -121,7 +121,7 @@ theorem CofinalValue.of_isEquiv {v : Valuation A Γ₀} {w : Valuation A Γ₀'}
   simpa using this
 
 /-- Cofinality is invariant under valuation equivalence. -/
-theorem _root_.Valuation.IsEquiv.cofinalValue_iff {v : Valuation A Γ₀}
+theorem IsEquiv.cofinalValue_iff {v : Valuation A Γ₀}
     {w : Valuation A Γ₀'} (h : v.IsEquiv w) {a : A} :
     CofinalValue v a ↔ CofinalValue w a :=
   ⟨fun hv ↦ hv.of_isEquiv h, fun hw ↦ hw.of_isEquiv h.symm⟩
@@ -181,7 +181,7 @@ theorem HasFullCharacteristicGroup.of_isEquiv {v : Valuation A Γ₀} {w : Valua
     simpa using this
 
 /-- The full-characteristic-group condition is invariant under valuation equivalence. -/
-theorem _root_.Valuation.IsEquiv.hasFullCharacteristicGroup_iff {v : Valuation A Γ₀}
+theorem IsEquiv.hasFullCharacteristicGroup_iff {v : Valuation A Γ₀}
     {w : Valuation A Γ₀'} (h : v.IsEquiv w) :
     HasFullCharacteristicGroup v ↔ HasFullCharacteristicGroup w :=
   ⟨fun hv ↦ hv.of_isEquiv h, fun hw ↦ hw.of_isEquiv h.symm⟩

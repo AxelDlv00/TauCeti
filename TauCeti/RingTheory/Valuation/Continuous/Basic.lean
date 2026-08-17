@@ -145,7 +145,7 @@ theorem isContinuous_of_forall_isOpen_lt {v : Valuation A Γ₀}
 same pairs of elements, so the sets `{a ; v a < v b}` cutting out continuity are not merely
 matched up but literally the same sets. This is what lets continuity be imposed on a point of
 the valuation spectrum. -/
-theorem _root_.Valuation.IsEquiv.isContinuous_iff {v : Valuation A Γ₀} {w : Valuation A Γ₀'}
+theorem IsEquiv.isContinuous_iff {v : Valuation A Γ₀} {w : Valuation A Γ₀'}
     (h : v.IsEquiv w) : v.IsContinuous ↔ w.IsContinuous :=
   forall_congr' fun _ ↦ iff_of_eq (congrArg IsOpen (Set.ext fun _ ↦ h.lt_iff_lt))
 
