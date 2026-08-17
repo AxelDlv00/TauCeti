@@ -240,16 +240,13 @@ theorem existsUnique_nonempty_iso_spechtModule (X : FDRep ℚ (Equiv.Perm (Fin n
   obtain ⟨μ, hμ, huniq⟩ := existsUnique_nonempty_equiv_spechtModule X.ρ
   exact ⟨μ, nonempty_fdRepIso_iff.mpr hμ, fun ν hν ↦ huniq ν (nonempty_fdRepIso_iff.mp hν)⟩
 
-/-- The bridge between the two classifications: the `ℚ[Sₙ]`-module a Specht module carries is the
-one `TauCeti.spechtModuleClass` names.
-
-This is deliberately not a `simp` lemma: both sides are `simp`-reduced to the same class by the
-defining equations of the two, so `simp` proves it and would never see this left-hand side. -/
-theorem toSimpleSubmoduleClasses_spechtModuleFDRepClass (μ : n.Partition) :
-    SimpleFDRepClasses.toSimpleSubmoduleClasses (spechtModuleFDRepClass μ) =
-      spechtModuleClass μ := by
-  rw [spechtModuleFDRepClass_def, SimpleFDRepClasses.toSimpleSubmoduleClasses_mk,
-    spechtModuleClass_def]
+/-- The partition a Specht module's class names is the partition it was built from: the `symm`
+companion of `TauCeti.partitionEquivSimpleFDRepClasses_apply`. -/
+@[simp]
+theorem partitionEquivSimpleFDRepClasses_symm_mk (μ : n.Partition) :
+    (partitionEquivSimpleFDRepClasses n).symm (SimpleFDRepClasses.mk (spechtModule μ)) = μ := by
+  rw [← spechtModuleFDRepClass_def, ← partitionEquivSimpleFDRepClasses_apply,
+    Equiv.symm_apply_apply]
 
 /-- **The categorical classification and the module classification are the same bijection**, read
 across `μ ↦ S^μ`. -/
@@ -269,13 +266,10 @@ theorem coe_simpleFDRepClassesEquivSimpleModuleClasses :
   funext c
   induction c using SimpleFDRepClasses.ind with
   | mk X hX =>
+    -- Name the partition of `X`, so that both sides are evaluated at a Specht module.
     obtain ⟨μ, hμ, -⟩ := existsUnique_nonempty_iso_spechtModule X
-    have hclass : SimpleFDRepClasses.mk X = spechtModuleFDRepClass μ :=
-      (SimpleFDRepClasses.mk_eq_mk_iff (X := X) (Y := spechtModule μ)).mpr hμ
-    rw [hclass, toSimpleSubmoduleClasses_spechtModuleFDRepClass,
-      simpleFDRepClassesEquivSimpleModuleClasses, Equiv.trans_apply,
-      ← partitionEquivSimpleFDRepClasses_apply, Equiv.symm_apply_apply,
-      partitionEquivSimpleModuleClasses_apply]
+    rw [(SimpleFDRepClasses.mk_eq_mk_iff (X := X) (Y := spechtModule μ)).mpr hμ]
+    simp [simpleFDRepClassesEquivSimpleModuleClasses]
 
 end Categorical
 

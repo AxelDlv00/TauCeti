@@ -82,8 +82,56 @@ section FDRep
 
 variable {k : Type u} {G : Type v} [Field k] [Monoid G]
 
+section Inclusion
+
+variable {V : Type u} [AddCommGroup V] [Module k V] {ρ : Representation k G V}
+  (W : Subrepresentation ρ)
+
+/-- The inclusion of a subrepresentation is a monomorphism of `Rep k G`, being injective. -/
+private theorem mono_repOfHom_subtype : Mono (Rep.ofHom W.subtype) :=
+  (Rep.mono_iff_injective _).mpr fun _ _ hab => Subtype.ext (by simpa using hab)
+
+/-- The inclusion of a subrepresentation is the zero morphism of `Rep k G` exactly when the
+subrepresentation is zero. -/
+private theorem repOfHom_subtype_eq_zero_iff : Rep.ofHom W.subtype = 0 ↔ W = ⊥ := by
+  constructor
+  · intro h
+    have hzero : W.subtype = 0 := by simpa using congrArg Rep.Hom.hom h
+    refine Subrepresentation.toSubmodule_injective ?_
+    rw [Subrepresentation.toSubmodule_bot, Submodule.eq_bot_iff]
+    intro x hx
+    simpa using DFunLike.congr_fun hzero (⟨x, hx⟩ : W.toSubmodule)
+  · rintro rfl
+    have hzero : (⊥ : Subrepresentation ρ).subtype = 0 := by
+      ext x
+      simp only [Subrepresentation.toLinearMap_subtype, Submodule.subtype_apply,
+        Representation.IntertwiningMap.zero_toLinearMap, LinearMap.zero_apply]
+      exact (Submodule.mem_bot k).mp x.2
+    rw [hzero, Rep.ofHom_zero]
+
+/-- The inclusion of a subrepresentation is an epimorphism of `Rep k G` exactly when the
+subrepresentation is everything. -/
+private theorem epi_repOfHom_subtype_iff : Epi (Rep.ofHom W.subtype) ↔ W = ⊤ := by
+  rw [Rep.epi_iff_surjective]
+  constructor
+  · intro hsurj
+    have hrange : W.subtype.toLinearMap.range = ⊤ :=
+      LinearMap.range_eq_top.mpr (by simpa using hsurj)
+    rw [Subrepresentation.toLinearMap_subtype, Submodule.range_subtype] at hrange
+    exact Subrepresentation.toSubmodule_injective
+      (hrange.trans Subrepresentation.toSubmodule_top.symm)
+  · rintro rfl
+    intro y
+    have hy : y ∈ (⊤ : Subrepresentation ρ).toSubmodule := by
+      rw [Subrepresentation.toSubmodule_top]; exact Submodule.mem_top
+    refine ⟨⟨y, hy⟩, ?_⟩
+    rw [Rep.hom_ofHom, Subrepresentation.coe_subtype]
+
+end Inclusion
+
 /-- The inclusion of a subrepresentation of a finite-dimensional representation, as a morphism of
-`FDRep k G`: the monomorphism whose behaviour witnesses simplicity of the object. -/
+`FDRep k G`: the monomorphism whose behaviour witnesses simplicity of the object. Its image in
+`Rep k G` is `Rep.ofHom W.subtype`, which is where its properties are read off. -/
 private noncomputable def subInclusion (X : FDRep k G) (W : Subrepresentation X.ρ) :
     FDRep.of W.toRepresentation ⟶ X :=
   (forget₂ (FDRep k G) (Rep k G)).preimage (Rep.ofHom W.subtype)
@@ -95,7 +143,7 @@ private theorem map_subInclusion (X : FDRep k G) (W : Subrepresentation X.ρ) :
 private theorem mono_map_subInclusion (X : FDRep k G) (W : Subrepresentation X.ρ) :
     Mono ((forget₂ (FDRep k G) (Rep k G)).map (subInclusion X W)) := by
   rw [map_subInclusion]
-  exact (Rep.mono_iff_injective _).mpr Subtype.val_injective
+  exact mono_repOfHom_subtype W
 
 private instance (X : FDRep k G) (W : Subrepresentation X.ρ) : Mono (subInclusion X W) :=
   (forget₂ (FDRep k G) (Rep k G)).mono_of_mono_map (mono_map_subInclusion X W)
@@ -105,15 +153,7 @@ zero. -/
 private theorem subInclusion_eq_zero_iff (X : FDRep k G) (W : Subrepresentation X.ρ) :
     subInclusion X W = 0 ↔ W = ⊥ := by
   rw [← (forget₂ (FDRep k G) (Rep k G)).map_eq_zero_iff, map_subInclusion]
-  constructor
-  · intro h
-    refine Subrepresentation.toSubmodule_injective ?_
-    rw [Subrepresentation.toSubmodule_bot, Submodule.eq_bot_iff]
-    intro x hx
-    exact congrArg (fun f => (Rep.Hom.hom f) (⟨x, hx⟩ : W.toSubmodule)) h
-  · rintro rfl
-    ext x
-    exact (Submodule.mem_bot k).mp x.2
+  exact repOfHom_subtype_eq_zero_iff W
 
 /-- The inclusion of a subrepresentation is an isomorphism exactly when the subrepresentation is
 everything. -/
@@ -123,17 +163,14 @@ private theorem isIso_subInclusion_iff (X : FDRep k G) (W : Subrepresentation X.
   · intro h
     have hepi : Epi ((forget₂ (FDRep k G) (Rep k G)).map (subInclusion X W)) := inferInstance
     rw [map_subInclusion] at hepi
-    have hrange : W.toSubmodule.subtype.range = ⊤ :=
-      LinearMap.range_eq_top.mpr ((Rep.epi_iff_surjective _).mp hepi)
-    rw [Submodule.range_subtype] at hrange
-    exact Subrepresentation.toSubmodule_injective
-      (hrange.trans Subrepresentation.toSubmodule_top.symm)
+    have hepi' : Epi (Rep.ofHom W.subtype) := hepi
+    exact (epi_repOfHom_subtype_iff W).mp hepi'
   · rintro rfl
     have hmono := mono_map_subInclusion X (⊤ : Subrepresentation X.ρ)
     have hepi : Epi ((forget₂ (FDRep k G) (Rep k G)).map
         (subInclusion X (⊤ : Subrepresentation X.ρ))) := by
       rw [map_subInclusion]
-      exact (Rep.epi_iff_surjective _).mpr fun y => ⟨⟨y, trivial⟩, rfl⟩
+      exact (epi_repOfHom_subtype_iff _).mpr rfl
     have : IsIso ((forget₂ (FDRep k G) (Rep k G)).map
         (subInclusion X (⊤ : Subrepresentation X.ρ))) := isIso_of_mono_of_epi _
     exact isIso_of_reflects_iso _ (forget₂ (FDRep k G) (Rep k G))

@@ -81,18 +81,17 @@ lemma toSubmodule_lt_toSubmodule {ρ₁ ρ₂ : Subrepresentation ρ} :
 
 /-- **The inclusion of a subrepresentation**, as an intertwining map: the analogue of
 `Submodule.subtype`, which is the linear map underlying it. -/
-@[expose] def subtype (ρ' : Subrepresentation ρ) :
+def subtype (ρ' : Subrepresentation ρ) :
     Representation.IntertwiningMap ρ'.toRepresentation ρ where
   toLinearMap := ρ'.toSubmodule.subtype
   isIntertwining' _ := by ext; rfl
 
 @[simp]
-lemma subtype_apply {ρ' : Subrepresentation ρ} (v : ρ'.toSubmodule) :
-    ρ'.subtype v = (v : W) := rfl
+lemma coe_subtype (ρ' : Subrepresentation ρ) : ⇑ρ'.subtype = Subtype.val := by rfl
 
 @[simp]
 lemma toLinearMap_subtype (ρ' : Subrepresentation ρ) :
-    ρ'.subtype.toLinearMap = ρ'.toSubmodule.subtype := rfl
+    ρ'.subtype.toLinearMap = ρ'.toSubmodule.subtype := by rfl
 
 /-- The group-algebra action on a subrepresentation, coerced to the ambient module, is the
 original group-algebra action. -/

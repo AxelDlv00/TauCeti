@@ -64,6 +64,9 @@ variable {k G}
 /-- The isomorphism class of a simple object of `FDRep k G`. -/
 def mk (X : FDRep k G) [Simple X] : SimpleFDRepClasses k G := Quot.mk _ ⟨X, ‹_›⟩
 
+/-- **Two classes are equal exactly when their representatives are isomorphic.** This is what makes
+`TauCeti.SimpleFDRepClasses` a type of isomorphism classes, and it is how classes are compared:
+nothing downstream unfolds the quotient. -/
 theorem mk_eq_mk_iff {X Y : FDRep k G} [Simple X] [Simple Y] :
     mk X = mk Y ↔ Nonempty (X ≅ Y) :=
   Quot.eq.trans <| Equivalence.eqvGen_iff
