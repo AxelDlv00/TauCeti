@@ -180,6 +180,8 @@ noncomputable def indCoindEquiv [S.FiniteIndex] (A : Rep.{w} k S) :
   apply Representation.Equiv.mk (.ofLinearMap (Rep.indToCoind A) (Rep.coindToInd A)
     (Rep.coindToInd_indToCoind A) (Rep.indToCoind_coindToInd A))
   intro g
+  -- Expose the linear maps hidden by `Representation.Equiv.mk` and `.ofLinearMap` so that the
+  -- intertwining equation can be checked on the generators of the induced representation.
   change Rep.indToCoind A ∘ₗ (Rep.ind S.subtype A).ρ g =
     (Rep.coind S.subtype A).ρ g ∘ₗ Rep.indToCoind A
   ext g₁ a g₂
@@ -191,6 +193,7 @@ noncomputable def indCoindEquiv [S.FiniteIndex] (A : Rep.{w} k S) :
     TensorProduct.lift.tmul, LinearEquiv.coe_coe, MonoidAlgebra.coeffLinearEquiv_apply,
     MonoidAlgebra.coeff_single, Finsupp.linearCombination_single, one_smul,
     Representation.coind_apply]
+  -- After expanding induction and coinduction, only the auxiliary comparison map remains.
   change Rep.indToCoindAux A (g₁ * g⁻¹) a g₂ =
     Rep.indToCoindAux A g₁ a (g₂ * g)
   exact Rep.indToCoindAux_fst_mul_inv g₁ g g₂ a
@@ -284,6 +287,7 @@ noncomputable def indFDRep {k : Type u} {G : Type v} [Field k] [Group G] {S : Su
   let A' := (forget₂ (FDRep k S) (Rep k S)).obj A
   -- Register the finite-dimensional structure hidden behind the forgetful object's wrapper.
   letI : FiniteDimensional k A' := by
+    -- The forgetful functor preserves the carrier, but its object wrapper hides that fact.
     change FiniteDimensional k A
     infer_instance
   let V := Rep.ind S.subtype A'
@@ -299,6 +303,7 @@ noncomputable def indFDRepForgetEquiv {k : Type u} {G : Type v} [Field k] [Group
       (Representation.ind S.subtype A.ρ) := by
   let A' := (forget₂ (FDRep k S) (Rep k S)).obj A
   letI : FiniteDimensional k A' := by
+    -- The forgetful functor preserves the carrier, but its object wrapper hides that fact.
     change FiniteDimensional k A
     infer_instance
   let V := Rep.ind S.subtype A'
@@ -306,14 +311,14 @@ noncomputable def indFDRepForgetEquiv {k : Type u} {G : Type v} [Field k] [Group
   apply Representation.Equiv.mk (Shrink.linearEquiv k V)
   intro g
   ext x
+  -- Unfold the action chosen by `FDRep.of`; it is conjugation along the shrink equivalence.
   change (Shrink.linearEquiv k V)
       ((Shrink.linearEquiv k V).symm.conj (V.ρ g) x) =
     V.ρ g (Shrink.linearEquiv k V x)
   simp
 
-/-- Forgetting finite-dimensionality from `indFDRep` recovers Mathlib's induced representation.
-This is the one place where the two objects are identified; everything below about `indFDRep` is
-stated and proved through this isomorphism. -/
+/-- Same-universe categorical wrapper around `indFDRepForgetEquiv`: forgetting
+finite-dimensionality from `indFDRep` recovers Mathlib's induced representation. -/
 noncomputable def indFDRepForgetIso {k G : Type u} [Field k] [Group G]
     {S : Subgroup G} [S.FiniteIndex] (A : FDRep k S) :
     (forget₂ (FDRep k G) (Rep k G)).obj (indFDRep A) ≅
@@ -397,8 +402,10 @@ theorem finrank_indFDRep {k : Type u} {G : Type v} [Field k] [Group G] {S : Subg
   let A' := (forget₂ (FDRep k S) (Rep k S)).obj A
   -- Register the finite-dimensional structure hidden behind the forgetful object's wrapper.
   let : FiniteDimensional k A' := by
+    -- The forgetful functor preserves the carrier, but its object wrapper hides that fact.
     change FiniteDimensional k A
     infer_instance
+  -- Reveal the forgetful carrier before transporting dimension along `indFDRepForgetEquiv`.
   change Module.finrank k ((forget₂ (FDRep k G) (Rep k G)).obj (indFDRep A)) =
     S.index * Module.finrank k A'
   rw [LinearEquiv.finrank_eq (indFDRepForgetEquiv A).toLinearEquiv]
