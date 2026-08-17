@@ -184,7 +184,7 @@ lands in. Exchangeability is preserved because the defining permutation invarian
 def exchangeableLawConvexCombo {a b : ℝ≥0∞} (hab : a + b = 1)
     (ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}) :
     {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))} :=
-  ⟨TauCeti.MeasureTheory.ProbabilityMeasure.convexCombo hab ρ₁ ρ₂, ρ₁.2.smul_add_smul ρ₂.2 a b⟩
+  ⟨ProbabilityMeasure.convexCombo hab ρ₁ ρ₂, ρ₁.2.smul_add_smul ρ₂.2 a b⟩
 
 /-- The underlying measure of a convex combination of exchangeable laws. -/
 @[simp]
@@ -200,11 +200,11 @@ convex combination, with the same weights, of their exchangeable path laws. -/
 @[simp]
 theorem deFinettiEquiv_convexCombo [StandardBorelSpace α] {a b : ℝ≥0∞} (hab : a + b = 1)
     (π₁ π₂ : ProbabilityMeasure (ProbabilityMeasure α)) :
-    deFinettiEquiv (TauCeti.MeasureTheory.ProbabilityMeasure.convexCombo hab π₁ π₂)
+    deFinettiEquiv (ProbabilityMeasure.convexCombo hab π₁ π₂)
       = exchangeableLawConvexCombo hab (deFinettiEquiv π₁) (deFinettiEquiv π₂) :=
   Subtype.ext (ProbabilityMeasure.toMeasure_injective (by
     rw [deFinettiEquiv_apply_coe, exchangeableLawConvexCombo_toMeasure,
-      TauCeti.MeasureTheory.ProbabilityMeasure.toMeasure_convexCombo, deFinettiBarycenter_add,
+      ProbabilityMeasure.toMeasure_convexCombo, deFinettiBarycenter_add,
       deFinettiBarycenter_smul, deFinettiBarycenter_smul, deFinettiEquiv_apply_coe,
       deFinettiEquiv_apply_coe]))
 
@@ -218,7 +218,7 @@ injectivity is uniqueness of the mixing law. -/
 theorem deFinettiEquiv_symm_convexCombo [StandardBorelSpace α] {a b : ℝ≥0∞} (hab : a + b = 1)
     (ρ₁ ρ₂ : {ρ : ProbabilityMeasure (ℕ → α) // ExchangeableLaw (ρ : Measure (ℕ → α))}) :
     deFinettiEquiv.symm (exchangeableLawConvexCombo hab ρ₁ ρ₂)
-      = TauCeti.MeasureTheory.ProbabilityMeasure.convexCombo hab
+      = ProbabilityMeasure.convexCombo hab
           (deFinettiEquiv.symm ρ₁) (deFinettiEquiv.symm ρ₂) := by
   rw [Equiv.symm_apply_eq, deFinettiEquiv_convexCombo, Equiv.apply_symm_apply,
     Equiv.apply_symm_apply]

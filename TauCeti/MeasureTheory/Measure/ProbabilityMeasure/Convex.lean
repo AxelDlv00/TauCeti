@@ -23,6 +23,10 @@ every step.
 * `isProbabilityMeasure_smul_add_smul` — the unbundled fact about total mass.
 * `ProbabilityMeasure.convexCombo` — the bundled combination, with `toMeasure_convexCombo`
   exposing its underlying measure.
+
+`convexCombo` and its two lemmas are declared in the root `MeasureTheory.ProbabilityMeasure`
+namespace rather than under `TauCeti`, since the type is Mathlib's; that is what lets
+`P.convexCombo` be written as dot notation.
 -/
 
 public section
@@ -46,33 +50,47 @@ theorem isProbabilityMeasure_smul_add_smul {a b : ℝ≥0∞} (hab : a + b = 1) 
     [IsProbabilityMeasure μ] [IsProbabilityMeasure ν] : IsProbabilityMeasure (a • μ + b • ν) :=
   ⟨by simp [hab]⟩
 
+end MeasureTheory
+
+end TauCeti
+
+/-! ### The bundled combination
+
+`ProbabilityMeasure` is Mathlib's type, so its namespace is Mathlib's: these three declarations sit
+in the root `MeasureTheory.ProbabilityMeasure`, not under `TauCeti`, which is what makes
+`P.convexCombo hab Q` elaborate as dot notation. -/
+
+namespace MeasureTheory
+
+namespace ProbabilityMeasure
+
+variable {α : Type*} [MeasurableSpace α]
+
 /-- The **convex combination** `a • P + b • Q` of two probability measures, for weights summing
 to `1`, bundled as a `ProbabilityMeasure`.
 
 Exposed: this is a bundling, with no content beyond `toMeasure_convexCombo`, and callers
 constructing subtypes of `ProbabilityMeasure` need the underlying measure definitionally. -/
 @[expose]
-def ProbabilityMeasure.convexCombo {a b : ℝ≥0∞} (hab : a + b = 1)
-    (P Q : ProbabilityMeasure α) : ProbabilityMeasure α :=
-  ⟨a • (P : Measure α) + b • (Q : Measure α), isProbabilityMeasure_smul_add_smul hab _ _⟩
+def convexCombo {a b : ℝ≥0∞} (hab : a + b = 1) (P Q : ProbabilityMeasure α) :
+    ProbabilityMeasure α :=
+  ⟨a • (P : Measure α) + b • (Q : Measure α),
+    TauCeti.MeasureTheory.isProbabilityMeasure_smul_add_smul hab _ _⟩
 
 /-- The underlying measure of a convex combination is the combination of the underlying
 measures. -/
 @[simp]
-theorem ProbabilityMeasure.toMeasure_convexCombo {a b : ℝ≥0∞} (hab : a + b = 1)
-    (P Q : ProbabilityMeasure α) :
-    (ProbabilityMeasure.convexCombo hab P Q : Measure α)
-      = a • (P : Measure α) + b • (Q : Measure α) :=
+theorem toMeasure_convexCombo {a b : ℝ≥0∞} (hab : a + b = 1) (P Q : ProbabilityMeasure α) :
+    (convexCombo hab P Q : Measure α) = a • (P : Measure α) + b • (Q : Measure α) :=
   (rfl)
 
 /-- A convex combination is determined by its weights and arguments, so it can be recognised from
 an equation between the underlying measures. -/
-theorem ProbabilityMeasure.eq_convexCombo {a b : ℝ≥0∞} (hab : a + b = 1)
-    {P Q R : ProbabilityMeasure α}
+theorem eq_convexCombo {a b : ℝ≥0∞} (hab : a + b = 1) {P Q R : ProbabilityMeasure α}
     (h : (R : Measure α) = a • (P : Measure α) + b • (Q : Measure α)) :
-    R = ProbabilityMeasure.convexCombo hab P Q :=
+    R = convexCombo hab P Q :=
   ProbabilityMeasure.toMeasure_injective h
 
-end MeasureTheory
+end ProbabilityMeasure
 
-end TauCeti
+end MeasureTheory

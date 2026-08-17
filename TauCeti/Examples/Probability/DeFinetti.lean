@@ -107,7 +107,7 @@ variable {α : Type*} [MeasurableSpace α] [StandardBorelSpace α]
 /-- The correspondence carries a two-point mixing law to the corresponding two-point mixture of
 i.i.d. laws. The mixing law is built with `ProbabilityMeasure.convexCombo`, not assumed. -/
 example (P Q : ProbabilityMeasure α) {a b : ℝ≥0∞} (hab : a + b = 1) :
-    ((deFinettiEquiv (TauCeti.MeasureTheory.ProbabilityMeasure.convexCombo hab
+    ((deFinettiEquiv (ProbabilityMeasure.convexCombo hab
           ⟨Measure.dirac P, inferInstance⟩ ⟨Measure.dirac Q, inferInstance⟩) :
         ProbabilityMeasure (ℕ → α)) : Measure (ℕ → α))
       = a • (Measure.infinitePi fun _ : ℕ => (P : Measure α))
@@ -129,7 +129,7 @@ example (P Q : ProbabilityMeasure α) {a b : ℝ≥0∞} (hab : a + b = 1)
         ProbabilityMeasure (ProbabilityMeasure α)) : Measure (ProbabilityMeasure α))
       = a • Measure.dirac P + b • Measure.dirac Q := by
   rw [deFinettiEquiv_symm_convexCombo,
-    TauCeti.MeasureTheory.ProbabilityMeasure.toMeasure_convexCombo,
+    ProbabilityMeasure.toMeasure_convexCombo,
     deFinettiEquiv_symm_eq_dirac P hρ₁, deFinettiEquiv_symm_eq_dirac Q hρ₂]
 
 /-- An exchangeable process whose path law happens to be the i.i.d. law `P^{⊗ℕ}` has the point mass
