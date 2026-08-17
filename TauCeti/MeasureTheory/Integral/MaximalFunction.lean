@@ -5,16 +5,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
-public import Mathlib.MeasureTheory.Function.LpSpace.Basic
 public import Mathlib.MeasureTheory.Integral.Average
 public import Mathlib.MeasureTheory.Measure.Lebesgue.EqHaar
 public import Mathlib.Topology.Semicontinuity.Defs
 -- `TauCeti.MeasureTheory.Integral.Marcinkiewicz` is imported privately: its operator-level
 -- interpolation API is used only to prove the strong maximal inequality below.
 import TauCeti.MeasureTheory.Integral.Marcinkiewicz
--- `Mathlib.Analysis.Normed.Group.Real` is imported privately for the extended norm of
--- `ENNReal.toReal`, used to descend the maximal function to `Lp`.
-import Mathlib.Analysis.Normed.Group.Real
 -- `Mathlib.MeasureTheory.Constructions.BorelSpace.Order` is imported privately: it is used only
 -- for `LowerSemicontinuous.measurable`, inside the proof of `TauCeti.measurable_maximalFunction`.
 import Mathlib.MeasureTheory.Constructions.BorelSpace.Order
@@ -91,14 +87,8 @@ never reaches `t`, and the weak-type bound applied to the high part gives
   **maximal inequality**, in product and in quotient form.
 * `TauCeti.ae_maximalFunction_lt_top`: the maximal function of an `L¹` function is finite almost
   everywhere.
-* `TauCeti.mul_measure_lt_maximalFunction_le_setLIntegral`: the weak-type bound against the
-  truncation of `f` at half the height, the form Marcinkiewicz interpolation consumes.
 * `TauCeti.lintegral_rpow_maximalFunction_le`, `TauCeti.eLpNorm_maximalFunction_le`: the
   **strong type `(p, p)` maximal inequality** for `1 < p < ∞`, with an explicit constant.
-* `TauCeti.ae_maximalFunction_lt_top_of_memLp`, `TauCeti.memLp_maximalFunction_toReal`,
-  `TauCeti.maximalFunctionLp`: the maximal function is finite almost everywhere on `Lᵖ`; its
-  real-valued representative preserves `MemLp` and descends to a nonlinear map
-  `Lp F p μ → Lp ℝ p μ`.
 
 The maximal function defined here is the *centred* one, whose averages are over the balls centred
 at the point. The uncentred variant, over all balls containing the point, is comparable to it with
@@ -441,33 +431,6 @@ theorem ae_maximalFunction_lt_top (μ : Measure E) [μ.IsAddHaarMeasure] (f : E 
 
 section StrongType
 
-/-- The weak-type `(1,1)` bound in **truncated** form: only the part of `f` above the height
-`t / 2` can push `M f` above `t`, so
-
-`t * μ {M f > t} ≤ 2 * 4 ^ n * ∫⁻ x in {‖f‖ₑ > t / 2}, ‖f x‖ₑ ∂μ`.
-
-This is a specialization of `TauCeti.mul_measure_ofReal_lt_operator_le_setLIntegral`; the
-reusable theorem carries out the split in `ℝ≥0∞`, using subadditivity and the `L^∞` endpoint. The
-half-height split is conventional and keeps the resulting explicit constant simple; it is not
-claimed to optimize that constant. -/
-theorem mul_measure_lt_maximalFunction_le_setLIntegral (μ : Measure E) [μ.IsAddHaarMeasure]
-    {f : E → F} (hf : AEMeasurable (fun x => ‖f x‖ₑ) μ) {t : ℝ} (ht : 0 < t) :
-    ENNReal.ofReal t * μ {x | ENNReal.ofReal t < maximalFunction μ f x} ≤
-      2 * 4 ^ finrank ℝ E * ∫⁻ x in {x | ENNReal.ofReal (2⁻¹ * t) < ‖f x‖ₑ}, ‖f x‖ₑ ∂μ := by
-  rw [← maximalFunction_enorm μ f]
-  simpa only [inv_inv, ENNReal.ofReal_ofNat, enorm_eq_self]
-    using mul_measure_ofReal_lt_operator_le_setLIntegral
-      (T := fun g => maximalFunction μ g) (A := 4 ^ finrank ℝ E) (b := 1)
-      (c := 2⁻¹) (d := 2⁻¹)
-      hf ht (by norm_num) (by norm_num) (by norm_num) (by norm_num)
-      (fun hgh => .of_forall fun x => maximalFunction_congr_ae
-        (hgh.mono fun y hy => by simpa only [enorm_eq_self] using hy))
-      (fun g h hg => .of_forall fun y => maximalFunction_add_le hg y)
-      (fun g _hg s => by
-        simpa only [enorm_eq_self] using mul_measure_lt_maximalFunction_le μ g s)
-      (fun g => .of_forall fun y => by simpa only [ENNReal.ofReal_one, one_mul] using
-        maximalFunction_le_eLpNormEssSup μ g y)
-
 /-- **The Hardy–Littlewood maximal inequality**, the strong-type `(p, p)` bound for `1 < p < ∞`,
 as an inequality between the integrals `∫⁻ ‖·‖ₑ ^ p`:
 
@@ -508,8 +471,8 @@ theorem lintegral_rpow_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure]
 in terms of representative-level `Lᵖ` seminorms.
 
 Together with `TauCeti.maximalFunction_le_eLpNormEssSup` (the case `p = ∞`) and
-`TauCeti.mul_measure_lt_maximalFunction_le` (the weak-type substitute at `p = 1`), this supplies
-the estimate used below to define the bounded nonlinear map `TauCeti.maximalFunctionLp`. -/
+`TauCeti.mul_measure_lt_maximalFunction_le` (the weak-type substitute at `p = 1`), this gives the
+representative-level strong estimate for the maximal function. -/
 theorem eLpNorm_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure] {f : E → F}
     (hf : AEMeasurable (fun x => ‖f x‖ₑ) μ) {p : ℝ≥0∞} (hp : 1 < p) (hp_top : p ≠ ∞) :
     eLpNorm (maximalFunction μ f) p μ ≤
@@ -526,84 +489,5 @@ theorem eLpNorm_maximalFunction_le (μ : Measure E) [μ.IsAddHaarMeasure] {f : E
 end StrongType
 
 end Haar
-
-section Lp
-
-variable {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [MeasurableSpace E]
-  [BorelSpace E] [FiniteDimensional ℝ E] [NormedAddCommGroup F] {p : ℝ≥0∞} {f : E → F}
-  {μ : Measure E} [μ.IsAddHaarMeasure]
-
-/-- The maximal function of an `Lᵖ` function is finite almost everywhere when `1 < p < ∞`. -/
-theorem ae_maximalFunction_lt_top_of_memLp (hf : MemLp f p μ) (hp : 1 < p)
-    (hp_top : p ≠ ∞) : ∀ᵐ x ∂μ, maximalFunction μ f x < ∞ := by
-  have hp₀ : p ≠ 0 := (zero_lt_one.trans hp).ne'
-  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp₀ hp_top
-  have hMnorm : eLpNorm (maximalFunction μ f) p μ < ∞ :=
-    (eLpNorm_maximalFunction_le μ hf.aestronglyMeasurable.enorm hp hp_top).trans_lt (by finiteness)
-  have hMint : ∫⁻ x, maximalFunction μ f x ^ p.toReal ∂μ < ∞ :=
-    (eLpNorm_lt_top_iff_lintegral_rpow_enorm_lt_top hp₀ hp_top).mp hMnorm
-  have hrpow : ∀ᵐ x ∂μ, maximalFunction μ f x ^ p.toReal < ∞ :=
-    ae_lt_top' ((measurable_maximalFunction μ f).pow_const p.toReal).aemeasurable hMint.ne
-  exact hrpow.mono fun _ hx => (ENNReal.rpow_lt_top_iff_of_pos hpr).mp hx
-
-/-- Converting the maximal function to a real-valued function does not change its `Lᵖ` seminorm
-when the input belongs to `Lᵖ` and `1 < p < ∞`. The strong-type estimate makes the extended-valued
-maximal function finite almost everywhere. -/
-theorem eLpNorm_maximalFunction_toReal_eq (hf : MemLp f p μ) (hp : 1 < p)
-    (hp_top : p ≠ ∞) :
-    eLpNorm (fun x => (maximalFunction μ f x).toReal) p μ =
-      eLpNorm (maximalFunction μ f) p μ := by
-  apply eLpNorm_congr_enorm_ae
-  filter_upwards [ae_maximalFunction_lt_top_of_memLp hf hp hp_top] with x hx
-  exact Real.enorm_toReal hx.ne
-
-/-- The real-valued representative of the maximal function of an `Lᵖ` function is again in
-`Lᵖ`, for `1 < p < ∞`. -/
-theorem memLp_maximalFunction_toReal (hf : MemLp f p μ) (hp : 1 < p) (hp_top : p ≠ ∞) :
-    MemLp (fun x => (maximalFunction μ f x).toReal) p μ := by
-  refine ⟨(measurable_maximalFunction μ f).ennreal_toReal.aestronglyMeasurable, ?_⟩
-  rw [eLpNorm_maximalFunction_toReal_eq hf hp hp_top]
-  exact (eLpNorm_maximalFunction_le μ hf.aestronglyMeasurable.enorm hp hp_top).trans_lt
-    (by finiteness)
-
-/-- The Hardy–Littlewood maximal function as a well-defined nonlinear map on `Lᵖ`.
-
-Its values use the almost-everywhere-finite real representative
-`x ↦ (maximalFunction μ f x).toReal`; representative independence is inherited from
-`maximalFunction_congr_ae`. -/
-noncomputable def maximalFunctionLp (μ : Measure E) [μ.IsAddHaarMeasure] (p : ℝ≥0∞)
-    (hp : 1 < p) (hp_top : p ≠ ∞) : Lp F p μ → Lp ℝ p μ := fun f =>
-  (memLp_maximalFunction_toReal (Lp.memLp f) hp hp_top).toLp
-    (fun x => (maximalFunction μ f x).toReal)
-
-/-- The `Lp` maximal-function map is represented by the real-valued maximal function. -/
-@[simp]
-theorem coeFn_maximalFunctionLp (μ : Measure E) [μ.IsAddHaarMeasure] (hp : 1 < p)
-    (hp_top : p ≠ ∞) (f : Lp F p μ) :
-    maximalFunctionLp μ p hp hp_top f =ᵐ[μ]
-      fun x => (maximalFunction μ f x).toReal :=
-  MemLp.coeFn_toLp (memLp_maximalFunction_toReal (Lp.memLp f) hp hp_top)
-
-/-- On an `Lᵖ` element built from a `MemLp` representative, `maximalFunctionLp` is represented by
-the real-valued maximal function of that representative. -/
-theorem maximalFunctionLp_toLp (hf : MemLp f p μ) (hp : 1 < p) (hp_top : p ≠ ∞) :
-    maximalFunctionLp μ p hp hp_top (hf.toLp f) =ᵐ[μ]
-      fun x => (maximalFunction μ f x).toReal := by
-  refine (coeFn_maximalFunctionLp μ hp hp_top (hf.toLp f)).trans ?_
-  exact .of_forall fun x => congrArg ENNReal.toReal (maximalFunction_congr_ae
-    (hf.coeFn_toLp.mono fun _ hy => congrArg enorm hy))
-
-/-- The quotient-level maximal-function map satisfies the strong `(p,p)` bound. -/
-theorem enorm_maximalFunctionLp_le (μ : Measure E) [μ.IsAddHaarMeasure] (hp : 1 < p)
-    (hp_top : p ≠ ∞) (f : Lp F p μ) :
-    ‖maximalFunctionLp μ p hp hp_top f‖ₑ ≤
-      (ENNReal.ofReal (2 * p.toReal * 2 ^ (p.toReal - 1) / (p.toReal - 1)) *
-        4 ^ finrank ℝ E) ^ (1 / p.toReal) * ‖f‖ₑ := by
-  rw [Lp.enorm_def, Lp.enorm_def,
-    eLpNorm_congr_ae (coeFn_maximalFunctionLp μ hp hp_top f)]
-  rw [eLpNorm_maximalFunction_toReal_eq (Lp.memLp f) hp hp_top]
-  exact eLpNorm_maximalFunction_le μ (Lp.memLp f).aestronglyMeasurable.enorm hp hp_top
-
-end Lp
 
 end TauCeti
