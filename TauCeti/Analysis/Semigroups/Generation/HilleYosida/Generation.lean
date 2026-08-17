@@ -171,20 +171,6 @@ theorem hilleYosidaSemigroup_generator :
     hilleYosidaLimitSemigroup_generator hM hres₀ hpow₀ hdense₀,
     LinearPMap.subScalar_subScalar, add_neg_cancel, LinearPMap.subScalar_zero]
 
-/-- The domain of the general Hille--Yosida semigroup is the prescribed operator domain. -/
-@[simp]
-theorem hilleYosidaSemigroup_domain :
-    (hilleYosidaSemigroup hM hres hpow hdense).domain = A.domain := by
-  rw [← StronglyContinuousSemigroup.generator_domain,
-    hilleYosidaSemigroup_generator hM hres hpow hdense]
-
-/-- A strongly continuous semigroup with generator `A` is the Hille--Yosida semigroup constructed
-from any valid Hille--Yosida data for `A`. -/
-theorem eq_hilleYosidaSemigroup {S : StronglyContinuousSemigroup X} (hS : S.generator = A) :
-    S = hilleYosidaSemigroup hM hres hpow hdense :=
-  StronglyContinuousSemigroup.eq_of_generator_eq
-    (hS.trans (hilleYosidaSemigroup_generator hM hres hpow hdense).symm)
-
 /-- The general Hille--Yosida semigroup has the prescribed growth bound `(omega, M)`. -/
 theorem hasGrowthBound_hilleYosidaSemigroup :
     (hilleYosidaSemigroup hM hres hpow hdense).HasGrowthBound omega M := by
