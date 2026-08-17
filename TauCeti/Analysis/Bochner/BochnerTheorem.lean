@@ -61,9 +61,9 @@ functions. Uniqueness is `Measure.ext_of_forall_integral_fourierAtom_eq` from
 
 Adapted (Apache 2.0) from the Bochner–Minlos formalization by Michael R. Douglas
 (https://github.com/mrdouglasny/bochner, revision `08eb302`), source file `Bochner/Main.lean`;
-the positive-definiteness hypotheses are restated through `Matrix.PosSemidef`,
-and the representation is stated in the `fourierAtom` convention rather than through
-`MeasureTheory.charFun`.
+the positive-definiteness hypotheses are restated through `TauCeti.IsPositiveDefiniteSub` and
+`Matrix.PosSemidef`, and the representation is stated in the `fourierAtom` convention rather
+than through `MeasureTheory.charFun`.
 
 ## Main declarations
 
