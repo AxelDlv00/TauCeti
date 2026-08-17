@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.AlgebraicGeometry.EllipticCurve.Affine.FrobeniusTower
-public import TauCeti.AlgebraicGeometry.EllipticCurve.Isogeny.Degree
+public import TauCeti.AlgebraicGeometry.EllipticCurve.Isogeny.Separability
 public import Mathlib.FieldTheory.Finite.Basic
 
 /-!
@@ -14,8 +14,8 @@ public import Mathlib.FieldTheory.Finite.Basic
 Over a finite field `F` with `q = Nat.card F` elements, raising to the `q`-th power is an
 `F`-algebra endomorphism of any `F`-algebra (`FiniteField.frobeniusAlgHom`). Composing it with
 the embedding of the coordinate ring into the function field gives a coordinate pullback, and
-that pullback maps infinity to infinity, so it is an isogeny of `W` with itself. Its degree
-is `q`.
+that pullback maps infinity to infinity, so it is an isogeny of `W` with itself. It is purely
+inseparable of degree `q`.
 
 The declarations take `[Finite F]` rather than `[Fintype F]`, matching
 `Affine/FrobeniusTower.lean`, and state the exponent as `Nat.card F`: a `Fintype` instance is
@@ -31,14 +31,23 @@ instance Mathlib's map needs is installed locally where it is required.
 
 * `TauCeti.Isogeny.fieldPullback_frobeniusIsogeny`: the induced map of function fields is the
   `q`-power map `FiniteField.frobeniusAlgHom F W.FunctionField`.
+* `TauCeti.Isogeny.fieldPullback_frobeniusIsogeny_apply`: the same result pointwise, with no
+  choice of a `Fintype` instance exposed in its statement.
+* `TauCeti.Isogeny.frobeniusIsogeny_isPurelyInseparable`: the induced function-field extension
+  is purely inseparable.
 * `TauCeti.Isogeny.degree_frobeniusIsogeny`: the Frobenius isogeny has degree `q`.
+* `TauCeti.Isogeny.separableDegree_frobeniusIsogeny` and
+  `TauCeti.Isogeny.inseparableDegree_frobeniusIsogeny`: its separable and inseparable degrees
+  are `1` and `q`, respectively.
 
 The `MapsInfinity` condition says that each `x` of the coordinate ring is integral over the
 pulled-back copy. It holds because `x` is a `q`-th root of its own pullback, so `IsIntegral.of_pow`
 reduces it to integrality of an element the pullback already produces. That is what "Frobenius
 fixes the point at infinity" amounts to here.
 
-The degree is the field-theoretic
+Pure inseparability follows because every function `x` has its `q`-th power in the image of the
+pullback, and `q` is a power of the exponential characteristic of `F`. The degree is the
+field-theoretic
 `TauCeti.WeierstrassCurve.Affine.finrank_fieldRange_frobeniusAlgHom`, `[K(W) : K(W)^q] = q`,
 transported along the identification of `fieldPullback` with the `q`-power map on `K(W)`. That
 identification is `Isogeny.fieldPullback_unique`: both maps restrict to `x ↦ x ^ q` on the
@@ -104,6 +113,37 @@ theorem fieldPullback_frobeniusIsogeny :
   simp only [FiniteField.coe_frobeniusAlgHom, frobeniusIsogeny_pullback, frobeniusPullback_apply,
     Nat.card_eq_fintype_card, map_pow]
 
+/-- **The function-field pullback raises every element to the `q`-th power.** Unlike
+`fieldPullback_frobeniusIsogeny`, this consumer-facing pointwise form depends only on `[Finite F]`
+and `Nat.card F`; the locally chosen enumeration of `F` does not occur in its statement. -/
+@[simp]
+theorem fieldPullback_frobeniusIsogeny_apply (x : W.FunctionField) :
+    (frobeniusIsogeny W).fieldPullback x = x ^ Nat.card F := by
+  let _ := Fintype.ofFinite F
+  rw [fieldPullback_frobeniusIsogeny W, FiniteField.coe_frobeniusAlgHom,
+    Nat.card_eq_fintype_card]
+
+/-- **The Frobenius isogeny is purely inseparable.** Every `x` in the function field has
+`x ^ q` in the pullback's field range, and the finite-field cardinality `q` is a power of the
+exponential characteristic. -/
+noncomputable instance frobeniusIsogeny_isPurelyInseparable :
+    IsPurelyInseparable (frobeniusIsogeny W).fieldPullback.fieldRange W.FunctionField := by
+  let _ := Fintype.ofFinite F
+  obtain ⟨p, hpF, n, hp, hcard⟩ := FiniteField.card' F
+  let _ : CharP F p := hpF
+  let _ : ExpChar F p := ExpChar.prime hp
+  let _ : ExpChar W.FunctionField p :=
+    expChar_of_injective_algebraMap (algebraMap F W.FunctionField).injective p
+  let _ : ExpChar (frobeniusIsogeny W).fieldPullback.fieldRange p :=
+    expChar_of_injective_algebraMap
+      (algebraMap F (frobeniusIsogeny W).fieldPullback.fieldRange).injective p
+  rw [isPurelyInseparable_iff_pow_mem _ p]
+  intro x
+  refine ⟨(n : ℕ), ⟨⟨x ^ p ^ (n : ℕ), ?_⟩, rfl⟩⟩
+  rw [AlgHom.mem_fieldRange]
+  exact ⟨x, by
+    rw [fieldPullback_frobeniusIsogeny_apply W, Nat.card_eq_fintype_card, hcard]⟩
+
 /-- **The Frobenius isogeny has degree `q`.** Its function-field pullback is the `q`-power map,
 so the extension the degree measures is `K(W)` over its subfield of `q`-th powers. -/
 @[simp]
@@ -111,6 +151,17 @@ theorem degree_frobeniusIsogeny : (frobeniusIsogeny W).degree = Nat.card F := by
   let _ := Fintype.ofFinite F
   rw [degree_def, fieldPullback_frobeniusIsogeny W]
   exact WeierstrassCurve.Affine.finrank_fieldRange_frobeniusAlgHom W
+
+/-- **The Frobenius isogeny has separable degree one.** -/
+@[simp]
+theorem separableDegree_frobeniusIsogeny : (frobeniusIsogeny W).separableDegree = 1 :=
+  separableDegree_eq_one_of_isPurelyInseparable (frobeniusIsogeny W)
+
+/-- **The Frobenius isogeny has inseparable degree `q`.** -/
+@[simp]
+theorem inseparableDegree_frobeniusIsogeny :
+    (frobeniusIsogeny W).inseparableDegree = Nat.card F := by
+  rw [inseparableDegree_eq_degree_of_isPurelyInseparable, degree_frobeniusIsogeny]
 
 end Isogeny
 
