@@ -100,6 +100,8 @@ the span `TauCeti.modelSubmodule` of the matrix coefficients of the models insid
   orthonormal system.
 * `TauCeti.coe_peterWeylBasis`, `TauCeti.coe_stdPeterWeylBasis`: the basis is the normalized
   matrix coefficients.
+* `TauCeti.peterWeylFamily_eq_toLp`: each family element is the `L²` class of its normalized
+  continuous matrix coefficient.
 * `TauCeti.coeFn_peterWeylFamily`: the almost-everywhere representative of a normalized matrix
   coefficient.
 * `TauCeti.peterWeylBasis_repr_apply`, `TauCeti.stdPeterWeylBasis_repr_apply`: the abstract basis
@@ -386,6 +388,17 @@ theorem peterWeylFamily_apply (models : ι → IrrepModel 𝕜 G)
           ((models x.1).basis x.2.1) ((models x.1).basis x.2.2) :=
   (rfl)
 
+/-- A Peter-Weyl family element is the `L²` class of its normalized continuous matrix
+coefficient. -/
+theorem peterWeylFamily_eq_toLp (models : ι → IrrepModel 𝕜 G)
+    (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
+    peterWeylFamily models x =
+      ContinuousMap.toLp 2 (haarProb G) 𝕜
+        ((Real.sqrt (models x.1).dim : 𝕜) •
+          ContRepresentation.matrixCoeff (models x.1).rep (models x.1).continuous_rep
+            ((models x.1).basis x.2.1) ((models x.1).basis x.2.2)) := by
+  rw [peterWeylFamily_apply, ContRepresentation.matrixCoeffLp_def, map_smul]
+
 /-- A normalized Peter-Weyl matrix coefficient in `L²` is represented almost everywhere by its
 defining continuous function. -/
 theorem coeFn_peterWeylFamily (models : ι → IrrepModel 𝕜 G)
@@ -490,19 +503,6 @@ classes represented by the continuous functions
 theorem coe_peterWeylBasis [IsAlgClosed 𝕜] {models : ι → IrrepModel 𝕜 G}
     (h : IsIrrepSkeleton models) : ⇑(peterWeylBasis h) = peterWeylFamily models :=
   HilbertBasis.coe_mkOfOrthogonalEqBot _ _
-
-/-- A Peter-Weyl basis element is the `L²` class of its normalized continuous matrix
-coefficient. -/
-theorem peterWeylBasis_apply [IsAlgClosed 𝕜] {models : ι → IrrepModel 𝕜 G}
-    (h : IsIrrepSkeleton models)
-    (x : Σ i, Fin (models i).dim × Fin (models i).dim) :
-    peterWeylBasis h x =
-      ContinuousMap.toLp 2 (haarProb G) 𝕜
-        ((Real.sqrt (models x.1).dim : 𝕜) •
-          ContRepresentation.matrixCoeff (models x.1).rep (models x.1).continuous_rep
-            ((models x.1).basis x.2.1) ((models x.1).basis x.2.2)) := by
-  rw [coe_peterWeylBasis, peterWeylFamily_apply,
-    ContRepresentation.matrixCoeffLp_def, map_smul]
 
 /-- The Peter-Weyl Fourier coefficient of `f` at the normalized matrix coefficient indexed by
 `x`, written as a Haar integral. -/
@@ -702,20 +702,6 @@ represented by the functions
 theorem coe_stdPeterWeylBasis :
     ⇑(stdPeterWeylBasis 𝕜 G) = peterWeylFamily (IrrepClass.model (𝕜 := 𝕜) (G := G)) :=
   coe_peterWeylBasis _
-
-/-- An unconditional Peter-Weyl basis element is the `L²` class of its normalized continuous
-matrix coefficient. -/
-theorem stdPeterWeylBasis_apply
-    (x : Σ i : IrrepClass 𝕜 G,
-      Fin (IrrepClass.model i).dim × Fin (IrrepClass.model i).dim) :
-    stdPeterWeylBasis 𝕜 G x =
-      ContinuousMap.toLp 2 (haarProb G) 𝕜
-        ((Real.sqrt (IrrepClass.model x.1).dim : 𝕜) •
-          ContRepresentation.matrixCoeff (IrrepClass.model x.1).rep
-            (IrrepClass.model x.1).continuous_rep
-            ((IrrepClass.model x.1).basis x.2.1) ((IrrepClass.model x.1).basis x.2.2)) := by
-  simpa only [stdPeterWeylBasis] using
-    peterWeylBasis_apply (isIrrepSkeleton_model 𝕜 G) x
 
 /-- A coordinate in the unconditional Peter-Weyl basis is its explicit Fourier coefficient. -/
 @[simp]
