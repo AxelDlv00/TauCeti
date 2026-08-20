@@ -68,9 +68,8 @@ variable
   [∀ x : M, ENormSMulClass ℝ (TangentSpace I x)]
   {γ : ℝ → M} {a b : ℝ}
 
-/-- The Riemannian extended distance is bounded by path length on every subinterval of a path
-which is `C¹` along an explicit finite partition. The induction crosses the last partition vertex
-using the triangle inequality and `Manifold.pathELength_add`. -/
+/-- The Riemannian extended distance is bounded by path length on every ordered subinterval of a
+path which is `C¹` along an explicit finite partition. -/
 private theorem riemannianEDist_le_pathELength_of_partition :
     ∀ {k : ℕ} (τ : Fin (k + 2) → ℝ),
       (∀ i : Fin (k + 1),
