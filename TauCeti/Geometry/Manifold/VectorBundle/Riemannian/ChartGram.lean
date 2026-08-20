@@ -61,7 +61,7 @@ namespace Tensor
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
   {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
-  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I ∞ M]
+  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I 1 M]
 
 /-- The chart-local frame obtained from the tangent-bundle trivialization centred at `α` and
 the chosen `Module.finBasis` basis of the model space. Outside the trivialization base set it has
@@ -84,13 +84,15 @@ theorem chartLocalFrame_apply_of_mem_chart_source (α : M) {x : M}
       (Module.finBasis ℝ E) (i := i) (by
         simpa only [TangentBundle.trivializationAt_baseSet] using hx)
 
-/-- Each member of `chartLocalFrame` is smooth on the tangent-trivialization base set. -/
-theorem contMDiffOn_chartLocalFrame {n : ℕ∞ω} [ENat.LEInfty n]
+/-- Each member of `chartLocalFrame` is `C^n` on the tangent-trivialization base set. -/
+theorem contMDiffOn_chartLocalFrame {n : ℕ∞ω} [IsManifold I (n + 1) M]
     (α : M) (i : Fin (Module.finrank ℝ E)) :
     ContMDiffOn I (I.prod 𝓘(ℝ, E)) n
       (fun x ↦ TotalSpace.mk' E x (chartLocalFrame (I := I) α i x))
-      (trivializationAt E (TangentSpace I) α).baseSet :=
-  (trivializationAt E (TangentSpace I) α).contMDiffOn_localFrame_baseSet
+      (trivializationAt E (TangentSpace I) α).baseSet := by
+  let _ : ContMDiffVectorBundle n E (TangentSpace I : M → Type _) I :=
+    TangentBundle.contMDiffVectorBundle
+  exact (trivializationAt E (TangentSpace I) α).contMDiffOn_localFrame_baseSet
     (n := n) (Module.finBasis ℝ E) i
 
 variable [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
@@ -98,7 +100,6 @@ variable [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
 /-- The Gram matrix of `chartLocalFrame α` for the canonical Riemannian metric at `x`. Its
 entries are the coordinate metric coefficients used in do Carmo, *Riemannian Geometry*,
 Chapter 2. -/
-@[expose]
 def chartGramMatrix (α : M) (x : M) :
     Matrix (Fin (Module.finrank ℝ E)) (Fin (Module.finrank ℝ E)) ℝ :=
   Matrix.gram ℝ fun i ↦ chartLocalFrame (I := I) α i x
@@ -107,8 +108,8 @@ def chartGramMatrix (α : M) (x : M) :
 @[simp]
 theorem chartGramMatrix_apply (α x : M) (i j : Fin (Module.finrank ℝ E)) :
     chartGramMatrix (I := I) α x i j =
-      inner ℝ (chartLocalFrame (I := I) α i x) (chartLocalFrame (I := I) α j x) :=
-  rfl
+      inner ℝ (chartLocalFrame (I := I) α i x) (chartLocalFrame (I := I) α j x) := by
+  rw [chartGramMatrix, Matrix.gram_apply]
 
 /-- The chart Gram matrix is Hermitian, equivalently symmetric over `ℝ`. -/
 theorem isHermitian_chartGramMatrix (α x : M) :
@@ -117,7 +118,7 @@ theorem isHermitian_chartGramMatrix (α x : M) :
 
 /-- The Gram-matrix quadratic form equals the squared norm, in the canonical Riemannian metric,
 of the corresponding linear combination of chart-frame vectors. -/
-theorem chartGramMatrix_dotProduct_mulVec
+theorem star_dotProduct_chartGramMatrix_mulVec
     (α x : M) (c : Fin (Module.finrank ℝ E) → ℝ) :
     star c ⬝ᵥ (chartGramMatrix (I := I) α x) *ᵥ c =
       inner ℝ
@@ -132,7 +133,7 @@ theorem posDef_chartGramMatrix (α : M) {x : M}
     (chartGramMatrix (I := I) α x).PosDef :=
   Matrix.posDef_gram_of_linearIndependent <|
     ((trivializationAt E (TangentSpace I) α).isLocalFrameOn_localFrame_baseSet
-      I ∞ (Module.finBasis ℝ E)).linearIndependent hx
+      I 0 (Module.finBasis ℝ E)).linearIndependent hx
 
 /-- The determinant of the chart Gram matrix is strictly positive on the tangent-trivialization
 base set. -/
@@ -167,7 +168,7 @@ private lemma contMDiffOn_matrix_det_of_entries
 
 section Smooth
 
-variable {n : ℕ∞ω} [ENat.LEInfty n]
+variable {n : ℕ∞ω} [IsManifold I (n + 1) M]
   [IsContMDiffRiemannianBundle I n E (fun x : M ↦ TangentSpace I x)]
 
 /-- Every entry of the chart Gram matrix is smooth on the tangent-trivialization base set. -/
@@ -212,29 +213,33 @@ def chartInvGramMatrix (α : M) (x : M) :
     Matrix (Fin (Module.finrank ℝ E)) (Fin (Module.finrank ℝ E)) ℝ :=
   (chartGramMatrix (I := I) α x)⁻¹
 
-/-- On the tangent-trivialization base set, the inverse Gram matrix is a left inverse. -/
+/-- On the chart source, the inverse Gram matrix is a left inverse. -/
 @[simp]
 theorem chartInvGramMatrix_mul_chartGramMatrix (α : M) {x : M}
-    (hx : x ∈ (trivializationAt E (TangentSpace I) α).baseSet) :
+    (hx : x ∈ (chartAt H α).source) :
     chartInvGramMatrix (I := I) α x * chartGramMatrix (I := I) α x = 1 := by
+  have hx' : x ∈ (trivializationAt E (TangentSpace I) α).baseSet := by
+    simpa only [TangentBundle.trivializationAt_baseSet] using hx
   have hdet_unit : IsUnit (chartGramMatrix (I := I) α x).det :=
-    isUnit_iff_ne_zero.mpr (ne_of_gt (chartGramMatrix_det_pos (I := I) α hx))
+    isUnit_iff_ne_zero.mpr (ne_of_gt (chartGramMatrix_det_pos (I := I) α hx'))
   unfold chartInvGramMatrix
   exact Matrix.nonsing_inv_mul _ hdet_unit
 
-/-- On the tangent-trivialization base set, the inverse Gram matrix is a right inverse. -/
+/-- On the chart source, the inverse Gram matrix is a right inverse. -/
 @[simp]
 theorem chartGramMatrix_mul_chartInvGramMatrix (α : M) {x : M}
-    (hx : x ∈ (trivializationAt E (TangentSpace I) α).baseSet) :
+    (hx : x ∈ (chartAt H α).source) :
     chartGramMatrix (I := I) α x * chartInvGramMatrix (I := I) α x = 1 := by
+  have hx' : x ∈ (trivializationAt E (TangentSpace I) α).baseSet := by
+    simpa only [TangentBundle.trivializationAt_baseSet] using hx
   have hdet_unit : IsUnit (chartGramMatrix (I := I) α x).det :=
-    isUnit_iff_ne_zero.mpr (ne_of_gt (chartGramMatrix_det_pos (I := I) α hx))
+    isUnit_iff_ne_zero.mpr (ne_of_gt (chartGramMatrix_det_pos (I := I) α hx'))
   unfold chartInvGramMatrix
   exact Matrix.mul_nonsing_inv _ hdet_unit
 
 section Smooth
 
-variable {n : ℕ∞ω} [ENat.LEInfty n]
+variable {n : ℕ∞ω} [IsManifold I (n + 1) M]
   [IsContMDiffRiemannianBundle I n E (fun x : M ↦ TangentSpace I x)]
 
 /-- Every entry of the inverse chart Gram matrix is smooth on the tangent-trivialization base
