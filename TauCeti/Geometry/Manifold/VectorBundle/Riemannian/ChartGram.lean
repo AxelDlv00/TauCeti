@@ -51,6 +51,7 @@ As in the source, inverse-entry smoothness is proved through the determinant and
 -/
 
 noncomputable section
+public section
 
 open Bundle FiberBundle Manifold Set
 open scoped ContDiff Manifold Matrix RealInnerProductSpace Topology
@@ -97,6 +98,7 @@ variable [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
 /-- The Gram matrix of `chartLocalFrame α` for the canonical Riemannian metric at `x`. Its
 entries are the coordinate metric coefficients used in do Carmo, *Riemannian Geometry*,
 Chapter 2. -/
+@[expose]
 def chartGramMatrix (α : M) (x : M) :
     Matrix (Fin (Module.finrank ℝ E)) (Fin (Module.finrank ℝ E)) ℝ :=
   Matrix.gram ℝ fun i ↦ chartLocalFrame (I := I) α i x
@@ -139,6 +141,30 @@ theorem chartGramMatrix_det_pos (α : M) {x : M}
     0 < (chartGramMatrix (I := I) α x).det :=
   (posDef_chartGramMatrix (I := I) α hx).det_pos
 
+/-- Smoothness of a matrix determinant follows from smoothness of all matrix entries. -/
+private lemma contMDiffOn_matrix_det_of_entries
+    {EB : Type*} [NormedAddCommGroup EB] [NormedSpace ℝ EB]
+    {HB : Type*} [TopologicalSpace HB] {IB : ModelWithCorners ℝ EB HB}
+    {X : Type*} [TopologicalSpace X] [ChartedSpace HB X]
+    {n : ℕ∞ω}
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {A : X → Matrix ι ι ℝ} {s : Set X}
+    (hA : ∀ i j, ContMDiffOn IB 𝓘(ℝ) n (fun x ↦ A x i j) s) :
+    ContMDiffOn IB 𝓘(ℝ) n (fun x ↦ (A x).det) s := by
+  classical
+  have hexp :
+      (fun x : X ↦ (A x).det) =
+        fun x : X ↦ ∑ σ : Equiv.Perm ι,
+          (Equiv.Perm.sign σ : ℝ) * ∏ i, A x (σ i) i := by
+    funext x
+    rw [Matrix.det_apply]
+    simp [Units.smul_def]
+  rw [hexp]
+  refine contMDiffOn_finsetSum fun σ _ ↦ ?_
+  refine ContMDiffOn.mul (contMDiffOn_const (c := ((Equiv.Perm.sign σ : ℤ) : ℝ))) ?_
+  refine contMDiffOn_finsetProd fun i _ ↦ ?_
+  exact hA (σ i) i
+
 section Smooth
 
 variable {n : ℕ∞ω} [ENat.LEInfty n]
@@ -153,32 +179,6 @@ theorem contMDiffOn_chartGramMatrix_entry
     (E := fun x : M ↦ TangentSpace I x)
     (contMDiffOn_chartLocalFrame (I := I) (n := n) α i)
     (contMDiffOn_chartLocalFrame (I := I) (n := n) α j)
-
-/-- Smoothness of a matrix determinant follows from smoothness of all matrix entries. -/
-private lemma contMDiffOn_matrix_det_of_entries
-    {ι : Type*} [Fintype ι] [DecidableEq ι]
-    {A : M → Matrix ι ι ℝ} {s : Set M}
-    (hA : ∀ i j, ContMDiffOn I 𝓘(ℝ) n (fun x ↦ A x i j) s) :
-    ContMDiffOn I 𝓘(ℝ) n (fun x ↦ (A x).det) s := by
-  classical
-  have hexp :
-      (fun x : M ↦ (A x).det) =
-        fun x : M ↦ ∑ σ : Equiv.Perm ι,
-          (Equiv.Perm.sign σ : ℝ) * ∏ i, A x (σ i) i := by
-    funext x
-    rw [Matrix.det_apply]
-    simp [Units.smul_def]
-  rw [hexp]
-  refine contMDiffOn_finsetSum fun σ _ ↦ ?_
-  refine ContMDiffOn.mul (contMDiffOn_const (c := ((Equiv.Perm.sign σ : ℤ) : ℝ))) ?_
-  refine contMDiffOn_finsetProd fun i _ ↦ ?_
-  exact hA (σ i) i
-
-/-- The determinant of the chart Gram matrix is smooth on the tangent-trivialization base set. -/
-private lemma contMDiffOn_det_chartGramMatrix (α : M) :
-    ContMDiffOn I 𝓘(ℝ) n (fun x ↦ (chartGramMatrix (I := I) α x).det)
-      (trivializationAt E (TangentSpace I) α).baseSet :=
-  contMDiffOn_matrix_det_of_entries (fun i j ↦ contMDiffOn_chartGramMatrix_entry (I := I) α i j)
 
 /-- Every adjugate entry of the chart Gram matrix is smooth on the tangent-trivialization base
 set. The proof realizes the entry as the determinant of a row-updated matrix. -/
@@ -201,7 +201,7 @@ private lemma contMDiffOn_adjugate_chartGramMatrix_entry
   · subst k
     simp only [Matrix.updateRow_self]
     exact contMDiffOn_const
-  · simp [Matrix.updateRow_apply, hkj]
+  · simp only [Matrix.updateRow_apply, hkj, ite_false]
     exact contMDiffOn_chartGramMatrix_entry (I := I) (n := n) α k l
 
 end Smooth
@@ -251,16 +251,12 @@ theorem contMDiffOn_chartInvGramMatrix_entry
     intro x _
     unfold chartInvGramMatrix
     rw [Matrix.inv_def]
-    simpa only [Matrix.smul_apply, smul_eq_mul, Ring.inverse_eq_inv]
-  refine ContMDiffOn.congr (ContMDiffOn.mul ?_ ?_) hcongr
-  · have hdet_smooth := contMDiffOn_det_chartGramMatrix (I := I) (n := n) α
-    intro x hx
-    have hdet_ne : (chartGramMatrix (I := I) α x).det ≠ 0 :=
-      ne_of_gt (chartGramMatrix_det_pos (I := I) α hx)
-    have hinv : ContDiffAt ℝ n (fun y : ℝ ↦ y⁻¹)
-        (chartGramMatrix (I := I) α x).det :=
-      contDiffAt_inv _ hdet_ne
-    exact hinv.contMDiffAt.comp_contMDiffWithinAt x (hdet_smooth x hx)
+    simp only [Matrix.smul_apply, smul_eq_mul, Ring.inverse_eq_inv]
+  have hdet_smooth := contMDiffOn_matrix_det_of_entries
+    (fun k l ↦ contMDiffOn_chartGramMatrix_entry (I := I) (n := n) α k l)
+  refine ContMDiffOn.congr (ContMDiffOn.mul (hdet_smooth.inv₀ ?_) ?_) hcongr
+  · intro x hx
+    exact ne_of_gt (chartGramMatrix_det_pos (I := I) α hx)
   · exact contMDiffOn_adjugate_chartGramMatrix_entry (I := I) α i j
 
 end Smooth
