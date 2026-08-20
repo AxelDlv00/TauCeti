@@ -78,8 +78,10 @@ theorem chartLocalFrame_apply_of_mem_baseSet (α : M) {x : M}
     chartLocalFrame (I := I) α i x =
       (trivializationAt E (TangentSpace I) α).basisAt (Module.finBasis ℝ E)
         (by simpa only [TangentBundle.trivializationAt_baseSet] using hx) i := by
-  apply (trivializationAt E (TangentSpace I) α).localFrame_apply_of_mem_baseSet
-  simpa only [TangentBundle.trivializationAt_baseSet] using hx
+  simpa only [chartLocalFrame, TangentBundle.trivializationAt_baseSet] using
+    (trivializationAt E (TangentSpace I) α).localFrame_apply_of_mem_baseSet
+      (Module.finBasis ℝ E) (i := i) (by
+        simpa only [TangentBundle.trivializationAt_baseSet] using hx)
 
 /-- Each member of `chartLocalFrame` is smooth on the tangent-trivialization base set. -/
 theorem chartLocalFrame_contMDiffOn (α : M) (i : Fin (Module.finrank ℝ E)) :
