@@ -16,9 +16,9 @@ public import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
 /-!
 # Chart Gram matrices of a Riemannian metric
 
-This file constructs the Gram matrix of the canonical Riemannian metric in the local frame
-induced by a tangent-bundle trivialization and proves that its entries and the entries of its
-inverse are smooth on the trivialization base set. The construction uses
+This file constructs the Gram matrix of the metric supplied by a `RiemannianBundle` instance in
+the local frame induced by a tangent-bundle trivialization and proves that its entries and the
+entries of its inverse are smooth on the trivialization base set. The construction uses
 `Bundle.Trivialization.localFrame` and `Bundle.Trivialization.basisAt`, so it applies unchanged
 when the model space has dimension zero.
 
@@ -26,8 +26,8 @@ The Gram-matrix and inverse-matrix declarations are adapted from stages 1--5 of 
 Poincare-Conjecture source file
 `DoCarmoLib/Riemannian/TensorBundle/MusicalIso.lean`, revision
 `24f32e4d600878bfaac6bc2f2f9324175571c321`. That source uses an explicit metric and a custom
-chart frame; here Mathlib's canonical `RiemannianBundle` metric and local-frame API replace them.
-As in the source, inverse-entry smoothness is proved through the determinant and adjugate formula.
+chart frame; here the metric supplied by Mathlib's `RiemannianBundle` instance and its local-frame
+API replace them.
 
 ## Main definitions and results
 
@@ -97,9 +97,9 @@ theorem contMDiffOn_chartLocalFrame {n : ℕ∞ω} [IsManifold I (n + 1) M]
 
 variable [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
 
-/-- The Gram matrix of `chartLocalFrame α` for the canonical Riemannian metric at `x`. Its
-entries are the coordinate metric coefficients used in do Carmo, *Riemannian Geometry*,
-Chapter 2. -/
+/-- The Gram matrix of `chartLocalFrame α` for the fiber inner product supplied by the
+`RiemannianBundle` instance at `x`. Its entries are the coordinate metric coefficients used in
+do Carmo, *Riemannian Geometry*, Chapter 2. -/
 def chartGramMatrix (α : M) (x : M) :
     Matrix (Fin (Module.finrank ℝ E)) (Fin (Module.finrank ℝ E)) ℝ :=
   Matrix.gram ℝ fun i ↦ chartLocalFrame (I := I) α i x
@@ -149,7 +149,7 @@ section Smooth
 variable {n : ℕ∞ω} [IsManifold I (n + 1) M]
   [IsContMDiffRiemannianBundle I n E (fun x : M ↦ TangentSpace I x)]
 
-/-- Every entry of the chart Gram matrix is smooth on the tangent-trivialization base set. -/
+/-- Every entry of the chart Gram matrix is `C^n` on the tangent-trivialization base set. -/
 theorem contMDiffOn_chartGramMatrix_entry
     (α : M) (i j : Fin (Module.finrank ℝ E)) :
     ContMDiffOn I 𝓘(ℝ) n (fun x ↦ chartGramMatrix (I := I) α x i j)
@@ -159,8 +159,8 @@ theorem contMDiffOn_chartGramMatrix_entry
     (contMDiffOn_chartLocalFrame (I := I) (n := n) α i)
     (contMDiffOn_chartLocalFrame (I := I) (n := n) α j)
 
-/-- Every adjugate entry of the chart Gram matrix is smooth on the tangent-trivialization base
-set. The proof realizes the entry as the determinant of a row-updated matrix. -/
+/-- Every adjugate entry of the chart Gram matrix is `C^n` on the tangent-trivialization base
+set. -/
 private lemma contMDiffOn_adjugate_chartGramMatrix_entry
     (α : M) (i j : Fin (Module.finrank ℝ E)) :
     ContMDiffOn I 𝓘(ℝ) n
@@ -220,8 +220,7 @@ section Smooth
 variable {n : ℕ∞ω} [IsManifold I (n + 1) M]
   [IsContMDiffRiemannianBundle I n E (fun x : M ↦ TangentSpace I x)]
 
-/-- Every entry of the inverse chart Gram matrix is smooth on the tangent-trivialization base
-set. Following the source, the proof uses the determinant/adjugate formula. -/
+/-- Every entry of the inverse chart Gram matrix is `C^n` on the tangent-trivialization base set. -/
 theorem contMDiffOn_chartInvGramMatrix_entry
     (α : M) (i j : Fin (Module.finrank ℝ E)) :
     ContMDiffOn I 𝓘(ℝ) n (fun x : M ↦ chartInvGramMatrix (I := I) α x i j)
