@@ -104,28 +104,6 @@ def chartGramMatrix (α : M) (x : M) :
     Matrix (Fin (Module.finrank ℝ E)) (Fin (Module.finrank ℝ E)) ℝ :=
   Matrix.gram ℝ fun i ↦ chartLocalFrame (I := I) α i x
 
-/-- Each Gram-matrix entry is the inner product of the corresponding chart-frame vectors. -/
-@[simp]
-theorem chartGramMatrix_apply (α x : M) (i j : Fin (Module.finrank ℝ E)) :
-    chartGramMatrix (I := I) α x i j =
-      inner ℝ (chartLocalFrame (I := I) α i x) (chartLocalFrame (I := I) α j x) := by
-  rw [chartGramMatrix, Matrix.gram_apply]
-
-/-- The chart Gram matrix is Hermitian, equivalently symmetric over `ℝ`. -/
-theorem isHermitian_chartGramMatrix (α x : M) :
-    (chartGramMatrix (I := I) α x).IsHermitian :=
-  Matrix.isHermitian_gram ℝ _
-
-/-- The Gram-matrix quadratic form equals the squared norm, in the canonical Riemannian metric,
-of the corresponding linear combination of chart-frame vectors. -/
-theorem star_dotProduct_chartGramMatrix_mulVec
-    (α x : M) (c : Fin (Module.finrank ℝ E) → ℝ) :
-    star c ⬝ᵥ (chartGramMatrix (I := I) α x) *ᵥ c =
-      inner ℝ
-        (∑ i, c i • chartLocalFrame (I := I) α i x)
-        (∑ j, c j • chartLocalFrame (I := I) α j x) :=
-  Matrix.star_dotProduct_gram_mulVec (𝕜 := ℝ) _ c c
-
 /-- The Gram matrix of the chart-local frame is positive-definite on the tangent-trivialization
 base set. -/
 theorem posDef_chartGramMatrix (α : M) {x : M}
