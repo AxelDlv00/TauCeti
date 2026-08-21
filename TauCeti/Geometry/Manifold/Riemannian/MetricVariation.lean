@@ -7,7 +7,7 @@ Jinxuan Chen, Wanxu Yang, Zekun Sheng, Yuxuan Liao, Jie Xu
 module
 
 public import Mathlib.Topology.EMetricSpace.BoundedVariation
-public import TauCeti.Geometry.Manifold.Riemannian.RiemannianDistance
+public import TauCeti.Geometry.Manifold.Riemannian.Distance
 
 /-!
 # Metric variation is bounded by Riemannian path length
