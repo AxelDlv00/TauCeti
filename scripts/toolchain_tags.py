@@ -1,45 +1,55 @@
 #!/usr/bin/env python3
 """Audit and create Tau Ceti's Lean toolchain tags (`v4.33.0-rc2`, `v4.34.0`, ...).
 
-Mathlib tags every Lean release, so a downstream project on Lean v4.34.0 can check out
-mathlib at `v4.34.0` and get a tree that builds. This gives Tau Ceti the same thing.
+Mathlib tags every Lean release, so a project on Lean v4.34.0 can check out mathlib at
+`v4.34.0` and get a tree that builds. These tags do the same for Tau Ceti.
 
-## The rule, in one line
+## What the tool does
 
-`vX` is the FIRST commit on `main` whose `lean-toolchain` is `leanprover/lean4:X`.
+`vX` is the first commit on `main` whose `lean-toolchain` is `leanprover/lean4:X`.
+`--create` tags that commit once its post-merge CI has passed and its oleans are in the
+Lake cache. The tool reads both from what is already recorded, without rebuilding.
 
-That is the whole policy, and it is deliberately not cleverer than that. It gives the
-property you actually want for free: mathlib puts its own `vX` tag on the commit that bumps
-its `lean-toolchain` to X, and `scripts/check-bump.sh` already forces Tau Ceti's toolchain
-to equal mathlib's at whatever it pins. So the first `main` commit on toolchain X
-necessarily pins mathlib at or after mathlib's own `vX` tag. Nothing here has to compute
-that, compare pins, derive a base, or ask mathlib anything at all.
+Mathlib puts its `vX` tag on the commit that bumps its own `lean-toolchain` to X, and
+`scripts/check-bump.sh` requires Tau Ceti's toolchain to match mathlib's at whatever it
+pins. The first `main` commit on toolchain X therefore pins mathlib at or after mathlib's
+`vX` tag. The pin is usually a little past it; the tag message gives it.
 
-Two consequences worth stating plainly, because they are the cost of the simplicity:
+## What it leaves to a human
 
-  * A release `main` never ran on gets no tag. Today that is `v4.33.0`, whose window on
-    mathlib master was fifteen hours and which the daily bump stepped over, and the patch
-    releases `v4.32.1` and `v4.32.2`, which mathlib cut on its `stable` branch and which
-    `check-bump.sh` could never have let this repository pin in the first place.
-  * The mathlib pin is whatever `main` had, which is at or past mathlib's tag but rarely
-    exactly it. The tag message records the pin so a reader can see how far past.
+The tool tags only commits on `main`, and reports a release `main` never ran on as
+`unreachable`. Two things cause that: the daily bump stepped over the release's window on
+mathlib master, which for a stable release has been fifteen hours, or mathlib cut the
+release on its `stable` branch, which `check-bump.sh` will not let this repository pin.
 
-## What a tag promises
+Tagging one anyway takes four steps. `v4.33.0` was done this way:
 
-The commit is on that Lean toolchain, its post-merge CI passed, and its oleans are in the
-Lake artifact cache, so a checkout builds without recompiling the library. Both of those
-are checked before a tag is created; neither needs a rebuild, because `main` already did
-the work and recorded it.
+  1. Branch `releases/vX` from the last `main` commit before the bump jumped. Change
+     `lean-toolchain` and `lake-manifest.json` to pin mathlib at its `vX` tag, and nothing
+     else, so no source differs from that `main` commit.
+  2. Build from source and run the audits and lints that commit defines. The pin moves
+     forward by at least a bump's worth, so this is where it can fail.
+  3. To publish the oleans, which does not happen automatically off `main`:
+     `lake build --no-build -o .lake/outputs.jsonl`, `lake cache stage`, then
+     `lake cache put-staged --rev <sha> --toolchain leanprover/lean4:vX`. Run that from a
+     Lake at v4.34.0-rc1 or later; earlier ones lack both flags. Then fetch the published
+     mapping and diff it against the staged one.
+  4. Create the annotated tag, recording that the commit was constructed.
 
-Releases before the Lake cache existed, everything up to and including `v4.32.0`, are
-deliberately out of scope: there is no cache to promise. See `EARLIEST_RELEASE`.
+The report then shows the release as `tagged`, notes the commit was constructed, and says
+whether it found a cache. `--create` does not do any of this; step 2 is a build.
+
+Releases older than `EARLIEST_RELEASE` are out of scope, because the Lake cache does not
+reach back that far.
+
+If a tag does not match the rule, the tool reports it and changes nothing.
 
 ## Usage
 
-    toolchain_tags.py                     # the report
-    toolchain_tags.py --json              # the same, machine-readable
+    toolchain_tags.py                        # the report
+    toolchain_tags.py --json                 # the same, machine-readable
     toolchain_tags.py --create v4.33.0-rc2   # create one tag
-    toolchain_tags.py --create --all      # create every tag that is ready
+    toolchain_tags.py --create --all         # create every tag that is ready
     toolchain_tags.py --create --all --dry-run
 
 ## Environment
@@ -242,24 +252,26 @@ POLICY = """\
 Tau Ceti toolchain tags
 =======================
 
-`vX` is the FIRST commit on `main` whose lean-toolchain is `leanprover/lean4:X`.
+`vX` is the first commit on `main` whose lean-toolchain is `leanprover/lean4:X`.
 
-That is the whole rule. Mathlib tags the commit that bumps its own toolchain to X, and
-check-bump.sh forces this repository's toolchain to equal mathlib's at whatever it pins, so
-such a commit necessarily pins mathlib at or after mathlib's own `vX` tag. The tag message
-records the pin so a reader can see how far past it is.
+Mathlib puts its `vX` tag on the commit that bumps its own toolchain to X, and
+check-bump.sh requires this repository's toolchain to match mathlib's at whatever it pins,
+so such a commit pins mathlib at or after mathlib's `vX` tag. The tag message gives the pin.
 
-A tag is created only once that commit's post-merge CI has passed and its oleans are in the
-Lake artifact cache, so a checkout builds without recompiling the library. Neither needs a
-rebuild: main already did the work.
+A tag is created once that commit's post-merge CI has passed and its oleans are in the Lake
+artifact cache, so a checkout builds without recompiling the library. The tool reads both
+from what is already recorded, without rebuilding.
 
-A release main never ran on gets no tag, and nothing here will construct one, but it is
-still reported: either the daily bump stepped over its window on mathlib master, or mathlib
-cut it on its `stable` branch and check-bump.sh could never have let this repository pin it.
-Releases older than %s are out of scope: the Lake cache does not reach back that far, so a
-tag could not promise a usable cache.
+The tool tags only commits on main, and reports a release main never ran on as
+`unreachable`: either the daily bump stepped over its window on mathlib master, or mathlib
+cut it on its `stable` branch, which check-bump.sh will not let this repository pin. Tagging
+one anyway takes four manual steps, including a build. v4.33.0 was done that way; the steps
+are in this script's module docstring.
 
-Tags are never moved. If one disagrees with this rule, that is a question for a human.
+Releases older than %s are out of scope, because the Lake cache has no
+older entries.
+
+If a tag does not match the rule, the tool reports it and changes nothing.
 """ % EARLIEST_RELEASE
 
 STATUSES = ("tagged", "ready", "blocked", "unreachable", "out-of-scope")
