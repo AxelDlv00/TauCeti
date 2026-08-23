@@ -10,6 +10,7 @@ public import TauCeti.Algebra.AlgebraicGroup.GeneralLinear.Scheme
 public import TauCeti.Algebra.AlgebraicGroup.HopfIdeal.Points.Naturality
 public import TauCeti.Algebra.AlgebraicGroup.HopfIdeal.Scheme.Basic
 public import TauCeti.LinearAlgebra.Matrix.GeneralLinearGroup.Symplectic
+import TauCeti.CategoryTheory.Comma.Over
 
 /-!
 # The symplectic subgroup scheme of `GL₂ₘ`
@@ -390,15 +391,10 @@ instance isClosedImmersion_inclusion :
   let c := (CommHopfAlgCat.quotientSpecι
     (GeneralLinear.coordinateHopfAlgebra R (m + m)) (definingHopfIdeal R m)).hom.hom.left
   let e₂ := ((eqToIso (GeneralLinear.groupScheme_def R (m + m)).symm).hom).hom.hom.left
-  have he₂ : IsIso e₂ :=
-    ((Over.forget (AlgebraicGeometry.Spec (CommRingCat.of R))).mapIso
-      ((Grp.forget (Over (AlgebraicGeometry.Spec (CommRingCat.of R)))).mapIso
-        (eqToIso (GeneralLinear.groupScheme_def R (m + m)).symm))).isIso_hom
   have hc : AlgebraicGeometry.IsClosedImmersion c := by
     infer_instance
   have hc₂ : AlgebraicGeometry.IsClosedImmersion (c ≫ e₂) :=
-    (@MorphismProperty.cancel_right_of_respectsIso
-      _ _ @AlgebraicGeometry.IsClosedImmersion inferInstance _ _ _ c e₂ he₂).2 hc
+    (MorphismProperty.cancel_right_of_respectsIso _ c e₂).2 hc
   rw [inclusion_hom_left]
   exact hc₂
 
