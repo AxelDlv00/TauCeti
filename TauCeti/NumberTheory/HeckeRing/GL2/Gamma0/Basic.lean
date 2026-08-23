@@ -73,6 +73,12 @@ noncomputable def Gamma0Image : Subgroup (GL (Fin 2) ℚ) :=
     g ∈ Gamma0Image N ↔ ∃ σ ∈ Gamma0 N, mapGL ℚ σ = g := by
   rw [Gamma0Image, Subgroup.mem_map]
 
+/-- `Gamma0Image N` unfolded. Stated here, in the file where the definition lives, because
+downstream modules cannot see through the `def`: without this lemma a containment proved for
+`Gamma0Image N` cannot be reused where `(Gamma0 N).map (mapGL ℚ)` is expected. -/
+lemma Gamma0Image_def : Gamma0Image N = (Gamma0 N).map (mapGL ℚ) := by
+  rw [Gamma0Image]
+
 /-- `Γ₀(N) ≤ Δ₀(N)`: an element of `Γ₀(N)` has `ad ≡ 1` modulo `N`, since `c ≡ 0` and the
 determinant is one, so its upper-left entry is a unit — which is exactly what `Δ₀(N)` asks.
 This containment is also what puts the diamond operators into the Hecke ring of `Γ₁(N)`. -/
