@@ -114,6 +114,9 @@ is the statement the Nagell–Lutz layer consumes.
   coordinates is `(φₙ(x,y) : ωₙ(x,y) : ψₙ(x,y))`, for every nonsingular `(x, y)` and every `n`.
 * `WeierstrassCurve.two_zsmul_eq_zero_of_evalEval_ψ₂_eq_zero`: the converse at `n = 2` — a
   vanishing `ψ₂` at a nonsingular point forces `2 • P = 0`.
+* `WeierstrassCurve.addOrderOf_eq_two_iff_evalEval_ψ₂_eq_zero`: those two directions packaged as
+  the characterisation of two-torsion, `addOrderOf P = 2 ↔ ψ₂(x, y) = 0`. Its contrapositive is
+  what discharges the `addOrderOf ≠ 2` guard the Nagell–Lutz theorems carry.
 
 ## Provenance
 
@@ -1103,5 +1106,36 @@ lemma zsmul_fromAffine_eq_zero_iff [DecidableEq F] {E : WeierstrassCurve F}
   -- reducible transparency. Rewrite into equiv form first.
   rw [natCast_zsmul, ← Jacobian.Point.toAffineAddEquiv_symm_apply,
     ← map_nsmul (Jacobian.Point.toAffineAddEquiv E).symm, AddEquiv.map_eq_zero_iff]
+
+/-- **Two-torsion is exactly the vanishing of `ψ₂`.** For a nonsingular affine point, having order
+two and `ψ₂` vanishing there are the same condition. Forwards, order two gives `2 • P = 0` and
+`evalEval_ψ_eq_zero_of_zsmul_eq_zero` at `n = 2` reads off the vanishing; backwards,
+`two_zsmul_eq_zero_of_evalEval_ψ₂_eq_zero` gives `2 • P = 0`, so the order divides `2`, and a
+`.some` point is never `0`, which rules out `1`.
+
+Stated over the point's own field, with no arithmetic on the coefficients: consumers working over
+a fraction field transport their hypothesis across `algebraMap` at the call site.
+
+**Not a `simp` lemma.** Neither side is a normal form the other should rewrite towards, and both
+directions are wanted — the `≠`-form below is what discharges Nagell–Lutz's guard, while the
+`= 2` direction is what an order computation wants. -/
+theorem addOrderOf_eq_two_iff_evalEval_ψ₂_eq_zero [DecidableEq F] {x y : F}
+    (hns : W.toAffine.Nonsingular x y) :
+    addOrderOf (Affine.Point.some _ _ hns) = 2 ↔ W.ψ₂.evalEval x y = 0 := by
+  constructor
+  · intro h2
+    have h2P : (2 : ℕ) • Affine.Point.some _ _ hns = 0 := by
+      rw [← h2]; exact addOrderOf_nsmul_eq_zero _
+    have hψ := evalEval_ψ_eq_zero_of_zsmul_eq_zero W hns 2 (zsmul_fromAffine_eq_zero_iff.mpr h2P)
+    rwa [WeierstrassCurve.ψ_two] at hψ
+  · intro hψ
+    have h2P : (2 : ℕ) • Affine.Point.some _ _ hns = 0 :=
+      zsmul_fromAffine_eq_zero_iff.mp (two_zsmul_eq_zero_of_evalEval_ψ₂_eq_zero W hns hψ)
+    have hne_one : addOrderOf (Affine.Point.some _ _ hns) ≠ 1 := fun h ↦
+      Affine.Point.some_ne_zero hns (AddMonoid.addOrderOf_eq_one_iff.mp h)
+    rcases (Nat.dvd_prime Nat.prime_two).mp (addOrderOf_dvd_iff_nsmul_eq_zero.mpr h2P) with h | h
+    · exact absurd h hne_one
+    · exact h
+
 
 end WeierstrassCurve
