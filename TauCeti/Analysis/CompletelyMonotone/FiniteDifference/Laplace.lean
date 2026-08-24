@@ -219,15 +219,33 @@ private lemma isTightMeasureSet_range_of_laplaceTransform_between_shift
 
 /-! ## The representation theorem -/
 
+/-- For a finite measure `μ₀`: if `f u ≤ laplaceTransform μ₀ s` whenever `0 ≤ s < u`, and `f` is
+right-continuous at `0`, then `f t ≤ laplaceTransform μ₀ t` for every `0 ≤ t`. -/
+private theorem f_le_laplaceTransform_of_forall_lt {μ₀ : Measure ℝ≥0} [IsFiniteMeasure μ₀]
+    (hcont : ContinuousWithinAt f (Ici 0) 0)
+    (hlower : ∀ s : ℝ, 0 ≤ s → ∀ u : ℝ, s < u → f u ≤ laplaceTransform μ₀ s)
+    {t : ℝ} (ht : 0 ≤ t) :
+    f t ≤ laplaceTransform μ₀ t := by
+  rcases ht.eq_or_lt with rfl | ht
+  · -- At the endpoint, right-continuity of `f` passes to the limit from the right.
+    have hf_right : Tendsto f (𝓝[>] (0 : ℝ)) (𝓝 (f 0)) :=
+      hcont.tendsto.mono_left (nhdsWithin_mono _ Ioi_subset_Ici_self)
+    exact le_of_tendsto hf_right
+      (eventually_mem_nhdsWithin.mono fun u hu => hlower 0 le_rfl u hu)
+  · -- Beyond the endpoint, continuity of the Laplace transform does.
+    let _ := right_nhdsWithin_Ico_neBot ht
+    have hfilter : 𝓝[Ico 0 t] t ≤ 𝓝 t := inf_le_left
+    have hlap : Tendsto (laplaceTransform μ₀) (𝓝[Ico 0 t] t)
+        (𝓝 (laplaceTransform μ₀ t)) :=
+      ((continuousOn_Ici_laplaceTransform μ₀).continuousAt (Ici_mem_nhds ht)).tendsto.mono_left
+        hfilter
+    exact ge_of_tendsto hlap
+      (eventually_mem_nhdsWithin.mono fun s (hs : s ∈ Ico (0 : ℝ) t) =>
+        hlower s hs.1 t hs.2)
+
 /-- **The existence half of the Hausdorff--Bernstein--Widder theorem in finite-difference form.**
 A function right-continuous at zero all of whose mixed forward differences with nonnegative steps
-have the sign `(-1)ⁿ` is the Laplace transform of a finite positive measure on `ℝ≥0`.
-
-The smoothings of `f` at the shifts `aₙ = 1/(n+1)` have representing measures squeezing `f`
-between `f (· + aₙ)` and `f`; they are uniformly bounded in mass by `f 0` and uniformly tight, so
-Prokhorov supplies a weak cluster point `μ₀`. The Laplace transform of `μ₀` at `t` is at most
-`f t`; right-continuity of `f` closes the reverse inequality at zero, while continuity of the
-Laplace transform closes it at every positive parameter. -/
+have the sign `(-1)ⁿ` is the Laplace transform of a finite positive measure on `ℝ≥0`. -/
 theorem exists_representsLaplace_of_isDifferenceCompletelyMonotone_of_continuousWithinAt
     (hf : IsDifferenceCompletelyMonotone f) (hcont : ContinuousWithinAt f (Ici 0) 0) :
     ∃ μ : Measure ℝ≥0, RepresentsLaplace μ f := by
@@ -272,22 +290,9 @@ theorem exists_representsLaplace_of_isDifferenceCompletelyMonotone_of_continuous
     filter_upwards [ha.eventually (eventually_lt_nhds (sub_pos.mpr hsu))] with n hn
     refine le_trans (hf.antitoneOn (mem_Ici.2 (by positivity)) (mem_Ici.2 (hs.trans hsu.le))
       (by linarith)) (hlow n s hs)
-  have hft : f t ≤ laplaceTransform μ₀ t := by
-    rcases ht.eq_or_lt with rfl | ht
-    · have hf_right : Tendsto f (𝓝[>] (0 : ℝ)) (𝓝 (f 0)) :=
-        hcont.tendsto.mono_left (nhdsWithin_mono _ Ioi_subset_Ici_self)
-      exact le_of_tendsto hf_right
-        (eventually_mem_nhdsWithin.mono fun u hu => hlower 0 le_rfl u hu)
-    · let _ := hμ₀_fin
-      let _ := right_nhdsWithin_Ico_neBot ht
-      have hfilter : 𝓝[Ico 0 t] t ≤ 𝓝 t := inf_le_left
-      have hlap : Tendsto (laplaceTransform μ₀) (𝓝[Ico 0 t] t)
-          (𝓝 (laplaceTransform μ₀ t)) :=
-        ((continuousOn_Ici_laplaceTransform μ₀).continuousAt (Ici_mem_nhds ht)).tendsto.mono_left
-          hfilter
-      exact ge_of_tendsto hlap
-        (eventually_mem_nhdsWithin.mono fun s (hs : s ∈ Ico (0 : ℝ) t) =>
-          hlower s hs.1 t hs.2)
+  let _ := hμ₀_fin
+  have hft : f t ≤ laplaceTransform μ₀ t :=
+    f_le_laplaceTransform_of_forall_lt hcont hlower ht
   exact le_antisymm hft hupper
 
 /-- **The Hausdorff--Bernstein--Widder theorem in finite-difference form.** A function has
