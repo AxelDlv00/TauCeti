@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.RingTheory.SimpleModule.Basic
+public import TauCeti.Algebra.Lie.Basic
 public import TauCeti.Algebra.Lie.UniversalEnveloping.Basic
 
 /-!
@@ -54,6 +55,10 @@ below is named after its counterparts there wherever one exists.
   canonical structure `TauCeti.UniversalEnvelopingAlgebra.asModule`.
 * `TauCeti.UniversalEnvelopingAlgebra.lieModuleHomEquiv`: **the dictionary for homomorphisms**, an
   `R`-linear equivalence between Lie module homomorphisms and `U(L)`-linear maps.
+* `TauCeti.UniversalEnvelopingAlgebra.lieModuleEquivEquivLinearEquiv`: the corresponding
+  dictionary from Lie-module equivalences to `U(L)`-linear equivalences.
+* `TauCeti.UniversalEnvelopingAlgebra.lieSubmoduleLinearEquivAsModule`: the identity equivalence
+  between a Lie submodule and its image under the canonical submodule dictionary.
 
 ## Main results
 
@@ -387,7 +392,108 @@ theorem coe_lieModuleHomEquiv_symm
     ⇑((lieModuleHomEquiv hM hN).symm g) = ⇑g :=
   (rfl)
 
+/-! #### Equivalences -/
+
+section Equiv
+
+/-- **The enveloping-algebra dictionary for equivalences**: Lie module equivalences are exactly
+`U(L)`-linear equivalences when both actions are compatible with the canonical Lie generators.
+The correspondence is the identity on underlying functions. -/
+noncomputable def lieModuleEquivEquivLinearEquiv
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆)
+    (hN : ∀ (x : L) (n : N), ι R x • n = ⁅x, n⁆) :
+    (M ≃ₗ⁅R,L⁆ N) ≃ (M ≃ₗ[U] N) where
+  toFun e := LinearEquiv.ofBijective (lieModuleHomEquiv hM hN e.toLieModuleHom) (by
+    rw [coe_lieModuleHomEquiv]
+    exact ⟨e.injective, e.surjective⟩)
+  invFun e := LieModuleEquiv.ofBijective ((lieModuleHomEquiv hM hN).symm e.toLinearMap)
+    (by
+      rw [coe_lieModuleHomEquiv_symm]
+      exact e.bijective)
+  left_inv e := by
+    apply LieModuleEquiv.ext
+    intro m
+    simp only [LieModuleEquiv.ofBijective_apply, coe_lieModuleHomEquiv_symm,
+      LinearEquiv.coe_toLinearMap, LinearEquiv.ofBijective_apply, coe_lieModuleHomEquiv,
+      LieModuleEquiv.coe_toLieModuleHom]
+  right_inv e := by
+    apply LinearEquiv.ext
+    intro m
+    simp only [LinearEquiv.ofBijective_apply, coe_lieModuleHomEquiv,
+      LieModuleEquiv.coe_toLieModuleHom, LieModuleEquiv.ofBijective_apply,
+      coe_lieModuleHomEquiv_symm, LinearEquiv.coe_toLinearMap]
+
+/-- The forward equivalence dictionary does not change the underlying function. -/
+@[simp]
+theorem coe_lieModuleEquivEquivLinearEquiv
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆)
+    (hN : ∀ (x : L) (n : N), ι R x • n = ⁅x, n⁆)
+    (e : M ≃ₗ⁅R,L⁆ N) :
+    ⇑(lieModuleEquivEquivLinearEquiv (R := R) (L := L) (M := M) (N := N) hM hN e) = ⇑e :=
+  by
+    ext m
+    simp only [lieModuleEquivEquivLinearEquiv, Equiv.coe_fn_mk, LinearEquiv.ofBijective_apply,
+      coe_lieModuleHomEquiv, LieModuleEquiv.coe_toLieModuleHom]
+
+/-- The inverse equivalence dictionary does not change the underlying function. -/
+@[simp]
+theorem coe_lieModuleEquivEquivLinearEquiv_symm
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆)
+    (hN : ∀ (x : L) (n : N), ι R x • n = ⁅x, n⁆)
+    (e : M ≃ₗ[U] N) :
+    ⇑((lieModuleEquivEquivLinearEquiv (R := R) (L := L) (M := M) (N := N) hM hN).symm e) =
+      ⇑e :=
+  by
+    ext n
+    simp only [lieModuleEquivEquivLinearEquiv, Equiv.coe_fn_symm_mk,
+      LieModuleEquiv.ofBijective_apply, coe_lieModuleHomEquiv_symm,
+      LinearEquiv.coe_toLinearMap]
+
+end Equiv
+
 end Hom
+
+/-! #### Submodule equivalences -/
+
+/-- A Lie submodule with its canonical `U(L)`-action is linearly equivalent, by the identity map,
+to its image under an arbitrary compatible enveloping-algebra submodule dictionary. -/
+noncomputable def lieSubmoduleLinearEquiv
+    [LieModule R L M]
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆) (P : LieSubmodule R L M) :
+    letI := asModule R L P
+    P ≃ₗ[U] lieSubmoduleOrderIso hM P := by
+  letI := asModule R L P
+  letI := isScalarTower_asModule R L P
+  exact
+    { toFun := fun p => ⟨p, (mem_lieSubmoduleOrderIso hM).mpr p.property⟩
+      invFun := fun p => ⟨p, (mem_lieSubmoduleOrderIso hM).mp p.property⟩
+      left_inv := fun _ => rfl
+      right_inv := fun _ => rfl
+      map_add' := fun _ _ => rfl
+      map_smul' := fun u p => by
+        ext
+        exact map_smul_of_map_ι_smul (R := R) (L := L) (M := P) (N := M) P.subtype
+          (fun x p => by rw [asModule_ι_smul R L P, hM]; rfl) u p }
+
+/-- The compatible-action submodule equivalence preserves the underlying ambient element. -/
+@[simp]
+theorem coe_lieSubmoduleLinearEquiv
+    [LieModule R L M]
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆) (P : LieSubmodule R L M) :
+    letI := asModule R L P
+    ⇑(lieSubmoduleLinearEquiv hM P) =
+      fun p => ⟨p, (mem_lieSubmoduleOrderIso hM).mpr p.property⟩ :=
+  (rfl)
+
+/-- The inverse compatible-action submodule equivalence preserves the underlying ambient element. -/
+@[simp]
+theorem coe_lieSubmoduleLinearEquiv_symm
+    [LieModule R L M]
+    (hM : ∀ (x : L) (m : M), ι R x • m = ⁅x, m⁆) (P : LieSubmodule R L M) :
+    letI := asModule R L P
+    ⇑(lieSubmoduleLinearEquiv hM P).symm =
+      fun p => ⟨p, (mem_lieSubmoduleOrderIso hM).mp p.property⟩ :=
+  (rfl)
 
 end Dictionary
 
@@ -428,6 +534,35 @@ theorem mem_lieSubmoduleOrderIsoAsModule {P : LieSubmodule R L M} {m : M} :
 theorem mem_lieSubmoduleOrderIsoAsModule_symm {Q : Submodule U M} {m : M} :
     m ∈ (lieSubmoduleOrderIsoAsModule R L M).symm Q ↔ m ∈ Q :=
   (Iff.rfl)
+
+/-- The canonical `U(L)`-action on a Lie submodule agrees, after inclusion, with the canonical
+action on the ambient Lie module. -/
+@[simp]
+theorem coe_asModule_smul_lieSubmodule (P : LieSubmodule R L M) (u : U) (p : P) :
+    ((u • p : P) : M) = u • (p : M) := by
+  exact map_smul_of_map_ι_smul (R := R) (L := L) (M := P) (N := M) P.subtype
+    (fun x p => by rw [asModule_ι_smul R L P, asModule_ι_smul R L M]; rfl) u p
+
+/-- A Lie submodule with its canonical `U(L)`-action is linearly equivalent, by the identity map,
+to its image under `lieSubmoduleOrderIsoAsModule`. This is the subtype-level interface for
+transporting module-theoretic properties through the submodule dictionary. -/
+noncomputable def lieSubmoduleLinearEquivAsModule (P : LieSubmodule R L M) :
+    P ≃ₗ[U] lieSubmoduleOrderIsoAsModule R L M P :=
+  lieSubmoduleLinearEquiv (asModule_ι_smul R L M) P
+
+/-- The canonical forward submodule equivalence preserves the underlying ambient element. -/
+@[simp]
+theorem coe_lieSubmoduleLinearEquivAsModule (P : LieSubmodule R L M) :
+    ⇑(lieSubmoduleLinearEquivAsModule R L M P) =
+      fun p => ⟨p, (mem_lieSubmoduleOrderIsoAsModule R L M).mpr p.property⟩ :=
+  (rfl)
+
+/-- The canonical inverse submodule equivalence preserves the underlying ambient element. -/
+@[simp]
+theorem coe_lieSubmoduleLinearEquivAsModule_symm (P : LieSubmodule R L M) :
+    ⇑(lieSubmoduleLinearEquivAsModule R L M P).symm =
+      fun p => ⟨p, (mem_lieSubmoduleOrderIsoAsModule R L M).mp p.property⟩ :=
+  (rfl)
 
 end Canonical
 
