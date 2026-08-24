@@ -7,6 +7,9 @@ module
 
 public import TauCeti.NumberTheory.HeckeRing.GL2.Gamma0.Basic
 public import TauCeti.NumberTheory.HeckeRing.GLn.TransposeAntiInvolution
+-- `mem_doubleCoset_natDiagGL_of_dvd_pow` (Shimura 3.33), used only inside the proof of
+-- `atkinLehnerAntiInvolution_bar_mem_doubleCoset_of_dvd_pow` below, so private.
+import TauCeti.NumberTheory.HeckeRing.GL2.Gamma0.BadPrimeCoset
 
 /-!
 # The Atkin-Lehner anti-involution of the `Γ₀(N)` Hecke pair
@@ -29,17 +32,10 @@ by `N`, the determinant is unchanged, and — the point of the construction — 
 entry is untouched, so the coprimality condition cutting out `Δ₀(N)` transfers with no work.
 Integrality of the new upper-right entry is precisely the hypothesis `N ∣ A 1 0`.
 
-This file builds the anti-involution only. Commutativity of `R(Γ₀(N), Δ₀(N))` needs the further
-input that `ι` fixes every double coset, which `HeckeCosetModule.mul_comm_of_antiInvolution`
-takes as a separate hypothesis (Shimura, Proposition 3.8).
-
-Ported from the AINTLIB `LeanModularForms` project (Chris Birkbeck),
-[`HeckeRIngs/GLn/CongruenceHecke/AtkinLehner.lean`](https://github.com/CBirkbeck/AINTLIB),
-declarations `wN`, `Gamma0_AL_hom`, `Gamma0_AL_involutive`, `Gamma0_AL_map_H`,
-`Gamma0_AL_map_Δ` and `Gamma0_antiInvolution`. The source states its own transpose equivalence
-and diagonal-matrix API; here those come from `GLn/TransposeAntiInvolution.lean` and
-`GLn/DiagonalCosets.lean` instead, and the four-field bundle is assembled by
-`HeckeAntiInvolution.ofAmbient`.
+Beyond the anti-involution itself, this file proves that `ι` preserves determinants and that it
+fixes the double coset of any `x ∈ Δ₀(N)` whose determinant divides a power of the level — the
+*bad-prime* half of the hypothesis `HeckeCosetModule.mul_comm_of_antiInvolution` takes for
+commutativity of `R(Γ₀(N), Δ₀(N))` (Shimura, Proposition 3.8). The coprime half is separate.
 
 ## Main definitions
 
@@ -49,11 +45,24 @@ and diagonal-matrix API; here those come from `GLn/TransposeAntiInvolution.lean`
 
 * `HeckeRing.GL2.atkinLehnerAntiInvolution_bar`: how it acts, `g ↦ w · gᵀ · w⁻¹`. The bundle
   itself is opaque, so this is the elimination rule a consumer works with.
+* `HeckeRing.GL2.atkinLehnerAntiInvolution_bar_val`: its entrywise action on a `Δ₀(N)` witness.
+* `HeckeRing.GL2.atkinLehnerAntiInvolution_bar_det`: it preserves the determinant.
+* `HeckeRing.GL2.atkinLehnerAntiInvolution_bar_mem_doubleCoset_of_dvd_pow`: it fixes the double
+  coset when the determinant divides a power of the level.
 
 ## References
 
 * [G. Shimura, *Introduction to the arithmetic theory of automorphic functions*][shimura1971],
   Proposition 3.8.
+* Ported from the AINTLIB `LeanModularForms` project (Chris Birkbeck),
+  [`HeckeRIngs/GLn/CongruenceHecke/AtkinLehner.lean`](https://github.com/CBirkbeck/AINTLIB),
+  declarations `wN`, `Gamma0_AL_hom`, `Gamma0_AL_involutive`, `Gamma0_AL_map_H`,
+  `Gamma0_AL_map_Δ` and `Gamma0_antiInvolution`, and — for the results added here —
+  `Gamma0_AL_bar_det` and `Gamma0_AL_in_DC_bad`, all Apache-2.0 at commit
+  `2baa76f742bdb4fb8ee323fabba41203bd390e08`. The source states its own transpose equivalence
+  and diagonal-matrix API; here those come from `GLn/TransposeAntiInvolution.lean` and
+  `GLn/DiagonalCosets.lean` instead, and the four-field bundle is assembled by
+  `HeckeAntiInvolution.ofAmbient`.
 -/
 
 public section
@@ -233,5 +242,46 @@ lemma atkinLehnerAntiInvolution_bar_val [NeZero N] {x : GL (Fin 2) ℚ} (hx : x 
     HeckeAntiInvolution.ofAmbient_bar _ _ _ _ x hx
   rw [hbar]
   exact atkinLehnerHom_unop_val N x A hA c hc
+
+/-- The ambient map preserves determinants: conjugation cannot change one, and neither can
+transposition. Stated for every `x : GL (Fin 2) ℚ`, since nothing here needs `Δ₀(N)`. -/
+private lemma atkinLehnerHom_unop_det (x : GL (Fin 2) ℚ) :
+    (((atkinLehnerHom N x).unop : GL (Fin 2) ℚ) : Matrix (Fin 2) (Fin 2) ℚ).det =
+      (x : Matrix (Fin 2) (Fin 2) ℚ).det := by
+  simp only [atkinLehnerHom, MonoidHom.coe_mk, OneHom.coe_mk, MulOpposite.unop_op,
+    Units.val_mul, Matrix.det_units_conj, transposeGLEquiv_coe, Matrix.det_transpose]
+
+/-- **The bar preserves the determinant**, so a determinant hypothesis on `x` transfers to
+`bar x` unchanged. -/
+-- Deliberately not `@[simp]`: `atkinLehnerAntiInvolution_bar` is already `@[simp]` and its
+-- left-hand side `bar x hx` is a strict subterm of this one's, so `simp` unfolds the bar first
+-- and this lemma's left-hand side is never in normal form. Tagging it makes `lint-env` fail with
+-- one new `simpNF` violation; measured, not assumed. Do not add the annotation.
+lemma atkinLehnerAntiInvolution_bar_det [NeZero N] {x : GL (Fin 2) ℚ}
+    (hx : x ∈ Delta0 N) :
+    (((atkinLehnerAntiInvolution N).bar x hx : GL (Fin 2) ℚ) :
+        Matrix (Fin 2) (Fin 2) ℚ).det = (x : Matrix (Fin 2) (Fin 2) ℚ).det := by
+  have hbar : ((atkinLehnerAntiInvolution N).bar x hx : GL (Fin 2) ℚ) =
+      (atkinLehnerHom N x).unop :=
+    HeckeAntiInvolution.ofAmbient_bar _ _ _ _ x hx
+  rw [hbar]
+  exact atkinLehnerHom_unop_det N x
+
+/-- **The Atkin–Lehner involution fixes a bad-prime double coset.** If `x ∈ Δ₀(N)` has
+determinant `m` with `m ∣ N ^ k`, then `bar x` lies in the `Γ₀(N)`-double coset of `x` itself.
+
+This is the *bad* case, where `m` shares its primes with the level; the coprime case is
+separate. It supplies the bad-prime half of the fixing hypothesis that
+`HeckeCosetModule.mul_comm_of_antiInvolution` requires. -/
+theorem atkinLehnerAntiInvolution_bar_mem_doubleCoset_of_dvd_pow [NeZero N] (m k : ℕ)
+    (hm_dvd : m ∣ N ^ k) (x : GL (Fin 2) ℚ) (hx : x ∈ Delta0 N)
+    (hdet : (x : Matrix (Fin 2) (Fin 2) ℚ).det = (m : ℚ)) :
+    (atkinLehnerAntiInvolution N).bar x hx ∈
+      DoubleCoset.doubleCoset x ((Gamma0 N).map (mapGL ℚ)) ((Gamma0 N).map (mapGL ℚ)) := by
+  rw [DoubleCoset.doubleCoset_eq_of_mem
+    (mem_doubleCoset_natDiagGL_of_dvd_pow N m k hm_dvd x hx hdet)]
+  exact mem_doubleCoset_natDiagGL_of_dvd_pow N m k hm_dvd _
+    ((atkinLehnerAntiInvolution N).bar_mem_Δ x hx)
+    ((atkinLehnerAntiInvolution_bar_det N hx).trans hdet)
 
 end HeckeRing.GL2
