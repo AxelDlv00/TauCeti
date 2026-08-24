@@ -24,15 +24,27 @@ No separate length functional is introduced: the auxiliary integral of speed
 is identified with Manifold.pathELength and the final statements use that
 canonical API.
 
-## Provenance
+## References
 
-Adapted from
-formalized-sources/Petersen/PetersenLib/Ch05/ArclengthReparametrization.lean
-in the Poincare-Conjecture development at revision
-e6bc8cb66a83e50afa2b4507db664c9370bd4ac4. The source proves a smooth
-version using its private squared-speed and curve-length API. This file lowers
-the curve hypothesis to the roadmap's required C¹ regularity and uses
-Mathlib's Riemannian bundle and pathELength APIs directly.
+* [petersen2016], Chapter 5, §5.3, Proposition
+  `prop:pet-ch5-arclength-reparametrization`, formalized by
+  `regularCurve_arclengthReparametrization` (with the supporting
+  `contDiffAt_curveSpeedSq`) in
+  `formalized-sources/Petersen/PetersenLib/Ch05/ArclengthReparametrization.lean`
+  in `frenzymath/Poincare-Conjecture`, revision
+  `e6bc8cb66a83e50afa2b4507db664c9370bd4ac4`. That source supplies the
+  arclength/inverse and unit-speed architecture; its smooth squared-speed and
+  private curve-length APIs are replaced here by the C¹ and Mathlib APIs.
+* [poincareConjectureDoCarmo],
+  `DoCarmoLib/Riemannian/Manifold/DoCarmoCh3SegmentReparam.lean`, declarations
+  `reparam`, `reparam_mem_Ioo`, and `hasDerivAt_reparam`, revision
+  `24f32e4d600878bfaac6bc2f2f9324175571c321`. This Apache-2.0 source supplies
+  the domain-side open-window and inverse/segment architecture only: it has no
+  regular arclength-reparametrization theorem, so that target is an explicit
+  source gap rather than a copied declaration.
+* Both cited formal source files are from the Apache-2.0-licensed
+  `frenzymath/Poincare-Conjecture` repository; this module is an adaptation
+  under that license.
 -/
 
 public section
@@ -71,20 +83,22 @@ theorem continuous_riemannianSpeed {gamma : ℝ → M}
         (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)
         (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)) := by
     exact hv.inner_bundle hv
+  -- The Riemannian tangent norm is definitionally the square root of its
+  -- self-inner-product; `hinner.sqrt` is therefore the required continuity.
   change Continuous (fun t ↦ √(inner ℝ
     (mfderiv 𝓘(ℝ, ℝ) I gamma t 1) (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)))
   exact hinner.sqrt
 
+omit [IsManifold I 1 M]
+  [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)] in
 /-- On an ordered interval, Mathlib's `pathELength` is the extended-real
 image of the integral of Riemannian speed. -/
 theorem pathELength_eq_ofReal_integral_riemannianSpeed {gamma : ℝ → M} {a b : ℝ}
     (hab : a ≤ b)
-    (hgamma : ContMDiff 𝓘(ℝ, ℝ) I 1 gamma) :
+    (hint : MeasureTheory.IntegrableOn
+      (riemannianSpeed (I := I) gamma) (Icc a b)) :
     pathELength I gamma a b =
       ENNReal.ofReal (∫ t in a..b, riemannianSpeed (I := I) gamma t) := by
-  have hc := continuous_riemannianSpeed (I := I) hgamma
-  have hint : MeasureTheory.IntegrableOn (riemannianSpeed (I := I) gamma) (Icc a b) :=
-    hc.continuousOn.integrableOn_Icc
   rw [pathELength_eq_lintegral_mfderiv_Icc]
   have heq : (fun t ↦ ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ₑ) =
       fun t ↦ ENNReal.ofReal (riemannianSpeed (I := I) gamma t) := by
@@ -97,8 +111,9 @@ theorem pathELength_eq_ofReal_integral_riemannianSpeed {gamma : ℝ → M} {a b 
 
 /-- A regular `C¹` curve admits a `C¹` unit-speed reparametrization by its
 accumulated Riemannian length. The inverse maps the full arclength interval
-back to `[a, b]`; the reparametrized curve has length `t - s` on every
-subinterval and exactly preserves the original total `pathELength`. -/
+back to `[a, b]`; both inverse identities and pointwise unit speed are exposed.
+The reparametrized curve has length `t - s` on every subinterval and exactly
+preserves the original total `pathELength`. -/
 theorem exists_unitSpeed_reparametrization_of_regular {gamma : ℝ → M}
     (hgamma : ContMDiff 𝓘(ℝ, ℝ) I 1 gamma)
     {a b : ℝ} (hab : a < b)
@@ -108,6 +123,10 @@ theorem exists_unitSpeed_reparametrization_of_regular {gamma : ℝ → M}
       0 < L ∧
       (∀ t ∈ Icc a b,
         psi (∫ s in a..t, riemannianSpeed (I := I) gamma s) = t) ∧
+      (∀ s ∈ Icc 0 L,
+        ∫ t in a..psi s, riemannianSpeed (I := I) gamma t = s) ∧
+      (∀ s ∈ Icc 0 L,
+        riemannianSpeed (I := I) (gamma ∘ psi) s = 1) ∧
       MapsTo psi (Icc 0 L) (Icc a b) ∧
       ContDiffOn ℝ 1 psi (Icc 0 L) ∧
       ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) ∧
@@ -118,6 +137,7 @@ theorem exists_unitSpeed_reparametrization_of_regular {gamma : ℝ → M}
       pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
   have hspeed_cont := continuous_riemannianSpeed (I := I) hgamma
   have hVopen : IsOpen {t | riemannianSpeed (I := I) gamma t ≠ 0} := by
+    -- The nonzero predicate is the preimage of the complement of `{0}`.
     change IsOpen ((riemannianSpeed (I := I) gamma) ⁻¹' ({0}ᶜ))
     exact isOpen_compl_singleton.preimage hspeed_cont
   have haV : a ∈ {t | riemannianSpeed (I := I) gamma t ≠ 0} :=
@@ -285,6 +305,41 @@ theorem exists_unitSpeed_reparametrization_of_regular {gamma : ℝ → M}
   have hright : ∀ s ∈ W, phi (psi s) = s := by
     rintro s ⟨t, ht, rfl⟩
     rw [hleft t ht]
+  have hright_Icc : ∀ s ∈ Icc 0 L,
+      ∫ t in a..psi s, riemannianSpeed (I := I) gamma t = s := by
+    intro s hs
+    simpa only [phi] using hright s (hIccW hs)
+  have hunitSpeed : ∀ s ∈ Icc 0 L,
+      riemannianSpeed (I := I) (gamma ∘ psi) s = 1 := by
+    intro s hs
+    set_option backward.isDefEq.respectTransparency false in
+      have hsW : s ∈ W := hIccW hs
+      have hpsi_deriv := hpsi_hasDeriv s hsW
+      have hpsi_md : MDiffAt psi s :=
+        hpsi_deriv.differentiableAt.mdifferentiableAt
+      have hgamma_md : MDiffAt gamma (psi s) :=
+        hgamma.mdifferentiableAt (by norm_num)
+      have hchain := mfderiv_comp_apply (I := 𝓘(ℝ, ℝ))
+        (I' := 𝓘(ℝ, ℝ)) (I'' := I) s hgamma_md hpsi_md (1 : ℝ)
+      have hpsi_apply :
+          mfderiv 𝓘(ℝ, ℝ) 𝓘(ℝ, ℝ) psi s (1 : TangentSpace 𝓘(ℝ, ℝ) s) =
+            (riemannianSpeed (I := I) gamma (psi s))⁻¹ •
+              (1 : TangentSpace 𝓘(ℝ, ℝ) s) := by
+        have hmf := hpsi_deriv.hasFDerivAt.hasMFDerivAt
+        have happly := congrArg
+          (fun f ↦ f (1 : TangentSpace 𝓘(ℝ, ℝ) s)) hmf.mfderiv
+        convert happly using 1
+        change (riemannianSpeed (I := I) gamma (psi s))⁻¹ • (1 : ℝ) =
+          (ContinuousLinearMap.toSpanSingleton ℝ
+            (riemannianSpeed (I := I) gamma (psi s))⁻¹) (1 : ℝ)
+        rw [ContinuousLinearMap.toSpanSingleton_apply]
+        simp [smul_eq_mul, mul_comm]
+      have hpos := hspeed_pos (psi s) (hpsi_mem s hsW)
+      -- Unfold speed, then apply the manifold chain rule and scalar norm law.
+      change ‖mfderiv 𝓘(ℝ, ℝ) I (gamma ∘ psi) s 1‖ = 1
+      rw [hchain, hpsi_apply, ContinuousLinearMap.map_smul, norm_smul]
+      rw [Real.norm_eq_abs, abs_of_pos (inv_pos.mpr hpos)]
+      exact inv_mul_cancel₀ hpos.ne'
   have hunitLength : ∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
       pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s) := by
     intro s hs t ht hst
@@ -294,20 +349,24 @@ theorem exists_unitSpeed_reparametrization_of_regular {gamma : ℝ → M}
       ((hpsi_C1_Icc.differentiableOn (by norm_num)).mono
         (Icc_subset_Icc hs.1 ht.2))
       ((hgamma.mdifferentiable (by norm_num)).mdifferentiableOn)
-    rw [hcomp, pathELength_eq_ofReal_integral_riemannianSpeed hpsi_st hgamma]
+    have hint : MeasureTheory.IntegrableOn (riemannianSpeed (I := I) gamma)
+        (Icc (psi s) (psi t)) := hspeed_cont.continuousOn.integrableOn_Icc
+    rw [hcomp, pathELength_eq_ofReal_integral_riemannianSpeed hpsi_st hint]
     congr 1
     have hadd := hphi_add (psi s) (psi t)
     rw [hright s (hIccW hs), hright t (hIccW ht)] at hadd
     linarith
   refine ⟨psi, ?_⟩
+  -- Unfold only the arclength `let` in the existential conclusion.
   dsimp only
-  refine ⟨hL_pos, ?_, hmaps, hpsi_C1_Icc, hcomp_C1, ?_, ?_, ?_, ?_⟩
+  refine ⟨hL_pos, ?_, hright_Icc, hunitSpeed, hmaps, hpsi_C1_Icc, hcomp_C1,
+    ?_, ?_, ?_, ?_⟩
   · intro t ht
     exact hleft t (hIccJ ht)
-  · change gamma (psi 0) = gamma a
-    rw [← hphi_a, hleft a haJ]
-  · change gamma (psi L) = gamma b
-    rw [← hphi_b, hleft b hbJ]
+  · have hpsi_zero : psi 0 = a := by rw [← hphi_a, hleft a haJ]
+    simpa only [Function.comp_apply] using congrArg gamma hpsi_zero
+  · have hpsi_L : psi L = b := by rw [← hphi_b, hleft b hbJ]
+    simpa only [Function.comp_apply] using congrArg gamma hpsi_L
   · exact hunitLength
   · have hlen := pathELength_comp_of_monotoneOn (I := I) hL_pos.le hpsi_mono
       (hpsi_C1_Icc.differentiableOn (by norm_num))
