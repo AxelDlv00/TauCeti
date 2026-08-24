@@ -384,7 +384,7 @@ lemma smulX_sub_smulX (hm : m ≠ 0) (hn : n ≠ 0) :
     smulX m - smulX n = polyToField (curve.ψ (n + m)) * polyToField (curve.ψ (n - m)) /
       (polyToField (curve.ψ n) * polyToField (curve.ψ m)) ^ 2 := by
   have key := isEllipticNet_polyToField_ψ n m 1 0
-  simp only [IsEllipticNet.rel, add_zero, ψ_one, map_one, mul_one] at key
+  simp only [IsEllipticNet.rel, add_zero, ψ_one, map_one] at key
   rw [smulX_eq hm, smulX_eq hn, sub_sub_sub_cancel_left,
     div_sub_div _ _ (pow_ne_zero 2 (polyToField_ψ_ne_zero hn))
       (pow_ne_zero 2 (polyToField_ψ_ne_zero hm)), mul_pow]
@@ -392,7 +392,7 @@ lemma smulX_sub_smulX (hm : m ≠ 0) (hn : n ≠ 0) :
   linear_combination -key
 
 /-- `smulX` is even in `n`. -/
-@[simp] lemma smulX_neg : smulX (-n) = smulX n := by simp [smulX_def, φ_neg, ψ_neg]
+@[simp] lemma smulX_neg : smulX (-n) = smulX n := by simp [smulX_def]
 
 /-- Negating a nonzero index negates the point: `smulY (-n)` is the long-Weierstrass `negY`
 of the coordinates `(smulX n, smulY n)`. -/
@@ -402,9 +402,8 @@ of the coordinates `(smulX n, smulY n)`. -/
   have key := WeierstrassCurve.Jacobian.negY_of_Z_ne_zero (W := pointedCurve)
     (P := ![polyToField (curve.φ n), polyToField (curve.ω n), polyToField (curve.ψ n)])
     (by simpa using polyToField_ψ_ne_zero h0)
-  simp only [WeierstrassCurve.Jacobian.negY_eq, pointedCurve_a₁, pointedCurve_a₃,
-    Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons, Matrix.cons_val_two,
-    Matrix.tail_cons] at key
+  simp only [WeierstrassCurve.Jacobian.negY_eq, pointedCurve_a₁, pointedCurve_a₃, Matrix.head_cons,
+    Matrix.cons_val_two, Matrix.tail_cons] at key
   refine .trans ?_ key
   -- `ω_neg` negates the numerator and `ψ_neg` the denominator's cube, so the signs cancel.
   rw [smulY_def, ψ_neg, ω_neg]
@@ -499,7 +498,7 @@ lemma addX_smul_one_smul_one :
   have hψ₂ : polyToField (curve.ψ 2) ≠ 0 := polyToField_ψ_ne_zero two_ne_zero
   have hF := congrArg polyToField (C_Ψ₃ curve)
   simp only [map_sub polyToField, map_add polyToField, map_mul polyToField, map_pow polyToField,
-    map_ofNat, polyToField_Ψ₂Sq, polyToField_polynomial, mul_zero, ← ψ_three, ← ψ_two] at hF
+    map_ofNat, polyToField_Ψ₂Sq, polyToField_polynomial, ← ψ_three, ← ψ_two] at hF
   rw [Affine.addX, slopeOne_eq_neg_div, smulX_two, smulX_one, pointedCurve_a₁, pointedCurve_a₂]
   field_simp
   linear_combination hF
@@ -521,7 +520,7 @@ lemma addY_smul_one_smul_one :
   have hF := congrArg polyToField (ω_def curve 2)
   simp only [reducedInvarDenom_two, complEDS₂Aux_two, one_mul, sub_zero, hY, hneg, ← ψ_three,
     map_add polyToField, map_sub polyToField, map_mul polyToField, map_pow polyToField,
-    map_neg polyToField, map_ofNat, polyToField_polynomial, mul_zero, zero_mul, add_zero] at hF
+    map_neg polyToField, polyToField_polynomial, mul_zero] at hF
   rw [Affine.addY, Affine.negAddY, addX_smul_one_smul_one, smulY_one, smulX_two, smulX_one,
     slopeOne_eq_neg_div, Affine.negY, pointedCurve_a₁, pointedCurve_a₃, smulY_def 2, hF]
   field_simp
@@ -716,7 +715,7 @@ lemma algebraMap_comp_smulRing (n : ℤ) : algebraMap _ _ ∘ smulRing n = smulF
   -- Not `rfl`: `polyToField`'s body is unexposed, so its factorisation through `AdjoinRoot.mk`
   -- has to come from the equation lemma.
   ext i
-  fin_cases i <;> simp [Function.comp_def, polyToField_apply]
+  fin_cases i <;> simp [polyToField_apply]
 
 /-- **The Jacobian coordinates of `n • (X, Y)` are `(φₙ : ωₙ : ψₙ)`.** The Jacobian form of
 `Affine.zsmul_point_eq_smulX_smulY`: where the affine statement divides by `ψₙ²` and `ψₙ³`, the
@@ -753,11 +752,11 @@ theorem zsmul_point_eq_smulField : (n • Jacobian.point).point = ⟦smulField n
 /-- `smulRing` at `0` is the triple `(1, 1, 0)`, the universal-ring representation of the point
 at infinity. -/
 @[simp] lemma smulRing_zero : smulRing 0 = ![1, 1, 0] := by
-  simp [smulRing, smulPoly_zero, comp_fin3]
+  simp [smulRing, comp_fin3]
 
 /-- `smulField` at `0` is the triple `(1 : 1 : 0)`, the point at infinity. -/
 @[simp] lemma smulField_zero : smulField 0 = ![1, 1, 0] := by
-  simp [smulField, smulPoly_zero, comp_fin3]
+  simp [smulField, comp_fin3]
 
 /-- **The `Z`-coordinate of Mathlib's Jacobian doubling formula at `(φₙ, ωₙ, ψₙ)` is `ψ₂ₙ`** —
 already in the polynomial ring, with no reduction modulo the Weierstrass polynomial. -/
@@ -818,7 +817,7 @@ lemma dblXYZ_smulRing : dblXYZ curveRing (smulRing n) = smulRing (2 * n) := by
 -- discharged through `sub_eq_zero` and `ring` instead.
 lemma addZ_smulPoly : addZ (smulPoly m) (smulPoly n) = curve.ψ (n + m) * curve.ψ (n - m) := by
   have key := curve.isEllipticNet_ψ.isEllipticSequence n m 1
-  simp only [IsEllipticNet.rel, add_zero, ψ_one, mul_one] at key
+  simp only [IsEllipticNet.rel, add_zero, ψ_one] at key
   symm
   rw [← sub_eq_zero, ← key, addZ]
   simp only [smulPoly, fin3_def_ext, WeierstrassCurve.φ]
@@ -834,7 +833,7 @@ the triple at `n`, rescaled by `-1`. -/
   -- explicit `Matrix.cons_val_*` lemmas cannot match; the default `simp` set can, via the
   -- `Fin.reduceFinMk` simproc, after which the tuple projections and `ring` finish all three.
   funext i
-  fin_cases i <;> simp [smulPoly, smul_fin3, neg, negY, φ_neg, ψ_neg] <;> ring
+  fin_cases i <;> simp [smulPoly, smul_fin3, neg, negY] <;> ring
 
 /-- The negation rule over the universal ring. -/
 @[simp] lemma smulRing_neg :
@@ -879,7 +878,7 @@ lemma addXYZ_smulField :
   · rw [addXYZ_Z,
       (smul_fin3_ext (smulField (n + m)) (polyToField (curve.ψ (n - m)))).2.2, smulField_Z]
     have hF := congrArg polyToField (addZ_smulPoly (m := m) (n := n))
-    simp only [addZ, smulPoly, smulField, Function.comp_def, fin3_def_ext, map_sub polyToField,
+    simp only [addZ, smulPoly, smulField, Function.comp_def, map_sub polyToField,
       map_mul polyToField, map_pow polyToField] at hF ⊢
     linear_combination hF
   -- The nonvanishing side-goal is that same scaled projection, rewritten the same way.
@@ -948,8 +947,7 @@ what turns each identity over `curveRing` into the same identity for `W` at `(x,
   -- `Matrix.cons_val_*` lemmas cannot match it; the default `simp` set reduces it through the
   -- `Fin.reduceFinMk` simproc, and the three coordinates then close uniformly.
   funext i
-  fin_cases i <;> simp [Jacobian.smulRing, smulEval, ringEval_mk, evalEval_φ, evalEval_ω,
-    evalEval_ψ]
+  fin_cases i <;> simp [Jacobian.smulRing, smulEval, evalEval_φ, evalEval_ω, evalEval_ψ]
 
 end Universal
 
@@ -959,7 +957,7 @@ evaluations and needs no equation on `(x, y)`. -/
 @[simp] lemma smulEval_neg (n : ℤ) :
     smulEval W x y (-n) = (-1 : R) • Jacobian.neg W (smulEval W x y n) := by
   funext i
-  fin_cases i <;> (simp [smulEval, smul_fin3, Jacobian.neg, Jacobian.negY, φ_neg, ψ_neg]; try ring)
+  fin_cases i <;> (simp [smulEval, smul_fin3, Jacobian.neg, Jacobian.negY]; try ring)
 
 include eqn in
 /-- **The doubling formula for a concrete curve**: `dblXYZ_smulRing` specialized along the point
