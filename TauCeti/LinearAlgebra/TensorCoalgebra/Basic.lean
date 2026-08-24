@@ -78,6 +78,12 @@ noncomputable def component (n : {n : ℕ // 0 < n}) :
     ReducedTensorWords R M →ₗ[R] TensorPower R n.1 M :=
   DirectSum.component R {n : ℕ // 0 < n} (fun n ↦ TensorPower R n.1 M) n
 
+/-- Evaluating a reduced tensor word at a length agrees with its named component projection. -/
+@[simp]
+theorem apply_eq_component (x : ReducedTensorWords R M) (n : {n : ℕ // 0 < n}) :
+    x n = component R M n x :=
+  DirectSum.apply_eq_component R x n
+
 @[simp]
 theorem component_of (n : {n : ℕ // 0 < n}) (x : TensorPower R n.1 M) :
     component R M n (of R M n x) = x := by
@@ -88,6 +94,7 @@ theorem component_of (n : {n : ℕ // 0 < n}) (x : TensorPower R n.1 M) :
 theorem component_of_of_ne {m n : {n : ℕ // 0 < n}} (h : m ≠ n) (x : TensorPower R m.1 M) :
     component R M n (of R M m x) = 0 := by
   simp [component, of, DirectSum.component.of, h]
+
 
 /-- Deconcatenation on words of one fixed length, summed over all nontrivial cuts. -/
 noncomputable def deconcatenationComponent (n : {n : ℕ // 0 < n}) :
