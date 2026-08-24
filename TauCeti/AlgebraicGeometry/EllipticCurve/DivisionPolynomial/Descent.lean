@@ -108,8 +108,7 @@ theorem mul_eval_ΨSq_eq_eval_Φ_of_zsmul {x y : F} (hns : E.toAffine.Nonsingula
   have hequiv : smulEval E x y n ≈ ![x', y', 1] := by
     rw [Jacobian.Point.ext_iff, hsmul] at hJac; exact Quotient.exact hJac
   have hX := Jacobian.X_eq_of_equiv hequiv
-  simp only [smulEval, Function.comp, Matrix.cons_val_zero, Matrix.cons_val_two,
-    Matrix.head_cons, Matrix.tail_cons] at hX
+  simp only [smulEval, Function.comp, Matrix.cons_val_two] at hX
   norm_num at hX
   rw [evalEval_φ_eq_eval_Φ E hns.left n] at hX
   have hΨSq := evalEval_Ψ_sq_eq_eval_ΨSq E hns.left n
