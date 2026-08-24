@@ -26,7 +26,8 @@ canonical API.
 
 ## References
 
-* [petersen2016], Chapter 5, §5.3, Proposition
+* Peter Petersen, *Riemannian Geometry* (3rd ed., 2016), Chapter 5, §5.3,
+  Proposition
   `prop:pet-ch5-arclength-reparametrization`, formalized by
   `regularCurve_arclengthReparametrization` (with the supporting
   `contDiffAt_curveSpeedSq`) in
@@ -35,7 +36,7 @@ canonical API.
   `e6bc8cb66a83e50afa2b4507db664c9370bd4ac4`. That source supplies the
   arclength/inverse and unit-speed architecture; its smooth squared-speed and
   private curve-length APIs are replaced here by the C¹ and Mathlib APIs.
-* [poincareConjectureDoCarmo],
+* The do Carmo formalization in `frenzymath/Poincare-Conjecture`,
   `DoCarmoLib/Riemannian/Manifold/DoCarmoCh3SegmentReparam.lean`, declarations
   `reparam`, `reparam_mem_Ioo`, and `hasDerivAt_reparam`, revision
   `24f32e4d600878bfaac6bc2f2f9324175571c321`. This Apache-2.0 source supplies
