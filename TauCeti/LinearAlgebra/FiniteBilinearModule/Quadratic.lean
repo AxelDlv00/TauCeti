@@ -16,8 +16,8 @@ public import Mathlib.LinearAlgebra.QuadraticForm.Prod
 A finite quadratic module is a finite abelian group equipped with a quadratic map to `ℚ/ℤ`.
 Its symmetric bilinear pairing is not stored separately: it is the polar form of the quadratic
 map.  This file packages that canonical underlying finite bilinear module and develops restriction,
-form negation, orthogonal products, isometries, quadratic-isotropic subgroups, and quadratic
-Lagrangians.
+form negation, orthogonal products, morphisms, isometries, quadratic-isotropic subgroups, and
+quadratic Lagrangians.
 
 The convention is the half-norm convention used for discriminant forms: for an even integral
 lattice the quadratic value of a dual class represented by `x` is `B(x, x) / 2` modulo `ℤ`, and
@@ -28,6 +28,7 @@ the polar pairing is therefore `B(x, y)` modulo `ℤ`.
 * `TauCeti.FiniteQuadraticModule`: a finite abelian group with an `AddCircle (1 : ℚ)`-valued
   quadratic map.
 * `TauCeti.FiniteQuadraticModule.toFiniteBilinearModule`: the canonical polar bilinear module.
+* `TauCeti.FiniteQuadraticModule.Hom`: a quadratic-map-preserving additive homomorphism.
 * `TauCeti.FiniteQuadraticModule.Isometry`: a quadratic-map isometric equivalence.
 * `TauCeti.FiniteQuadraticModule.IsIsotropic`: quadratic isotropy of an additive subgroup.
 * `TauCeti.FiniteQuadraticModule.IsLagrangian`: a quadratic-isotropic subgroup equal to its
@@ -98,6 +99,95 @@ theorem adjointEquiv_apply (hA : A.IsNondegenerate) (x : A) :
     A.adjointEquiv hA x = A.toFiniteBilinearModule.pairing x := by
   exact A.toFiniteBilinearModule.adjointEquiv_apply hA x
 
+/-! ## Morphisms and isometries -/
+
+/-- A morphism of finite quadratic modules is an additive homomorphism preserving the quadratic
+map.
+
+This is Mathlib's `QuadraticMap.Isometry` applied to the stored quadratic maps. -/
+abbrev Hom (A : FiniteQuadraticModule.{u}) (B : FiniteQuadraticModule.{v}) : Type (max u v) :=
+  A.quadratic.Isometry B.quadratic
+
+namespace Hom
+
+variable {A : FiniteQuadraticModule.{u}} {B : FiniteQuadraticModule.{v}}
+  {C : FiniteQuadraticModule}
+
+/-- The identity morphism of a finite quadratic module. -/
+def id (A : FiniteQuadraticModule) : Hom A A :=
+  QuadraticMap.Isometry.id A.quadratic
+
+/-- The composite of two finite quadratic module morphisms. -/
+def comp (g : Hom B C) (f : Hom A B) : Hom A C :=
+  QuadraticMap.Isometry.comp g f
+
+/-- Two finite quadratic module morphisms are equal when they agree on every element. -/
+@[ext]
+theorem ext {f g : Hom A B} (h : ∀ x, f x = g x) : f = g :=
+  QuadraticMap.Isometry.ext h
+
+@[simp]
+theorem id_apply (A : FiniteQuadraticModule) (x : A) : id A x = x :=
+  (rfl)
+
+@[simp]
+theorem comp_apply (g : Hom B C) (f : Hom A B) (x : A) : g.comp f x = g (f x) :=
+  (rfl)
+
+@[simp]
+theorem id_comp (f : Hom A B) : (id B).comp f = f :=
+  QuadraticMap.Isometry.id_comp f
+
+@[simp]
+theorem comp_id (f : Hom A B) : f.comp (id A) = f :=
+  QuadraticMap.Isometry.comp_id f
+
+@[simp]
+theorem comp_assoc {D : FiniteQuadraticModule} (h : Hom C D) (g : Hom B C) (f : Hom A B) :
+    (h.comp g).comp f = h.comp (g.comp f) :=
+  QuadraticMap.Isometry.comp_assoc h g f
+
+/-- A morphism of finite quadratic modules preserves the canonical polar pairing. -/
+@[simp]
+theorem map_pairing (f : Hom A B) (x y : A) :
+    B.toFiniteBilinearModule.pairing (f x) (f y) =
+      A.toFiniteBilinearModule.pairing x y := by
+  rw [← B.polar_eq_pairing, ← A.polar_eq_pairing]
+  simp only [QuadraticMap.polar]
+  rw [← map_add f, f.map_app, f.map_app, f.map_app]
+
+/-- A quadratic-module morphism induces a morphism of the canonical polar bilinear modules. -/
+def toFiniteBilinearModule (f : Hom A B) :
+    FiniteBilinearModule.Hom A.toFiniteBilinearModule B.toFiniteBilinearModule where
+  toAddMonoidHom := f.toLinearMap.toAddMonoidHom
+  map_pairing' := f.map_pairing
+
+@[simp]
+theorem toFiniteBilinearModule_apply (f : Hom A B) (x : A) :
+    f.toFiniteBilinearModule x = f x := (rfl)
+
+/-- Forgetting the identity quadratic morphism gives the identity bilinear morphism. -/
+@[simp]
+theorem toFiniteBilinearModule_id (A : FiniteQuadraticModule) :
+    (id A).toFiniteBilinearModule = FiniteBilinearModule.Hom.id A.toFiniteBilinearModule := by
+  ext x
+  rw [toFiniteBilinearModule_apply, id_apply, FiniteBilinearModule.Hom.id_apply]
+
+/-- Forgetting a composite quadratic morphism gives the composite bilinear morphism. -/
+@[simp]
+theorem toFiniteBilinearModule_comp (g : Hom B C) (f : Hom A B) :
+    (g.comp f).toFiniteBilinearModule =
+      g.toFiniteBilinearModule.comp f.toFiniteBilinearModule := by
+  ext x
+  rw [toFiniteBilinearModule_apply, comp_apply, FiniteBilinearModule.Hom.comp_apply,
+    toFiniteBilinearModule_apply, toFiniteBilinearModule_apply]
+
+/-- A morphism out of a nondegenerate finite quadratic module is injective. -/
+theorem injective (f : Hom A B) (hA : A.IsNondegenerate) : Function.Injective f :=
+  fun _ _ hxy ↦ f.toFiniteBilinearModule.injective hA hxy
+
+end Hom
+
 /-- An isometry of finite quadratic modules is Mathlib's isometric equivalence of their quadratic
 maps. -/
 abbrev Isometry (A : FiniteQuadraticModule.{u}) (B : FiniteQuadraticModule.{v}) : Type (max u v) :=
@@ -112,6 +202,32 @@ variable {A : FiniteQuadraticModule.{u}} {B : FiniteQuadraticModule.{v}}
 theorem trans_apply {C : FiniteQuadraticModule} (f : Isometry A B) (g : Isometry B C) (x : A) :
     (f.trans g) x = g (f x) :=
   rfl
+
+/-- A quadratic isometry is, after forgetting bijectivity, a morphism. -/
+def toHom (f : Isometry A B) : Hom A B :=
+  f.toIsometry
+
+@[simp]
+theorem toHom_apply (f : Isometry A B) (x : A) : f.toHom x = f x := (rfl)
+
+/-- Forgetting the identity quadratic isometry gives the identity quadratic morphism. -/
+@[simp]
+theorem refl_toHom (A : FiniteQuadraticModule) :
+    toHom (QuadraticMap.IsometryEquiv.refl A.quadratic) = Hom.id A := by
+  ext
+  rfl
+
+/-- Forgetting a composite quadratic isometry gives the composite quadratic morphism. -/
+@[simp]
+theorem trans_toHom {C : FiniteQuadraticModule} (f : Isometry A B) (g : Isometry B C) :
+    toHom (f.trans g) = g.toHom.comp f.toHom := by
+  ext
+  rfl
+
+/-- The underlying morphism of a quadratic isometry is bijective. -/
+theorem toHom_bijective (f : Isometry A B) : Function.Bijective f.toHom := by
+  simpa only [Function.Bijective, Function.Injective, Function.Surjective, toHom_apply,
+    QuadraticMap.IsometryEquiv.coe_toLinearEquiv] using f.toLinearEquiv.bijective
 
 /-- A quadratic isometry induces an isometry of the canonical polar bilinear modules. -/
 def toFiniteBilinearModule (f : Isometry A B) :
@@ -140,6 +256,34 @@ theorem isNondegenerate_iff (f : Isometry A B) : A.IsNondegenerate ↔ B.IsNonde
   f.toFiniteBilinearModule.isNondegenerate_iff
 
 end Isometry
+
+namespace Hom
+
+variable {A : FiniteQuadraticModule.{u}} {B : FiniteQuadraticModule.{v}}
+
+/-- A bijective morphism of finite quadratic modules is an isometry. -/
+noncomputable def toIsometry (f : Hom A B) (hf : Function.Bijective f) : Isometry A B where
+  toLinearEquiv := (AddEquiv.ofBijective f.toLinearMap.toAddMonoidHom hf).toIntLinearEquiv
+  map_app' := f.map_app
+
+@[simp]
+theorem toIsometry_apply (f : Hom A B) (hf : Function.Bijective f) (x : A) :
+    f.toIsometry hf x = f x := (rfl)
+
+/-- Forgetting a bijective morphism after packaging it as an isometry recovers the morphism. -/
+@[simp]
+theorem toIsometry_toHom (f : Hom A B) (hf : Function.Bijective f) :
+    (f.toIsometry hf).toHom = f := by
+  ext
+  rfl
+
+/-- Packaging the underlying morphism of an isometry recovers the isometry. -/
+@[simp]
+theorem toHom_toIsometry (f : Isometry A B) :
+    f.toHom.toIsometry f.toHom_bijective = f := by
+  exact DFunLike.ext _ _ fun _ ↦ rfl
+
+end Hom
 
 /-! ## Canonical constructions -/
 
@@ -170,6 +314,27 @@ theorem restrict_pairing (H : AddSubgroup A) (x y : H) :
 theorem restrict_toFiniteBilinearModule (H : AddSubgroup A) :
     (A.restrict H).toFiniteBilinearModule = A.toFiniteBilinearModule.restrict H := by
   rfl
+
+/-- The inclusion of a restricted finite quadratic module into the original module. -/
+def restrictHom (H : AddSubgroup A) : Hom (restrict A H) A where
+  toLinearMap := H.toIntSubmodule.subtype
+  map_app' _ := rfl
+
+@[simp]
+theorem restrictHom_apply (H : AddSubgroup A) (x : H) : A.restrictHom H x = x := (rfl)
+
+/-- Forgetting the quadratic structure of a restriction inclusion gives the bilinear restriction
+inclusion. -/
+@[simp]
+theorem restrictHom_toFiniteBilinearModule (H : AddSubgroup A) :
+    (A.restrictHom H).toFiniteBilinearModule = A.toFiniteBilinearModule.restrictHom H := by
+  ext x
+  calc
+    (A.restrictHom H).toFiniteBilinearModule x = A.restrictHom H x :=
+      Hom.toFiniteBilinearModule_apply _ _
+    _ = x.1 := restrictHom_apply A H x
+    _ = A.toFiniteBilinearModule.restrictHom H x :=
+      (FiniteBilinearModule.restrictHom_apply _ H x).symm
 
 /-- Negate the quadratic map of a finite quadratic module. -/
 @[expose] def neg : FiniteQuadraticModule where
