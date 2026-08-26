@@ -8,6 +8,7 @@ module
 
 public import Mathlib.Topology.EMetricSpace.BoundedVariation
 public import TauCeti.Geometry.Manifold.Riemannian.Distance
+import TauCeti.Geometry.Manifold.Riemannian.PiecewisePath
 
 /-!
 # Metric variation is bounded by Riemannian path length
@@ -67,20 +68,17 @@ theorem eVariationOn_le_pathELength {gamma : ℝ → M} {a b : ℝ}
     exact edist_le_pathELength_of_contMDiffOn
       (hgamma.mono (Icc_subset_Icc (hus i).1 (hus (i + 1)).2))
       (hu (Nat.le_succ i))
-  have htelescoping : ∀ m, ∑ i ∈ Finset.range m,
-      pathELength I gamma (u i) (u (i + 1)) =
-        pathELength I gamma (u 0) (u m) := by
-    intro m
-    induction m with
-    | zero => simp
-    | succ k ih =>
-      rw [Finset.sum_range_succ, ih,
-        pathELength_add (hu (Nat.zero_le k)) (hu (Nat.le_succ k))]
   calc
     ∑ i ∈ Finset.range n, edist (gamma (u (i + 1))) (gamma (u i))
         ≤ ∑ i ∈ Finset.range n, pathELength I gamma (u i) (u (i + 1)) :=
       Finset.sum_le_sum fun i _ ↦ hsegment i
-    _ = pathELength I gamma (u 0) (u n) := htelescoping n
+    _ = pathELength I gamma (u 0) (u n) := by
+      have hsum := TauCeti.Manifold.sum_pathELength_eq
+        (I := I) (γ := gamma) (r := n)
+        (fun i : Fin (n + 1) ↦ u i)
+        (fun i ↦ hu (Nat.le_succ i))
+      rw [← Fin.sum_univ_eq_sum_range]
+      exact hsum
     _ ≤ pathELength I gamma a b := pathELength_mono (hus 0).1 (hus n).2
 
 end
