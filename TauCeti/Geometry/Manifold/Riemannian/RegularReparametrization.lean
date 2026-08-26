@@ -22,6 +22,16 @@ Mathlib's canonical `Manifold.pathELength`.
 The consumer-facing corollary rescales the arclength interval to `[0, 1]`,
 where the resulting curve has constant speed equal to its total length.
 
+## Main declarations
+
+* `TauCeti.exists_contDiffOn_intervalIntegral_inverse_of_pos`: the inverse of
+  the primitive of a continuous positive real function, with its interval and
+  `C¹` properties.
+* `TauCeti.Manifold.exists_unit_speed_reparametrization_of_regular`: the
+  arclength-interval reparametrization.
+* `TauCeti.Manifold.exists_constant_speed_reparametrization_of_regular`: the
+  rescaled constant-speed reparametrization on `[0, 1]`.
+
 ## References
 
 * Peter Petersen, *Riemannian Geometry* (3rd ed., 2016), Chapter 5, §5.3,
@@ -50,7 +60,7 @@ public section
 open Bundle Filter Manifold Set
 open scoped Bundle ContDiff Manifold Topology
 
-namespace TauCeti.Manifold
+namespace TauCeti
 
 noncomputable section
 
@@ -72,67 +82,28 @@ private theorem hasDerivAt_invFun_of_hasStrictDerivAt
   rw [← hphi.map_nhds_eq hd]
   exact mem_map.mpr (Eventually.of_forall fun x ↦ ⟨x, rfl⟩)
 
-variable
-  {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
-  {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
-  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I 1 M]
-  [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
-  [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
+/-- The primitive of a continuous, everywhere positive real function has a
+`C¹` inverse on the interval between the primitive's endpoint values.
 
-/-- A regular `C¹` curve on `[a, b]` admits a `C¹` unit-speed
-reparametrization on its arclength interval `[0, L]`.
-
-The length `L`, both endpoint identities, monotonicity of the inverse, the two
-inverse identities, and the canonical `pathELength` characterizations are all
-part of the public conclusion. -/
-theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
-    {a b : ℝ} (hab : a < b)
-    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
-    (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
+The conclusion records the inverse's construction, the primitive's strict
+monotonicity and interval image, both inverse identities, the endpoint values,
+and the derivative of the inverse. -/
+theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b : ℝ}
+    (hab : a < b) (hv_cont : Continuous v) (hv_pos : ∀ t, 0 < v t) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
-      L = ∫ t in a..b, riemannianSpeed I gamma t ∧
+      L = ∫ t in a..b, v t ∧
+      psi = Function.invFun (fun t ↦ ∫ s in a..t, v s) ∧
       0 < L ∧
+      StrictMono (fun t ↦ ∫ s in a..t, v s) ∧
+      (fun t ↦ ∫ s in a..t, v s) '' Icc a b = Icc 0 L ∧
       MapsTo psi (Icc 0 L) (Icc a b) ∧
       MonotoneOn psi (Icc 0 L) ∧
       psi 0 = a ∧
       psi L = b ∧
-      (∀ t ∈ Icc a b,
-        psi (∫ s in a..t, riemannianSpeed I gamma s) = t) ∧
-      (∀ s ∈ Icc 0 L,
-        ∫ t in a..psi s, riemannianSpeed I gamma t = s) ∧
+      (∀ t ∈ Icc a b, psi (∫ s in a..t, v s) = t) ∧
+      (∀ s ∈ Icc 0 L, ∫ t in a..psi s, v t = s) ∧
       ContDiffOn ℝ 1 psi (Icc 0 L) ∧
-      ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) ∧
-      (∀ s ∈ Icc 0 L, riemannianSpeed I (gamma ∘ psi) s = 1) ∧
-      (gamma ∘ psi) 0 = gamma a ∧
-      (gamma ∘ psi) L = gamma b ∧
-      pathELength I gamma a b = ENNReal.ofReal L ∧
-      (∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
-        pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s)) ∧
-      pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
-  have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
-    intro t ht
-    by_contra hnot
-    apply hreg t ht
-    rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
-    simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
-  have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
-    continuousOn_riemannianSpeed I hgamma hmdiff
-      (uniqueDiffOn_Icc hab).uniqueMDiffOn
-  let p : ℝ → Icc a b := projIcc a b hab.le
-  let v : ℝ → ℝ :=
-    (Icc a b).domRestrict (riemannianSpeed I gamma) ∘ p
-  have hv_cont : Continuous v := by
-    have hp : Continuous p := continuous_projIcc
-    exact hspeed_cont.domRestrict.comp hp
-  have hv_eq : ∀ t ∈ Icc a b, v t = riemannianSpeed I gamma t := by
-    intro t ht
-    simp only [v, p, Function.comp_apply, Set.domRestrict_apply,
-      projIcc_of_mem hab.le ht]
-  have hv_pos : ∀ t, 0 < v t := by
-    intro t
-    have hne : riemannianSpeed I gamma (p t) ≠ 0 := hreg _ (p t).property
-    simpa only [v, Function.comp_apply, Set.domRestrict_apply] using
-      lt_of_le_of_ne (riemannianSpeed_nonneg I gamma (p t)) hne.symm
+      (∀ s ∈ Icc 0 L, HasDerivAt psi (v (psi s))⁻¹ s) := by
   let phi : ℝ → ℝ := fun t ↦ ∫ s in a..t, v s
   have hphi_strict : ∀ t, HasStrictDerivAt phi (v t) t := by
     intro t
@@ -186,18 +157,11 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (hv_cont.comp_continuousOn hpsi_cont).inv₀ fun s _ ↦ (hv_pos (psi s)).ne'
     refine hc.congr fun s hs ↦ ?_
     rw [derivWithin_of_isOpen hW_open hs, hpsi_deriv_eq hs]
-  let L : ℝ := ∫ t in a..b, riemannianSpeed I gamma t
-  have hL_def : L = ∫ t in a..b, riemannianSpeed I gamma t := rfl
-  have hphi_eq : ∀ t ∈ Icc a b,
-      phi t = ∫ s in a..t, riemannianSpeed I gamma s := by
-    intro t ht
-    rw [show phi t = ∫ s in a..t, v s from rfl]
-    refine intervalIntegral.integral_congr fun r hr ↦ hv_eq r ?_
-    rw [uIcc_of_le ht.1] at hr
-    exact ⟨hr.1, hr.2.trans ht.2⟩
-  have hphi_a : phi a = 0 := by simp only [phi, intervalIntegral.integral_same]
+  let L : ℝ := ∫ t in a..b, v t
+  have hphi_a : phi a = 0 := by
+    simp only [phi, intervalIntegral.integral_same]
   have hphi_b : phi b = L := by
-    rw [hphi_eq b (right_mem_Icc.mpr hab.le), hL_def]
+    simp only [phi, L]
   have hL_pos : 0 < L := by
     have hlt := hphi_mono hab
     rwa [hphi_a, hphi_b] at hlt
@@ -222,25 +186,120 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     rw [hleft tx, hleft ty]
     by_contra hnot
     exact (not_lt_of_ge hxy) (hphi_mono (lt_of_not_ge hnot))
-  have hpsi_zero : psi 0 = a := by rw [← hphi_a, hleft a]
-  have hpsi_L : psi L = b := by rw [← hphi_b, hleft b]
+  have hpsi_zero : psi 0 = a := by
+    rw [← hphi_a, hleft a]
+  have hpsi_L : psi L = b := by
+    rw [← hphi_b, hleft b]
+  have hleft_Icc : ∀ t ∈ Icc a b, psi (∫ s in a..t, v s) = t := by
+    intro t _
+    simpa only [phi] using hleft t
+  have hright_Icc : ∀ s ∈ Icc 0 L, ∫ t in a..psi s, v t = s := by
+    intro s hs
+    simpa only [phi] using hright s (hIccW hs)
+  refine ⟨L, psi, ?_, ?_, hL_pos, ?_, ?_, hmaps, hpsi_mono,
+    hpsi_zero, hpsi_L, hleft_Icc, hright_Icc, hpsi_C1.mono hIccW, ?_⟩
+  · simp only [L]
+  · simp only [psi, phi]
+  · simpa only [phi] using hphi_mono
+  · simpa only [phi] using himage
+  · exact fun s hs ↦ hpsi_hasDeriv s (hIccW hs)
+
+namespace Manifold
+
+variable
+  {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
+  {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
+  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I 1 M]
+  [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
+  [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
+
+/-- A regular `C¹` curve on `[a, b]` admits a `C¹` unit-speed
+reparametrization on its arclength interval `[0, L]`.
+
+The length `L`, both endpoint identities, monotonicity of the inverse, the two
+inverse identities, and the canonical `pathELength` characterizations are all
+part of the public conclusion. -/
+theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
+    {a b : ℝ} (hab : a < b)
+    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
+    (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
+    ∃ L : ℝ, ∃ psi : ℝ → ℝ,
+      L = ∫ t in a..b, riemannianSpeed I gamma t ∧
+      0 < L ∧
+      MapsTo psi (Icc 0 L) (Icc a b) ∧
+      MonotoneOn psi (Icc 0 L) ∧
+      psi 0 = a ∧
+      psi L = b ∧
+      (∀ t ∈ Icc a b,
+        psi (∫ s in a..t, riemannianSpeed I gamma s) = t) ∧
+      (∀ s ∈ Icc 0 L,
+        ∫ t in a..psi s, riemannianSpeed I gamma t = s) ∧
+      ContDiffOn ℝ 1 psi (Icc 0 L) ∧
+      ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) ∧
+      (∀ s ∈ Icc 0 L, riemannianSpeed I (gamma ∘ psi) s = 1) ∧
+      (gamma ∘ psi) 0 = gamma a ∧
+      (gamma ∘ psi) L = gamma b ∧
+      pathELength I gamma a b = ENNReal.ofReal L ∧
+      (∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
+        pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s)) ∧
+      pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
+  have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
+    intro t ht
+    by_contra hnot
+    apply hreg t ht
+    rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
+    simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
+  have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
+    continuousOn_riemannianSpeed I hgamma hmdiff
+      (uniqueDiffOn_Icc hab).uniqueMDiffOn
+  -- Extend the positive speed continuously away from `[a, b]` so the real
+  -- inverse construction can use an ordinary two-sided derivative everywhere.
+  let p : ℝ → Icc a b := projIcc a b hab.le
+  let v : ℝ → ℝ :=
+    (Icc a b).domRestrict (riemannianSpeed I gamma) ∘ p
+  have hv_cont : Continuous v := by
+    have hp : Continuous p := continuous_projIcc
+    exact hspeed_cont.domRestrict.comp hp
+  have hv_eq : ∀ t ∈ Icc a b, v t = riemannianSpeed I gamma t := by
+    intro t ht
+    simp only [v, p, Function.comp_apply, Set.domRestrict_apply,
+      projIcc_of_mem hab.le ht]
+  have hv_pos : ∀ t, 0 < v t := by
+    intro t
+    have hne : riemannianSpeed I gamma (p t) ≠ 0 := hreg _ (p t).property
+    simpa only [v, Function.comp_apply, Set.domRestrict_apply] using
+      lt_of_le_of_ne (riemannianSpeed_nonneg I gamma (p t)) hne.symm
+  -- The generic positive-integral inverse lemma supplies all real-analysis
+  -- facts about the arclength primitive and its inverse in one step.
+  obtain ⟨L, psi, hL_v, _, hL_pos, _, _, hmaps, hpsi_mono,
+    hpsi_zero, hpsi_L, hleft_v, hright_v, hpsi_C1_Icc, hpsi_hasDeriv⟩ :=
+    exists_contDiffOn_intervalIntegral_inverse_of_pos hab hv_cont hv_pos
+  have hintegral_eq : ∀ t ∈ Icc a b,
+      (∫ s in a..t, v s) = ∫ s in a..t, riemannianSpeed I gamma s := by
+    intro t ht
+    refine intervalIntegral.integral_congr fun r hr ↦ hv_eq r ?_
+    rw [uIcc_of_le ht.1] at hr
+    exact ⟨hr.1, hr.2.trans ht.2⟩
+  have hL_def : L = ∫ t in a..b, riemannianSpeed I gamma t :=
+    hL_v.trans (hintegral_eq b (right_mem_Icc.mpr hab.le))
   have hleft_Icc : ∀ t ∈ Icc a b,
       psi (∫ s in a..t, riemannianSpeed I gamma s) = t := by
     intro t ht
-    rw [← hphi_eq t ht, hleft t]
+    rw [← hintegral_eq t ht]
+    exact hleft_v t ht
   have hright_Icc : ∀ s ∈ Icc 0 L,
       ∫ t in a..psi s, riemannianSpeed I gamma t = s := by
     intro s hs
-    rw [← hphi_eq (psi s) (hmaps hs)]
-    exact hright s (hIccW hs)
-  have hpsi_C1_Icc : ContDiffOn ℝ 1 psi (Icc 0 L) := hpsi_C1.mono hIccW
+    rw [← hintegral_eq (psi s) (hmaps hs)]
+    exact hright_v s hs
+  -- Transfer the inverse's calculus facts through the curve, then identify
+  -- the resulting interval integrals with Mathlib's canonical path length.
   have hcomp_C1 : ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) :=
     hgamma.comp hpsi_C1_Icc.contMDiffOn hmaps
   have hunitSpeed : ∀ s ∈ Icc 0 L,
       riemannianSpeed I (gamma ∘ psi) s = 1 := by
     intro s hs
-    have hsW : s ∈ W := hIccW hs
-    have hpsi_deriv := hpsi_hasDeriv s hsW
+    have hpsi_deriv := hpsi_hasDeriv s hs
     rw [riemannianSpeed_comp I gamma psi s (hmdiff _ (hmaps hs))
       hpsi_deriv.differentiableAt, hpsi_deriv.deriv, hv_eq _ (hmaps hs)]
     have hpos : 0 < riemannianSpeed I gamma (psi s) := by
@@ -249,7 +308,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     rw [abs_of_pos (inv_pos.mpr hpos), inv_mul_cancel₀ hpos.ne']
   have horiginalLength : pathELength I gamma a b = ENNReal.ofReal L := by
     rw [pathELength_eq_ofReal_integral_riemannianSpeed I hab.le
-      hspeed_cont.integrableOn_Icc]
+      hspeed_cont.integrableOn_Icc, ← hL_def]
   have hunitLength : ∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
       pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s) := by
     intro s hs t ht hst
@@ -266,8 +325,11 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (hspeed_cont.mono htarget).integrableOn_Icc
     rw [hcomp, pathELength_eq_ofReal_integral_riemannianSpeed I hpsi_st hint]
     congr 1
-    have hadd := hphi_add (psi s) (psi t)
-    rw [hright s (hIccW hs), hright t (hIccW ht)] at hadd
+    have hadd := intervalIntegral.integral_add_adjacent_intervals
+      (μ := MeasureTheory.volume)
+      (hv_cont.intervalIntegrable a (psi s))
+      (hv_cont.intervalIntegrable (psi s) (psi t))
+    rw [hright_v s hs, hright_v t ht] at hadd
     calc
       ∫ r in psi s..psi t, riemannianSpeed I gamma r =
           ∫ r in psi s..psi t, v r := by
@@ -375,6 +437,8 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     htheta_one, htheta_C1, hcomp_C1, hconstant, hconstantLength, ?_⟩
   exact hconstantLength.trans horiginalLength.symm
 
+end Manifold
+
 end
 
-end TauCeti.Manifold
+end TauCeti
