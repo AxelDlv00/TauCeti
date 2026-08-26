@@ -113,7 +113,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     intro t ht
     by_contra hnot
     apply hreg t ht
-    rw [riemannianSpeed_eq_zero]
+    rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
     simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
   have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
     continuousOn_riemannianSpeed I hgamma hmdiff
@@ -339,7 +339,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     intro t ht
     by_contra hnot
     have hzero : riemannianSpeed I (gamma ∘ psi) t = 0 := by
-      rw [riemannianSpeed_eq_zero]
+      rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
       simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
     rw [hunit t ht] at hzero
     norm_num at hzero
