@@ -73,7 +73,10 @@ theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
           (1 : TangentSpace 𝓘(ℝ, ℝ) t) =
         deriv f t • (1 : TangentSpace 𝓘(ℝ, ℝ) (f t)) := by
     -- In the one-dimensional model, both tangent spaces reduce to `ℝ`.
-    simp only [mfderiv_eq_fderiv, fderiv_apply_one_eq_deriv, smul_eq_mul, mul_one]
+    rw [mfderiv_eq_fderiv]
+    have h := fderiv_apply_one_eq_deriv (𝕜 := ℝ) (f := f) (x := t)
+    convert h using 1
+    simp only [smul_eq_mul, mul_one]
   rw [hmf, map_smul, norm_smul, Real.norm_eq_abs]
 
 variable [IsManifold I 1 M]
@@ -116,7 +119,9 @@ theorem continuousOn_riemannianSpeed {gamma : ℝ → M} {s : Set ℝ}
         (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)) s := by
     exact htangent.inner_bundle htangent
   -- The Riemannian fiber norm is the square root of the self-inner-product.
-  simpa only [riemannianSpeed, norm_eq_sqrt_real_inner] using hinner.sqrt
+  change ContinuousOn (fun t ↦ √(inner ℝ
+    (mfderiv 𝓘(ℝ, ℝ) I gamma t 1) (mfderiv 𝓘(ℝ, ℝ) I gamma t 1))) s
+  exact hinner.sqrt
 
 /-- Riemannian speed is continuous at every point where the curve is `C^1`. -/
 theorem continuousAt_riemannianSpeed {gamma : ℝ → M} {t : ℝ}
