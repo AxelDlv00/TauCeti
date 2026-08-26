@@ -1,23 +1,24 @@
 /-
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Archon Horizon (claude+codex), Axel Delaval, Chunlei Liu,
-Jinxuan Chen, Wanxu Yang, Zekun Sheng, Yuxuan Liao, Jie Xu
+Authors: The Tau Ceti contributors, Archon Horizon (claude+codex), Axel Delaval,
+  Chunlei Liu, Jinxuan Chen, Wanxu Yang, Zekun Sheng, Yuxuan Liao, Jie Xu
 -/
 module
 
 public import Mathlib.MeasureTheory.Integral.IntervalIntegral.ContDiff
-public import Mathlib.MeasureTheory.SetSemiring
-public import Mathlib.MeasureTheory.VectorMeasure.BoundedVariation
-public import Mathlib.MeasureTheory.VectorMeasure.WithDensityVec
-public import Mathlib.Analysis.Calculus.ContDiff.RCLike
+public import Mathlib.Topology.EMetricSpace.BoundedVariation
+
+import Mathlib.MeasureTheory.SetSemiring
+import Mathlib.MeasureTheory.VectorMeasure.BoundedVariation
+import Mathlib.MeasureTheory.VectorMeasure.WithDensityVec
+import Mathlib.Analysis.Calculus.MeanValue
 
 /-!
 # Metric variation of a continuously differentiable curve
 
-For a continuously differentiable curve in a finite-dimensional real normed
-space, its metric total variation equals the integral of the norm of its
-derivative.
+For a continuously differentiable curve in a complete real normed space, its
+metric total variation equals the integral of the norm of its derivative.
 
 The upper bound sums the fundamental theorem of calculus over finite
 partitions. For the reverse bound, the curve is clamped to the compact
@@ -30,12 +31,32 @@ derivative on the interval.
 * `TauCeti.eVariationOn_eq_lintegral_enorm_derivWithin`: metric variation
   equals the integral of the derivative norm.
 
+## Roadmap alignment
+
+This module advances the `Regular reparametrization and limits` target under
+`Layer 0: the reconciled Riemannian distance` in
+`roadmap/HopfRinow/README.md`. It supplies the vector metric-variation
+identity used as an analytic prerequisite by the lower-semicontinuity
+comparison; this file does not claim the broader
+Hopf--Rinow dependency path.
+
 ## Provenance
 
-This is a new analytic prerequisite for the Hopf--Rinow roadmap. The
-Poincare-Conjecture development uses the opposite comparison between metric
-variation and Riemannian path length, but contains no reverse comparison of
-this form.
+The partition-comparison architecture follows
+`DoCarmoLib/Riemannian/Geodesic/HopfRinow/EVariationLePathELength.lean` in the
+Apache-2.0 `frenzymath/Poincare-Conjecture` source at revision
+`24f32e4d600878bfaac6bc2f2f9324175571c321`. That source proves the forward
+comparison with Riemannian path length. The reverse derivative-integral
+comparison here is a Tau Ceti proof using Mathlib's clamped-curve and
+vector-measure APIs; it is not asserted to be present in that source.
+
+## References
+
+* M. P. do Carmo, *Riemannian Geometry*, Chapter 7, Section 2.
+* The source-first Lean snapshot above, revision
+  `24f32e4d600878bfaac6bc2f2f9324175571c321`, supplies the partition architecture
+  via `eVariationOn_le_pathELength`; the reverse inequality is original to this
+  module.
 -/
 
 public section
@@ -78,11 +99,12 @@ theorem eVariationOn_le_lintegral_enorm_derivWithin {f : ℝ → F} {a b : ℝ}
         rw [← restrict_Ioo_eq_restrict_Icc]
         apply setLIntegral_congr_fun measurableSet_Ioo
         intro t ht
-        change ‖derivWithin f (Icc (u i) (u (i + 1))) t‖ₑ =
-          ‖derivWithin f (Icc a b) t‖ₑ
-        rw [derivWithin_of_mem_nhds (Icc_mem_nhds ht.1 ht.2),
-          derivWithin_of_mem_nhds
-            (Icc_mem_nhds ((hus i).1.trans_lt ht.1) (ht.2.trans_le (hus (i + 1)).2))]
+        have hderiv :
+            derivWithin f (Icc (u i) (u (i + 1))) t = derivWithin f (Icc a b) t := by
+          rw [derivWithin_of_mem_nhds (Icc_mem_nhds ht.1 ht.2),
+            derivWithin_of_mem_nhds
+              (Icc_mem_nhds ((hus i).1.trans_lt ht.1) (ht.2.trans_le (hus (i + 1)).2))]
+        simp only [hderiv]
   have htelescoping : ∀ m, ∑ i ∈ Finset.range m, L (u i) (u (i + 1)) = L (u 0) (u m) := by
     intro m
     induction m with
@@ -97,20 +119,32 @@ theorem eVariationOn_le_lintegral_enorm_derivWithin {f : ℝ → F} {a b : ℝ}
     _ ≤ L a b := lintegral_mono_set (Icc_subset_Icc (hus 0).1 (hus n).2)
     _ = ∫⁻ t in Icc a b, ‖derivWithin f (Icc a b) t‖ₑ := rfl
 
-variable [FiniteDimensional ℝ F]
+variable [CompleteSpace F]
 
-/-- For a `C¹` curve in a finite-dimensional real normed space, the integral
-of the norm of its derivative is bounded by its metric total variation. -/
+/-- For a `C¹` curve in a complete real normed space, and an ordered interval
+`a ≤ b`, the integral of the norm of its derivative is bounded by its metric
+total variation. -/
 theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
-    (hab : a < b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
+    (hab : a ≤ b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
     ∫⁻ t in Icc a b, ‖derivWithin f (Icc a b) t‖ₑ ≤ eVariationOn f (Icc a b) := by
+  rcases hab.eq_or_lt with rfl | hab
+  · simp
   let p : ℝ → ℝ := fun t ↦ (Set.projIcc a b hab.le t).val
   let g : ℝ → F := f ∘ p
   let D : ℝ → F := (Icc a b).indicator (derivWithin f (Icc a b))
   have hp_mono : Monotone p := fun x y hxy ↦ by
     exact_mod_cast Set.monotone_projIcc hab.le hxy
   have hp_mem : MapsTo p univ (Icc a b) := fun t _ ↦ (Set.projIcc a b hab.le t).2
-  obtain ⟨K, hK⟩ := hf.exists_lipschitzOnWith (by decide) (convex_Icc _ _) isCompact_Icc
+  have hD_cont : ContinuousOn (derivWithin f (Icc a b)) (Icc a b) :=
+    hf.continuousOn_derivWithin (uniqueDiffOn_Icc hab) (by norm_num)
+  obtain ⟨C, hCpos, hC⟩ :=
+    (isCompact_Icc.image_of_continuousOn hD_cont).isBounded.exists_pos_norm_le
+  let K : ℝ≥0 := ⟨C, hCpos.le⟩
+  have hK : LipschitzOnWith K f (Icc a b) := by
+    apply (convex_Icc a b).lipschitzOnWith_of_nnnorm_derivWithin_le
+      hf.differentiableOn_one
+    intro t ht
+    exact_mod_cast hC _ (mem_image_of_mem _ ht)
   have hg_lip : LipschitzWith K g := by
     have h := hK.comp (s := univ) (LipschitzWith.projIcc hab.le).lipschitzOnWith hp_mem
     rw [mul_one, lipschitzOnWith_univ] at h
@@ -125,8 +159,6 @@ theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
   have hright : Function.rightLim g = g := by
     funext t
     exact hg_cont.continuousWithinAt.rightLim_eq
-  have hD_cont : ContinuousOn (derivWithin f (Icc a b)) (Icc a b) :=
-    hf.continuousOn_derivWithin (uniqueDiffOn_Icc hab) (by norm_num)
   have hD_int : Integrable D :=
     hD_cont.integrableOn_Icc.integrable_indicator measurableSet_Icc
   have hprimitive : ∀ x : ℝ, ∫ t in a..x, D t = g x - g a := by
@@ -212,9 +244,9 @@ theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
     apply le_antisymm
     · apply iSup_le
       rintro ⟨n, u, hu, -⟩
-      change ∑ i ∈ Finset.range n, edist (f (p (u (i + 1)))) (f (p (u i))) ≤ _
-      exact eVariationOn.sum_le (f := f) (hp_mono.comp hu)
-        (fun i ↦ hp_mem (mem_univ _))
+      simpa only [g, Function.comp_apply] using
+        (eVariationOn.sum_le (f := f) (hp_mono.comp hu)
+          (fun i ↦ hp_mem (mem_univ _)))
     · calc
         eVariationOn f (Icc a b) = eVariationOn g (Icc a b) := by
           apply eVariationOn.eq_of_eqOn
@@ -236,10 +268,11 @@ theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
     _ ≤ eVariationOn g univ := hg_bv.variation_vectorMeasure_univ_le
     _ = eVariationOn f (Icc a b) := hvariation
 
-/-- The metric total variation of a `C¹` curve in a finite-dimensional real
-normed space equals the integral of the norm of its derivative. -/
+/-- The metric total variation of a `C¹` curve in a complete real normed space
+on an ordered interval `a ≤ b` equals the integral of the norm of its
+derivative. -/
 theorem eVariationOn_eq_lintegral_enorm_derivWithin {f : ℝ → F} {a b : ℝ}
-    (hab : a < b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
+    (hab : a ≤ b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
     eVariationOn f (Icc a b) = ∫⁻ t in Icc a b, ‖derivWithin f (Icc a b) t‖ₑ :=
   le_antisymm (eVariationOn_le_lintegral_enorm_derivWithin hf)
     (lintegral_enorm_derivWithin_le_eVariationOn hab hf)
