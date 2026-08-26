@@ -75,8 +75,7 @@ theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
     -- In the one-dimensional model, both tangent spaces reduce to `ℝ`.
     rw [mfderiv_eq_fderiv]
     have h := fderiv_apply_one_eq_deriv (𝕜 := ℝ) (f := f) (x := t)
-    convert h using 1
-    simp only [smul_eq_mul, mul_one]
+    convert h using 1 <;> simp only [smul_eq_mul, mul_one]
   rw [hmf, map_smul, norm_smul, Real.norm_eq_abs]
 
 variable [IsManifold I 1 M]
