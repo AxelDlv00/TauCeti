@@ -73,9 +73,10 @@ theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
           (1 : TangentSpace 𝓘(ℝ, ℝ) t) =
         deriv f t • (1 : TangentSpace 𝓘(ℝ, ℝ) (f t)) := by
     -- In the one-dimensional model, both tangent spaces reduce to `ℝ`.
+    apply (NormedSpace.fromTangentSpace (f t)).injective
     rw [mfderiv_eq_fderiv]
-    have h := fderiv_apply_one_eq_deriv (𝕜 := ℝ) (f := f) (x := t)
-    convert h using 1 <;> simp only [smul_eq_mul, mul_one]
+    change (fderiv ℝ f t) (1 : ℝ) = deriv f t * 1
+    rw [fderiv_apply_one_eq_deriv, mul_one]
   rw [hmf, map_smul, norm_smul, Real.norm_eq_abs]
 
 variable [IsManifold I 1 M]
