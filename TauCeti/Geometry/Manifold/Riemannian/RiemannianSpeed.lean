@@ -56,7 +56,7 @@ theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
 the definition vanishes. -/
 @[simp]
 theorem riemannianSpeed_eq_zero (gamma : ℝ → M) (t : ℝ) :
-    riemannianSpeed I gamma t = 0 ↔
+    ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ = 0 ↔
       mfderiv 𝓘(ℝ, ℝ) I gamma t 1 = 0 :=
   norm_eq_zero
 
