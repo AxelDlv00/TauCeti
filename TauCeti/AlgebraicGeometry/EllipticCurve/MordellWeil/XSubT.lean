@@ -17,6 +17,7 @@ public import TauCeti.Algebra.Group.MapMulMulEqOne
 public import TauCeti.Algebra.Polynomial.LinearFactor
 public import TauCeti.RingTheory.AdjoinRoot
 import TauCeti.Algebra.Group.PowMonoidHom
+import TauCeti.RingTheory.Polynomial.Resultant.AdjoinRoot
 
 /-!
 # The `x - T` map of an elliptic curve into its étale algebra
@@ -57,6 +58,9 @@ what makes the corrected element a unit. Both branches are packaged in `μX`, an
   kernel is exhibited as `2 • P` by solving the identity of `exists_eq_two_smul_iff` from a square
   root of `x - T`, in two cases according to whether the `x`-coordinate is a root of `f`; the
   point-wise statement is `WeierstrassCurve.Affine.eq_two_smul_of_μ_eq_one`.
+* `WeierstrassCurve.Affine.norm_mk_C_sub_X_add_fCofactor`: at a root of `f`, the corrected
+  representative `x - T + fCofactor x` has norm `(f' x) ^ 2`. This is the value the norm condition
+  on the image of the descent map is read off from at the `2`-torsion.
 
 `WeierstrassCurve.Affine.A` is the étale algebra and `WeierstrassCurve.Affine.M` its group of
 square classes of units; `M` is spelled as a quotient of `W.Aˣ` by the range of Mathlib's
@@ -85,9 +89,10 @@ Two changes were made against the source. Stoll defines the square classes throu
 abbreviation `Units.modPow`; here they are the quotient by `(powMonoidHom 2).range` directly, so
 that TauCeti carries a single spelling of square classes. In the kernel proofs this replaces the
 source's `Units.modPow.unit_eq_one_iff` step by `TauCeti.mk_eq_one_iff_exists_pow`, which says
-the same thing about this spelling, for any commutative monoid. And the two lemmas computing the
-norm of `x - T` are not part of this file: they belong to the source's Step 5, which the
-finiteness result does not use.
+the same thing about this spelling, for any commutative monoid. `norm_mk_C_sub_X_add_fCofactor`
+is the source's Step 5 opening, `WeakMordellWeil.lean` lines 284-313, specialised here from the
+general `AdjoinRoot.norm_mk_C_sub_X_add`, which carries that attribution; the rest of that step,
+the induced norm map on square classes, is not here.
 
 This advances `TauCetiRoadmap/EllipticCurves/README.md`, Layer 6 (README:790-838), whose
 description of this route is "the `x - θ` map into the étale algebra `A = K[X]/(f)`".
@@ -365,6 +370,29 @@ lemma exists_X_sub_C_mul_eq (r s t : K) (hr : r ≠ 0) :
     simp
   refine ⟨s / r - W.a₂, t - W.a₄ * r - s ^ 2 / r + W.a₂ * s,
     -W.a₆ * r - t * s / r + W.a₂ * t, ?_, ?_, ?_⟩ <;> field
+
+/-!
+### The norm at the `2`-torsion
+
+At a root `x` of `f` the descent map uses the corrected representative `x - T + fCofactor x`, and
+the norm condition on the image of the map is read off from its norm, which is a square. The
+computation is `AdjoinRoot.norm_mk_C_sub_X_add`, stated there for any monic polynomial split off
+a linear factor; here it is specialised to `f = fCofactor x * (X - C x)`. The other value the
+condition needs, the norm of `x - T` itself on the branch where that is already a unit, is
+`AdjoinRoot.norm_mk_C_sub_X W.monic_f x`.
+-/
+
+/-- **At a root of `f` the norm of the corrected representative is a square.** If `x` is a root
+of `f` then `x - T + fCofactor x` — the element `μX` uses on that branch — has norm `(f' x) ^ 2`,
+where `f' x = 3 * x ^ 2 + 2 * W.a₂ * x + W.a₄` is `derivative_f` evaluated at `x`. Being a square
+makes that *norm* trivial in the square classes of `K`, which is the condition Step 5 puts on the
+image of `μ`. It does not make the class of `x - T + fCofactor x` itself trivial in `W.M`: that
+would say the element is a square in `W.Aˣ`, which is a different and stronger statement. -/
+theorem norm_mk_C_sub_X_add_fCofactor {x : K} (hx : W.f.eval x = 0) :
+    Algebra.norm K (AdjoinRoot.mk W.f (C x - X + W.fCofactor x))
+      = (3 * x ^ 2 + 2 * W.a₂ * x + W.a₄) ^ 2 := by
+  rw [AdjoinRoot.norm_mk_C_sub_X_add (W.monic_fCofactor x) (W.f_eq_mul_of_eval_eq_zero hx),
+    W.eval_fCofactor_self]
 
 /-- The étale algebra associated to the cofactor of `f`. -/
 abbrev A' (x : K) : Type _ := AdjoinRoot (W.fCofactor x)
@@ -891,8 +919,7 @@ private lemma eq_two_smul_of_μ_eq_one_of_ne (hμ : (μ <| .ofAdd <| .some x y h
       (W.degree_lt_degree_f (by compute_degree!))
       (W.degree_lt_degree_f (by compute_degree!))] at hz
     apply_fun natDegree at hz
-    have hd : (C x - X).natDegree = 1 := by compute_degree!
-    rw [natDegree_pow, hd] at hz
+    rw [natDegree_pow, natDegree_C_sub_X] at hz
     lia
   obtain ⟨ξ, l, m, H⟩ := W.exists_X_sub_C_mul_eq r s t hr
   rw [← map_mul] at H
@@ -923,8 +950,7 @@ private lemma eq_two_smul_of_μ_eq_one_of_eq (hμ : (μ <| .ofAdd <| .some x y h
         (W.degree_lt_degree_fCofactor x (by compute_degree!))
         (W.degree_lt_degree_fCofactor x (by compute_degree!))] at hz'
     apply_fun natDegree at hz'
-    have hd : (C x - X).natDegree = 1 := by compute_degree!
-    rw [natDegree_pow, hd] at hz'
+    rw [natDegree_pow, natDegree_C_sub_X] at hz'
     lia
   rw [← map_pow, AdjoinRoot.mk_eq_mk] at hz'
   exact ⟨-s / r, 1 / r, -x / r, AdjoinRoot.mk_eq_mk.mpr (W.f_dvd_of_fCofactor_dvd hx hr₀ hz')⟩
