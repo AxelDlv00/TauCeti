@@ -142,6 +142,22 @@ lemma mem_selmerGroupA_iff (m : W.M) :
         W.selmerGroupFactor R p := by
   simp [selmerGroupA, selmerGroupFactor, IsDedekindDomain.selmerGroupAbove_def]
 
+/-- **`A(S,2)` is finite**, given that each factor's ring of integers has finite class group and
+finitely generated unit group.
+
+This is the finiteness that bounds the image of the descent map, and hence `E(K)/2E(K)`. -/
+theorem finite_selmerGroupA
+    [(p : W.f.Factors) → Finite (ClassGroup (W.ringOfIntegersFactor R p))]
+    [(p : W.f.Factors) → Monoid.FG (W.ringOfIntegersFactor R p)ˣ] :
+    Finite (W.selmerGroupA R) :=
+  have : Finite W.f.Factors := Polynomial.Factors.finite W.f_ne_zero
+  IsDedekindDomain.finite_selmerGroupOfEquiv (fun p : W.f.Factors ↦ 𝕃 p)
+    (fun p ↦ W.ringOfIntegersFactor R p)
+    (fun p ↦ HeightOneSpectrum.primesAbove R (W.ringOfIntegersFactor R p) (W.badPrimes R)) 2
+    (fun p ↦ HeightOneSpectrum.primesAbove_finite R (W.ringOfIntegersFactor R p)
+      (W.finite_badPrimes R))
+    (AdjoinRoot.modPowEquivPiFactors W.f_ne_zero W.squarefree_f 2)
+
 /-- Membership of the class of a unit in the `2`-Selmer group of a field factor: its valuation is
 even at every prime of the ring of integers not lying above a bad prime.
 
