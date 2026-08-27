@@ -14,10 +14,11 @@ public import TauCeti.Geometry.Manifold.Riemannian.RiemannianSpeed
 # Regular C¹ curves admit unit-speed reparametrizations
 
 This file proves the regular-reparametrization target in Layer 0 of the
-Hopf--Rinow roadmap. A curve that is `C¹` and regular on a nondegenerate
-compact interval has an arclength inverse on its full length interval. The
-inverse is monotone, preserves both endpoints, gives unit speed, and preserves
-Mathlib's canonical `Manifold.pathELength`.
+Hopf--Rinow roadmap. A curve that is `C¹` within a nondegenerate compact
+interval, and is two-sided differentiable with nonzero derivative at every
+point of that interval, has an arclength inverse on its full length interval.
+The inverse is monotone, preserves both endpoints, gives unit speed, and
+preserves Mathlib's canonical `Manifold.pathELength`.
 
 The consumer-facing corollary rescales the arclength interval to `[0, 1]`,
 where the resulting curve has constant speed equal to its total length.
@@ -63,24 +64,6 @@ open scoped Bundle ContDiff Manifold Topology
 namespace TauCeti
 
 noncomputable section
-
-/-- The ordinary inverse of a globally injective function agrees locally with
-the inverse supplied by the one-dimensional inverse function theorem. -/
-private theorem hasDerivAt_invFun_of_hasStrictDerivAt
-    {phi : ℝ → ℝ} {d t : ℝ} (hphi : HasStrictDerivAt phi d t)
-    (hd : d ≠ 0) (hinj : Function.Injective phi) :
-    HasDerivAt (Function.invFun phi) d⁻¹ (phi t) ∧
-      Set.range phi ∈ 𝓝 (phi t) := by
-  let zeta : ℝ → ℝ := hphi.localInverse phi _ t hd
-  have hzeta : HasStrictDerivAt zeta d⁻¹ (phi t) :=
-    hphi.to_localInverse hd
-  have heq : Function.invFun phi =ᶠ[𝓝 (phi t)] zeta := by
-    filter_upwards [hphi.eventually_right_inverse hd] with s hs
-    apply hinj
-    exact (Function.invFun_eq ⟨zeta s, hs⟩).trans hs.symm
-  refine ⟨hzeta.hasDerivAt.congr_of_eventuallyEq heq, ?_⟩
-  rw [← hphi.map_nhds_eq hd]
-  exact mem_map.mpr (Eventually.of_forall fun x ↦ ⟨x, rfl⟩)
 
 /-- The primitive of a continuous, everywhere positive real function has a
 `C¹` inverse on the interval between the primitive's endpoint values.
@@ -128,22 +111,23 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
   have hleft : ∀ t, psi (phi t) = t :=
     Function.leftInverse_invFun hphi_inj
   let W : Set ℝ := Set.range phi
-  have hpsi_deriv_local : ∀ t,
-      HasDerivAt psi (v t)⁻¹ (phi t) ∧ W ∈ 𝓝 (phi t) := by
+  have hphi_open : IsOpenMap phi :=
+    isOpenMap_of_hasStrictDerivAt hphi_strict (fun t ↦ (hv_pos t).ne')
+  have hpsi_deriv_local : ∀ t, HasDerivAt psi (v t)⁻¹ (phi t) := by
     intro t
-    simpa only [psi, W] using hasDerivAt_invFun_of_hasStrictDerivAt
-      (hphi_strict t) (hv_pos t).ne' hphi_inj
+    have hstrict : HasStrictDerivAt (Function.invFun phi) (v t)⁻¹ (phi t) :=
+      (hphi_strict t).to_local_left_inverse (hv_pos t).ne'
+        (Filter.Eventually.of_forall (Function.leftInverse_invFun hphi_inj))
+    simpa only [psi] using hstrict.hasDerivAt
   have hW_open : IsOpen W := by
-    rw [isOpen_iff_mem_nhds]
-    rintro s ⟨t, rfl⟩
-    exact (hpsi_deriv_local t).2
+    simpa only [W] using hphi_open.isOpen_range
   have hright : ∀ s ∈ W, phi (psi s) = s := by
     rintro s ⟨t, rfl⟩
     rw [hleft t]
   have hpsi_hasDeriv : ∀ s ∈ W, HasDerivAt psi (v (psi s))⁻¹ s := by
     rintro s ⟨t, rfl⟩
     rw [hleft t]
-    exact (hpsi_deriv_local t).1
+    exact hpsi_deriv_local t
   have hpsi_diff : DifferentiableOn ℝ psi W := fun s hs ↦
     (hpsi_hasDeriv s hs).differentiableAt.differentiableWithinAt
   have hpsi_cont : ContinuousOn psi W := fun s hs ↦
@@ -213,8 +197,9 @@ variable
   [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
   [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
 
-/-- A regular `C¹` curve on `[a, b]` admits a `C¹` unit-speed
-reparametrization on its arclength interval `[0, L]`.
+/-- A curve that is `C¹` within `[a, b]`, and is two-sided differentiable with
+nonzero derivative at every point including the endpoints, admits a `C¹`
+unit-speed reparametrization on its arclength interval `[0, L]`.
 
 The length `L`, both endpoint identities, monotonicity of the inverse, the two
 inverse identities, and the canonical `pathELength` characterizations are all
@@ -222,6 +207,7 @@ part of the public conclusion. -/
 theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
     (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
+    (hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -243,12 +229,6 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
         pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s)) ∧
       pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
-  have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
-    intro t ht
-    by_contra hnot
-    apply hreg t ht
-    rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
-    simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
   have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
     continuousOn_riemannianSpeed I hgamma hmdiff
       (uniqueDiffOn_Icc hab).uniqueMDiffOn
@@ -350,11 +330,13 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   · simp only [Function.comp_apply, hpsi_zero]
   · simp only [Function.comp_apply, hpsi_L]
 
-/-- A regular `C¹` curve on `[a, b]` admits a constant-speed
-reparametrization on `[0, 1]`; its speed is its total length `L`. -/
+/-- A curve that is `C¹` within `[a, b]`, and is two-sided differentiable with
+nonzero derivative at every point including the endpoints, admits a
+constant-speed reparametrization on `[0, 1]`; its speed is its total length `L`. -/
 theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
     (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
+    (hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ theta : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -370,7 +352,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       pathELength I (gamma ∘ theta) 0 1 = pathELength I gamma a b := by
   obtain ⟨L, psi, hL, hL_pos, hpsi_maps, hpsi_mono, hpsi_zero, hpsi_L,
     _, _, hpsi_C1, hunit_C1, hunit, _, _, horiginalLength, _, htotalLength⟩ :=
-    exists_unit_speed_reparametrization_of_regular hab hgamma hreg
+    exists_unit_speed_reparametrization_of_regular hab hgamma hmdiff hreg
   let scale : ℝ → ℝ := fun t ↦ L * t
   let theta : ℝ → ℝ := psi ∘ scale
   have hscale_maps : MapsTo scale (Icc 0 1) (Icc 0 L) := by
@@ -401,8 +383,9 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     intro t ht
     by_contra hnot
     have hzero : riemannianSpeed I (gamma ∘ psi) t = 0 := by
-      rw [riemannianSpeed_apply, riemannianSpeed_eq_zero]
-      simp [mfderiv_zero_of_not_mdifferentiableAt hnot]
+      rw [riemannianSpeed_apply, norm_eq_zero]
+      rw [mfderiv_zero_of_not_mdifferentiableAt hnot]
+      rfl
     rw [hunit t ht] at hzero
     norm_num at hzero
   have hconstant : ∀ t ∈ Icc 0 1,

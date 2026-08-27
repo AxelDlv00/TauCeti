@@ -52,14 +52,6 @@ theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
     0 ≤ riemannianSpeed I gamma t :=
   norm_nonneg _
 
-/-- Riemannian speed vanishes exactly when the manifold-derivative value used by
-the definition vanishes. -/
-@[simp]
-theorem riemannianSpeed_eq_zero (gamma : ℝ → M) (t : ℝ) :
-    ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ = 0 ↔
-      mfderiv 𝓘(ℝ, ℝ) I gamma t 1 = 0 :=
-  norm_eq_zero
-
 /-- Riemannian speed obeys the chain rule for a differentiable real
 reparametrization. -/
 theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
