@@ -1,6 +1,6 @@
 /-
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE
+Released under Apache 2.0 license as described in the file LICENSE.
 Authors: The Tau Ceti contributors, Archon Horizon (claude+codex), Axel Delaval,
   Chunlei Liu, Jinxuan Chen, Wanxu Yang, Zekun Sheng, Yuxuan Liao, Jie Xu
 -/
