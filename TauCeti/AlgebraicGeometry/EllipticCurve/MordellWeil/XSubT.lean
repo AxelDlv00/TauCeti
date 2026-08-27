@@ -58,6 +58,9 @@ what makes the corrected element a unit. Both branches are packaged in `μX`, an
   kernel is exhibited as `2 • P` by solving the identity of `exists_eq_two_smul_iff` from a square
   root of `x - T`, in two cases according to whether the `x`-coordinate is a root of `f`; the
   point-wise statement is `WeierstrassCurve.Affine.eq_two_smul_of_μ_eq_one`.
+* `WeierstrassCurve.Affine.normM`, `WeierstrassCurve.Affine.range_μ_le_ker_normM`: the norm map
+  on square classes, and **the norm condition on the image of the descent map** — every square
+  class in the image of `μ` has square norm. This is what the `2`-descent tests a class against.
 * `WeierstrassCurve.Affine.norm_mk_C_sub_X_add_fCofactor`: at a root of `f`, the corrected
   representative `x - T + fCofactor x` has norm `(f' x) ^ 2`. This is the value the norm condition
   on the image of the descent map is read off from at the `2`-torsion.
@@ -91,8 +94,12 @@ that TauCeti carries a single spelling of square classes. In the kernel proofs t
 source's `Units.modPow.unit_eq_one_iff` step by `TauCeti.mk_eq_one_iff_exists_pow`, which says
 the same thing about this spelling, for any commutative monoid. `norm_mk_C_sub_X_add_fCofactor`
 is the source's Step 5 opening, `WeakMordellWeil.lean` lines 284-313, specialised here from the
-general `AdjoinRoot.norm_mk_C_sub_X_add`, which carries that attribution; the rest of that step,
-the induced norm map on square classes, is not here.
+general `AdjoinRoot.norm_mk_C_sub_X_add`, which carries that attribution. The rest of that step —
+the induced norm map on square classes and the containment of the image of `μ` in its kernel — is
+`WeakMordellWeil.lean` lines 873-919. It is adapted rather than copied: Stoll builds the map as
+`Units.modPow.map (Algebra.norm K) 2` through his local square-class abbreviation, and the single
+spelling this repo carries makes it a `QuotientGroup.map` into `Kˣ ⧸ (powMonoidHom 2).range`
+instead.
 
 This advances `TauCetiRoadmap/EllipticCurves/README.md`, Layer 6 (README:790-838), whose
 description of this route is "the `x - θ` map into the étale algebra `A = K[X]/(f)`".
@@ -978,6 +985,69 @@ lemma ker_μ_eq : (μ (W := W)).ker = (nsmulAddMonoidHom 2).range.toSubgroup := 
       exact fun hμ ↦ (eq_two_smul_of_μ_eq_one h (by rwa [μ_apply])).imp fun Q hQ ↦ hQ.symm
   · rintro ⟨Q, rfl⟩
     exact μ₀_two_nsmul Q
+
+/-!
+### The norm map on square classes
+
+`Algebra.norm K : W.A →* K` carries units to units and squares to squares, so it descends to the
+square classes: `normM` sends the class of `u : W.Aˣ` to the class of its norm in
+`Kˣ ⧸ (powMonoidHom 2).range`, the ambient of Mathlib's Selmer group. Both branches of `μX` have
+square norm — off the `2`-torsion the norm of `x - T` is `f x`, which the curve equation makes
+`y ^ 2`, and at a root of `f` the norm of the corrected representative is `(f' x) ^ 2` — so the
+image of `μ` lies in the kernel of `normM`. That containment is the norm condition the `2`-descent
+reads off the image of the descent map.
+-/
+
+section normM
+
+/-- **The norm map on square classes**, induced by `Algebra.norm K : W.A →* K`. It is well defined
+because the norm carries a square of `W.Aˣ` to a square of `Kˣ`. -/
+noncomputable def normM : W.M →* Kˣ ⧸ (powMonoidHom 2 : Kˣ →* Kˣ).range :=
+  QuotientGroup.map _ _ (Units.map (Algebra.norm K : W.A →* K)) <| by
+    rintro _ ⟨v, rfl⟩
+    refine ⟨Units.map (Algebra.norm K : W.A →* K) v, ?_⟩
+    simp only [powMonoidHom_apply]
+    exact (map_pow _ _ _).symm
+
+omit [W.IsCharNeTwoNF] [DecidableEq K] [W.IsElliptic] in
+/-- The value of `normM` on the class of a unit is the class of its norm. This is the
+characteristic lemma for `normM`, and the `simp` normal form. -/
+@[simp]
+lemma normM_mk (u : W.Aˣ) :
+    W.normM (u : W.M) =
+      (Units.map (Algebra.norm K : W.A →* K) u : Kˣ ⧸ (powMonoidHom 2 : Kˣ →* Kˣ).range) := by
+  simp [normM]
+
+omit [DecidableEq K] in
+/-- **Every value of `μX` has trivial norm class.** On the branch where `f x ≠ 0` the norm of
+`x - T` is `f x`, a square by the curve equation; at a root of `f` the norm of the corrected
+representative is `(f' x) ^ 2`. -/
+lemma normM_μX_eq_one {x y : K} (h : W.Equation x y) : W.normM (W.μX x) = 1 := by
+  rcases eq_or_ne (W.f.eval x) 0 with hx | hx
+  · rw [μX_of_eval_f_eq_zero hx, normM_mk, TauCeti.mk_eq_one_iff_exists_pow]
+    exact ⟨3 * x ^ 2 + 2 * W.a₂ * x + W.a₄, by
+      simpa using (W.norm_mk_C_sub_X_add_fCofactor hx).symm⟩
+  · rw [μX_of_eval_f_ne_zero hx, normM_mk, TauCeti.mk_eq_one_iff_exists_pow]
+    refine ⟨y, ?_⟩
+    simpa using ((equation_iff_eval_f_eq_sq W x y).mp h).symm.trans
+      (AdjoinRoot.norm_mk_C_sub_X W.monic_f x).symm
+
+omit [DecidableEq K] in
+@[simp]
+lemma normM_μ₀_eq_one (P : W.Point) : W.normM (W.μ₀ P) = 1 := by
+  match P with
+  | 0 => simp
+  | .some x y h => exact normM_μX_eq_one h.1
+
+/-- **The image of `μ` lies in the kernel of the norm map on square classes.** This is the norm
+condition on `im μ`: every square class in the image of the descent map has square norm. -/
+lemma range_μ_le_ker_normM : (μ (W := W)).range ≤ (normM (W := W)).ker := by
+  rintro _ ⟨P, rfl⟩
+  obtain ⟨P, rfl⟩ := Multiplicative.ofAdd.surjective P
+  rw [MonoidHom.mem_ker, μ_apply]
+  exact normM_μ₀_eq_one P
+
+end normM
 
 end Affine
 
