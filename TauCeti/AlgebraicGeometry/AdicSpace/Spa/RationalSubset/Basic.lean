@@ -7,6 +7,7 @@ module
 
 import TauCeti.RingTheory.Valuation.CofinalIdeal.Greatest
 public import TauCeti.AlgebraicGeometry.AdicSpace.Spa.Basic
+public import TauCeti.AlgebraicGeometry.AdicSpace.Spa.Points
 
 /-!
 # Rational subsets of the adic spectrum
@@ -85,6 +86,11 @@ layer deferred above.
 * `TauCeti.ValuationSpectrum.spa_eq_biUnion_rationalSubset_of_span_eq_top` : a finite set
   generating the unit ideal gives a standard rational cover, the forward implication of
   Corollary 7.53.
+* `TauCeti.ValuationSpectrum.span_eq_top_iff_forall_mem_spa_exists_not_vle_zero` : Corollary 7.53
+  in pointwise form — `T` generates the unit ideal exactly when no point vanishes on all of it.
+* `TauCeti.ValuationSpectrum.span_eq_top_iff_spa_eq_biUnion_rationalSubset` : Corollary 7.53 as
+  the roadmap states it — generating the unit ideal is equivalent to the standard family being a
+  cover. Only the `←` directions need the maximal ideals of `A` to be open.
 
 ## References
 
@@ -307,6 +313,38 @@ theorem spa_eq_biUnion_rationalSubset_of_span_eq_top (Aplus : Subring A) {T : Fi
     obtain ⟨s, hs, hmem⟩ := mem_rationalSubset_of_span_eq_top_of_mem_spa Aplus hT hv
     exact Set.mem_iUnion₂_of_mem hs hmem
   · exact Set.iUnion₂_subset fun t _ ↦ rationalSubset_subset_spa Aplus T t
+
+/-- **Wedhorn Corollary 7.53.** A finite set `T` generates the unit ideal exactly when no point
+of `Spa(A, A⁺)` vanishes on all of it. Combined with
+`spa_eq_biUnion_rationalSubset_of_span_eq_top`, this is what makes the standard family
+`(R(T/t))_{t ∈ T}` an open *covering* rather than merely a family.
+
+Wedhorn assumes a complete affinoid ring, where every maximal ideal is open. Here that is the
+explicit hypothesis `hmax`, and only the `←` direction uses it: the forward direction is
+`mem_rationalSubset_of_span_eq_top_of_mem_spa`, which holds over an arbitrary commutative ring.
+A consumer who has `Ideal.span T = ⊤` and wants the cover should use that lemma directly rather
+than this iff, so as not to acquire `hmax` for nothing. -/
+theorem span_eq_top_iff_forall_mem_spa_exists_not_vle_zero (Aplus : Subring A)
+    (hmax : ∀ (𝔪 : Ideal A), 𝔪.IsMaximal → IsOpen (𝔪 : Set A)) {T : Finset A} :
+    Ideal.span (T : Set A) = ⊤ ↔ ∀ v ∈ spa Aplus, ∃ t ∈ T, ¬ v.toValuativeRel.vle t 0 := by
+  refine ⟨fun hT v hv ↦ ?_,
+    fun h ↦ span_eq_top_of_forall_mem_spa_exists_not_vle_zero Aplus hmax (T := (T : Set A)) h⟩
+  obtain ⟨s, hs, hmem⟩ := mem_rationalSubset_of_span_eq_top_of_mem_spa Aplus hT hv
+  exact ⟨s, hs, ((mem_rationalSubset_iff Aplus T s v).mp hmem).2.2⟩
+
+/-- **Wedhorn Corollary 7.53, in the form the roadmap states it.** A finite set `T` generates the
+unit ideal exactly when the standard family `(R(T/t))_{t ∈ T}` covers `Spa(A, A⁺)`.
+
+The `→` direction is `spa_eq_biUnion_rationalSubset_of_span_eq_top` and needs no hypothesis on
+`A`; only `←` uses `hmax`, so a consumer who already has `Ideal.span T = ⊤` should take the cover
+from that lemma directly rather than through this iff. -/
+theorem span_eq_top_iff_spa_eq_biUnion_rationalSubset (Aplus : Subring A)
+    (hmax : ∀ (𝔪 : Ideal A), 𝔪.IsMaximal → IsOpen (𝔪 : Set A)) {T : Finset A} :
+    Ideal.span (T : Set A) = ⊤ ↔ spa Aplus = ⋃ t ∈ T, rationalSubset Aplus T t := by
+  refine ⟨spa_eq_biUnion_rationalSubset_of_span_eq_top Aplus, fun hcov ↦ ?_⟩
+  refine (span_eq_top_iff_forall_mem_spa_exists_not_vle_zero Aplus hmax).mpr fun v hv ↦ ?_
+  obtain ⟨s, hs, hmem⟩ := Set.mem_iUnion₂.mp (hcov ▸ hv)
+  exact ⟨s, hs, ((mem_rationalSubset_iff Aplus T s v).mp hmem).2.2⟩
 
 end TauCeti.ValuationSpectrum
 
