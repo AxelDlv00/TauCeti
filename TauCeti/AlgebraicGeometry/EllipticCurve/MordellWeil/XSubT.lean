@@ -15,7 +15,7 @@ public import Mathlib.Tactic.Field
 public import Mathlib.Tactic.LinearCombination
 public import TauCeti.Algebra.Group.MapMulMulEqOne
 public import TauCeti.Algebra.Polynomial.LinearFactor
-public import TauCeti.RingTheory.AdjoinRoot
+public import TauCeti.RingTheory.AdjoinRoot.Basic
 import TauCeti.Algebra.Group.PowMonoidHom
 import TauCeti.RingTheory.Polynomial.Resultant.AdjoinRoot
 
@@ -73,8 +73,8 @@ These declarations extend Mathlib's own `WeierstrassCurve.Affine` namespace rath
 under `TauCeti`. That is forced by dot notation: `Affine` is a reducible abbreviation for
 `WeierstrassCurve`, so `W.f` is resolved by a direct lookup on the structure's namespace and a
 `TauCeti.`-prefixed copy is never found. Writing `f W` throughout instead would diverge from the
-source for no gain. `TauCeti/RingTheory/AdjoinRoot.lean` sets the same precedent for a file whose
-whole content extends a Mathlib namespace.
+source for no gain. `TauCeti/RingTheory/AdjoinRoot/Basic.lean` sets the same precedent for a file
+whose whole content extends a Mathlib namespace.
 
 ## Provenance
 
