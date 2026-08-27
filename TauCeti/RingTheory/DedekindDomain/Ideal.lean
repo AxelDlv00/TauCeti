@@ -5,6 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.RingTheory.Valuation.Discrete.IsDiscreteValuationRing
 public import Mathlib.RingTheory.DedekindDomain.Ideal.Lemmas
 
 /-!
@@ -323,5 +324,25 @@ theorem IsPrimeTo.induction_on {motive : Ideal R → Prop} (h : IsPrimeTo I S)
       exact mul_prime (HeightOneSpectrum.ofPrime hp) J hbad hJ (ih hJ)
 
 end Ideal
+
+section DiscreteValuationRing
+
+namespace IsDedekindDomain.HeightOneSpectrum
+
+/-- The maximal ideal is the only height-one prime of a discrete valuation ring.
+
+Mathlib has `IsDiscreteValuationRing.maximalIdeal` as a `HeightOneSpectrum` and
+`IsLocalRing.eq_maximalIdeal` for ideals, but not that the two agree at the level of
+`HeightOneSpectrum`. That identification is what lets a statement about the height-one primes of a
+discrete valuation ring be read as a statement about its valuation. -/
+-- Not `@[simp]`: the left-hand side is the bare variable `P`, so its head symbol is a variable and
+-- the compiler rejects the annotation outright ("the theorem will be tried on every simp step").
+lemma eq_maximalIdeal {A : Type*} [CommRing A] [IsDomain A] [IsDiscreteValuationRing A]
+    (P : HeightOneSpectrum A) : P = IsDiscreteValuationRing.maximalIdeal A :=
+  HeightOneSpectrum.ext (IsLocalRing.eq_maximalIdeal P.isMaximal)
+
+end IsDedekindDomain.HeightOneSpectrum
+
+end DiscreteValuationRing
 
 end
