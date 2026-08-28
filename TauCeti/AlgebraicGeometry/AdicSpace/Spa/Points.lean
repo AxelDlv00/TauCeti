@@ -58,11 +58,8 @@ point of the adic spectrum — the point of its trivial valuation, `trivialSecti
 Wedhorn states the proposition for maximal ideals; the proof needs only primality. -/
 theorem exists_mem_spa_supp_eq (Aplus : Subring A) (𝔭 : Ideal A) [𝔭.IsPrime]
     (h𝔭 : IsOpen (𝔭 : Set A)) : ∃ v ∈ spa Aplus, supp v = 𝔭 := by
-  refine ⟨trivialSection ⟨𝔭, ‹_›⟩, (mem_spa_iff Aplus _).mpr ⟨?_, fun a _ ↦ ?_⟩, ?_⟩
-  · exact (isContinuous_trivialSection_iff _).mpr h𝔭
-  · exact (trivialSection_vle_iff _ a 1).mpr
-      (Or.inr ((Ideal.ne_top_iff_one 𝔭).mp ‹𝔭.IsPrime›.ne_top))
-  · rw [← suppFun_asIdeal, suppFun_trivialSection]
+  refine ⟨trivialSection ⟨𝔭, ‹_›⟩, trivialSection_mem_spa Aplus h𝔭, ?_⟩
+  rw [← suppFun_asIdeal, suppFun_trivialSection]
 
 /-- **The converse half of Wedhorn Corollary 7.53.** If every maximal ideal of `A` is open and
 every point of `Spa(A, A⁺)` is nonzero on some member of `T`, then `T` generates the unit ideal.
