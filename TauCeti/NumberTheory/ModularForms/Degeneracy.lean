@@ -686,7 +686,7 @@ lemma exists_conjScale_mem_Gamma0 (d M : ℕ) (γ : ↥(Gamma0 (d * M))) :
   have hc : (γ : SL(2, ℤ)) 1 0 = d * ((M : ℤ) * t) := by rw [ht]; push_cast; ring
   refine ⟨_, hc, Gamma0_mem.mpr (by simp), ?_⟩
   ext
-  simp [Gamma0Map, ZMod.unitsMap_def]
+  simp [Gamma0Map_apply, ZMod.unitsMap_def]
 
 /-- The `diag(d, 1)`-conjugate of a matrix of `Γ₀(N)` lies in `Γ₀(M)` whenever `d * M ∣ N`, and
 the conjugation leaves the lower-right entry alone: the diamond label of `γ` is read along the
