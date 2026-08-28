@@ -35,6 +35,13 @@ of an ideal weight on a number field; the design of the predicate — nonzerones
 `⊥` is prime to no set at all — is taken from there, while nothing in it is specific to a number
 field.
 
+The file also identifies any height-one prime of a discrete valuation ring with its maximal ideal
+(`IsDedekindDomain.HeightOneSpectrum.eq_maximalIdeal`), which is what lets a condition stated at
+the height-one primes of such a ring be read as a condition on its valuation. It was split out of
+material adapted from Michael Stoll's elliptic-curves formalisation
+(`EllipticCurves/Mathlib/AdicCompletionExtension.lean` at the roadmap's pin `66889eada51a`,
+Apache 2.0, by Michael Stoll), where it is the step behind `valuation_adicCompletion_algebraMap`.
+
 The theorem `IsDedekindDomain.HeightOneSpectrum.exists_mem_notMem` was split out of material
 adapted from Michael Stoll's elliptic-curves formalisation
 (`github.com/MichaelStollBayreuth/EllipticCurves`, `EllipticCurves/Mathlib/SIntegers.lean` at the
