@@ -23,11 +23,12 @@ evaluations, the identities they inherit from the series, and their membership, 
 non-vanishing properties.
 
 Two hypotheses appear here, and they do different work. `PowerSeries.HasEval t` is what evaluation
-itself requires, and it is all the algebraic identities require: each of them is the image of an
-identity of series under the ring homomorphism `PowerSeries.eval₂Hom`. Membership in a power of an
-ideal requires more — the ideal `I`, and that the ambient topology is its adic one — because it
-comes from `MvPowerSeries.eval₂_mem_pow`, which sums the monomial estimates inside the closed set
-`I ^ k`.
+itself requires, and it is what almost every result here asks for: the algebraic identities are
+each the image of an identity of series under the ring homomorphism `PowerSeries.eval₂Hom`, and
+`formalWEval_mem` and `formalInverseEval_mem` read their memberships off those identities, so
+neither takes an adic hypothesis. Exactly one result needs more — `formalUEval_sub_one_mem`, which
+also takes the ideal `I` and that the ambient topology is its adic one, being the file's one appeal
+to `MvPowerSeries.eval₂_mem_pow`, which sums the monomial estimates inside the closed set `I ^ k`.
 
 Only two of the five values are confined to `I ^ k`, and neither needs that estimate: `w(t)` and
 `ι(t)` factor as `t ^ 3 * u(t)` and `-(t * d(t)⁻¹)`, so a parameter in `I ^ k` carries them there.
