@@ -27,9 +27,13 @@ The old subspace is stable under the diamond operators, because `V_d` intertwine
 (`TauCeti.CuspForm.diamondOpCusp_levelRaise`). This is the lemma behind the fixed-nebentypus
 refinement `S_k(N, χ)ⁿᵉʷ = S_k(Γ₁(N))ⁿᵉʷ ⊓ S_k(N, χ)` of Layer 3 of the ModularForms roadmap,
 which additionally needs the diamond operators to be Petersson-unitary and is carried out in
-`TauCeti/NumberTheory/ModularForms/Newforms/Nebentypus.lean`. The stability of the new subspace
-under the Hecke operators is still missing: the Hecke action on forms is Layer 2 of that
-roadmap, and does not yet exist.
+`TauCeti/NumberTheory/ModularForms/Newforms/Nebentypus.lean`.
+
+The old subspace is likewise stable under the Hecke operators at primes `p` coprime to the level
+(`TauCeti.heckeTCuspNat_mem_cuspFormsOld`, in
+`TauCeti/NumberTheory/ModularForms/Newforms/HeckeStability.lean`), for the Hecke action
+`TauCeti.HeckeRing.GL2.heckeTCuspNat` on cusp forms. The corresponding stability of the *new*
+subspace is still missing.
 
 ## Main definitions
 
