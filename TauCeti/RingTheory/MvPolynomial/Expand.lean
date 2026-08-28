@@ -59,11 +59,9 @@ public section
 
 namespace TauCeti
 
-/-- Multivariate form of the univariate argument in Stacks, Lemma 10.161.13 (tag 032O).
-Proof: "`R′[x^{1/q}]` is finite over `R[x]`" —
-the inductive step of the spanning argument. Every monomial lies in the span, over the image of
-`MvPolynomial.expand n`, of the monomials with all exponents below `n`: write each exponent as
-`n * γ + β` with `β < n`, so that `X ^ (n • γ + β) = expand n (X ^ γ) * X ^ β`. -/
+/-- Every monomial lies in the span, over the image of `MvPolynomial.expand n`, of the monomials
+with all exponents below `n`: write each exponent as `n * γ + β` with `β < n`, so that
+`X ^ (n • γ + β) = expand n (X ^ γ) * X ^ β`. -/
 private theorem MvPolynomial.monomial_mem_span_monomial_lt {σ R : Type*} [CommSemiring R]
     [Finite σ]
     {n : ℕ} (hn : 0 < n) (d : σ →₀ ℕ) (r : R) :
