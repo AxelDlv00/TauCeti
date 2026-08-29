@@ -107,6 +107,15 @@ theorem coe_typeBLongCorootGenerator (i j : ι) (hij : i ≠ j) :
       Matrix (Unit ⊕ ι ⊕ ι) (Unit ⊕ ι ⊕ ι) K) = typeBLongCorootMatrix i j hij :=
   (rfl)
 
+/-- The long coroot has coordinate vector `εᵢ - εⱼ` in the split diagonal Cartan. -/
+theorem typeBLongCorootGenerator_eq_diagonal (i j : ι) (hij : i ≠ j) :
+    typeBLongCorootGenerator (K := K) i j hij =
+      ((typeBDiagonalEquiv (K := K) (ι := ι) (Pi.single i 1 - Pi.single j 1) :
+        typeBDiagonalCartan K ι) : LieAlgebra.Orthogonal.typeB ι K) := by
+  apply Subtype.ext
+  rw [coe_typeBDiagonalEquiv_apply]
+  rfl
+
 /-- Opposite long-root vectors bracket to their diagonal coroot. -/
 @[simp]
 theorem typeBLongRootGenerator_lie_swap (i j : ι) (hij : i ≠ j) :
@@ -190,6 +199,56 @@ theorem coe_typeBShortNegativeRootGenerator (i : ι) :
       Matrix (Unit ⊕ ι ⊕ ι) (Unit ⊕ ι ⊕ ι) K) = typeBShortNegativeRootMatrix i :=
   (rfl)
 
+/-! ### Diagonal action on root generators -/
+
+/-- A split diagonal element acts on the long-root vector of weight `εᵢ - εⱼ` by that
+weight. -/
+@[simp]
+theorem typeBDiagonalEquiv_lie_longRootGenerator (d : ι → K) (i j : ι) (hij : i ≠ j) :
+    ⁅(⟨typeBDiagonalMatrix d, typeBDiagonalMatrix_mem_typeB d⟩ :
+        LieAlgebra.Orthogonal.typeB ι K), typeBLongRootGenerator (K := K) i j hij⁆ =
+      (d i - d j) • typeBLongRootGenerator i j hij := by
+  apply Subtype.ext
+  -- The subtype bracket reduces definitionally to the ambient matrix commutator.
+  change typeBDiagonalMatrix d * typeBLongRootMatrix i j hij -
+      typeBLongRootMatrix i j hij * typeBDiagonalMatrix d =
+        (d i - d j) • typeBLongRootMatrix i j hij
+  ext (a | (a | a)) (b | (b | b)) <;>
+    simp [typeBLongRootMatrix, typeBDiagonalMatrix_apply, Matrix.mul_apply,
+      Matrix.single_apply, sub_eq_add_neg]
+  all_goals
+    by_cases hia : i = a <;> by_cases hja : j = a <;>
+      by_cases hib : i = b <;> by_cases hjb : j = b <;> simp_all <;> aesop
+
+/-- A split diagonal element acts on the positive short-root vector of weight `εᵢ`. -/
+@[simp]
+theorem typeBDiagonalEquiv_lie_shortRootGenerator (d : ι → K) (i : ι) :
+    ⁅(⟨typeBDiagonalMatrix d, typeBDiagonalMatrix_mem_typeB d⟩ :
+        LieAlgebra.Orthogonal.typeB ι K), typeBShortRootGenerator (K := K) i⁆ =
+      d i • typeBShortRootGenerator i := by
+  apply Subtype.ext
+  -- The subtype bracket reduces definitionally to the ambient matrix commutator.
+  change typeBDiagonalMatrix d * typeBShortRootMatrix i -
+      typeBShortRootMatrix i * typeBDiagonalMatrix d = d i • typeBShortRootMatrix i
+  ext (a | (a | a)) (b | (b | b)) <;>
+    simp [typeBShortRootMatrix, typeBDiagonalMatrix_apply, Matrix.mul_apply,
+      Matrix.single_apply] <;> aesop
+
+/-- A split diagonal element acts on the negative short-root vector of weight `-εᵢ`. -/
+@[simp]
+theorem typeBDiagonalEquiv_lie_shortNegativeRootGenerator (d : ι → K) (i : ι) :
+    ⁅(⟨typeBDiagonalMatrix d, typeBDiagonalMatrix_mem_typeB d⟩ :
+        LieAlgebra.Orthogonal.typeB ι K), typeBShortNegativeRootGenerator (K := K) i⁆ =
+      -(d i) • typeBShortNegativeRootGenerator i := by
+  apply Subtype.ext
+  -- The subtype bracket reduces definitionally to the ambient matrix commutator.
+  change typeBDiagonalMatrix d * typeBShortNegativeRootMatrix i -
+      typeBShortNegativeRootMatrix i * typeBDiagonalMatrix d =
+        -(d i) • typeBShortNegativeRootMatrix i
+  ext (a | (a | a)) (b | (b | b)) <;>
+    simp [typeBShortNegativeRootMatrix, typeBDiagonalMatrix_apply, Matrix.mul_apply,
+      Matrix.single_apply] <;> aesop
+
 /-- The diagonal short coroot `2εᵢ` in the standard type-`B` coordinates. -/
 def typeBShortCorootMatrix (i : ι) : Matrix (Unit ⊕ ι ⊕ ι) (Unit ⊕ ι ⊕ ι) K :=
   typeBDiagonalMatrix (2 • Pi.single i 1)
@@ -203,6 +262,15 @@ theorem coe_typeBShortCorootGenerator (i : ι) :
     (typeBShortCorootGenerator (K := K) i :
       Matrix (Unit ⊕ ι ⊕ ι) (Unit ⊕ ι ⊕ ι) K) = typeBShortCorootMatrix i :=
   (rfl)
+
+/-- The short coroot has coordinate vector `2εᵢ` in the split diagonal Cartan. -/
+theorem typeBShortCorootGenerator_eq_diagonal (i : ι) :
+    typeBShortCorootGenerator (K := K) i =
+      ((typeBDiagonalEquiv (K := K) (ι := ι) (2 • Pi.single i 1) :
+        typeBDiagonalCartan K ι) : LieAlgebra.Orthogonal.typeB ι K) := by
+  apply Subtype.ext
+  rw [coe_typeBDiagonalEquiv_apply]
+  rfl
 
 /-- The positive and negative short-root vectors bracket to the short coroot. -/
 @[simp]
