@@ -12,6 +12,7 @@ public import TauCeti.Algebra.Lie.UniversalEnveloping.Kostant.RootSubgroup.Schem
 public import TauCeti.Algebra.Lie.UniversalEnveloping.Kostant.RootSubgroup.Scheme.ToralClosure.Relations
 public import TauCeti.Algebra.Lie.UniversalEnveloping.Kostant.RootSubgroup.Scheme.ToralClosure.Torus
 public import TauCeti.Algebra.Lie.UniversalEnveloping.MatrixRepresentation
+public import TauCeti.LinearAlgebra.CoordinateLattice
 public import TauCeti.LinearAlgebra.Eigenspace.Binomial
 public import TauCeti.RingTheory.Binomial
 import TauCeti.Algebra.Lie.GeneralLinear.DiagonalCartan
@@ -316,31 +317,30 @@ theorem lie_cartanGenerator_rootGenerator (k : Fin r ⊕ Fin r) (j : Fin r) :
 /-- **The standard `ℤ`-lattice of the standard `sl_{r+1}`-module**, spanned by the coordinate
 vectors. -/
 def lattice : Submodule ℤ (Fin (r + 1) → ℚ) :=
-  Submodule.span ℤ (Set.range (Pi.basisFun ℚ (Fin (r + 1))))
+  TauCeti.coordinateLattice (Fin (r + 1))
 
 /-- A vector lies in the standard lattice exactly when all of its coordinates are integers. -/
 @[simp]
 theorem mem_lattice_iff {v : Fin (r + 1) → ℚ} :
     v ∈ lattice r ↔ ∀ i, ∃ z : ℤ, (z : ℚ) = v i := by
-  rw [lattice, Module.Basis.mem_span_iff_repr_mem]
-  simp only [Pi.basisFun_repr, algebraMap_int_eq, Int.coe_castRingHom, Set.mem_range]
+  exact TauCeti.mem_coordinateLattice_iff (Fin (r + 1))
 
 theorem single_mem_lattice (i : Fin (r + 1)) : Pi.single i (1 : ℚ) ∈ lattice r := by
-  rw [lattice, ← Pi.basisFun_apply]
-  exact Submodule.subset_span (Set.mem_range_self i)
+  rw [← Pi.basisFun_apply]
+  exact TauCeti.basisFun_mem_coordinateLattice (Fin (r + 1)) i
 
 /-- The coordinate basis of the standard lattice.
 
 The carrier subtype and `ℤ`-module structure of a submodule are definitionally equal to those of
 its underlying additive subgroup, so the restricted-scalars basis has the displayed target type. -/
 noncomputable def latticeBasis : Module.Basis (Fin (r + 1)) ℤ (lattice r).toAddSubgroup :=
-  (Pi.basisFun ℚ (Fin (r + 1))).restrictScalars ℤ
+  TauCeti.coordinateLatticeBasis (Fin (r + 1))
 
 @[simp]
 theorem coe_latticeBasis (i : Fin (r + 1)) :
     ((latticeBasis r i : (lattice r).toAddSubgroup) : Fin (r + 1) → ℚ) = Pi.single i 1 := by
-  unfold latticeBasis lattice
-  rw [Module.Basis.restrictScalars_apply, Pi.basisFun_apply]
+  rw [← Pi.basisFun_apply, latticeBasis]
+  exact TauCeti.coe_coordinateLatticeBasis (Fin (r + 1)) i
 
 /-! ## Stability of the lattice under the Kostant form -/
 
@@ -360,14 +360,8 @@ theorem rep_dividedPower_rootGenerator_mem_lattice (k : Fin r ⊕ Fin r) (n : �
     rep r (Associative.dividedPower n
         (_root_.UniversalEnvelopingAlgebra.ι ℚ (rootGenerator r k))) v ∈ lattice r := by
   rw [Associative.map_dividedPower]
-  match n with
-  | 0 => rwa [Associative.dividedPower_zero, Module.End.one_apply]
-  | 1 => rw [Associative.dividedPower_one]; exact rep_rootGenerator_mem_lattice r k hv
-  | (n + 2) =>
-      rw [Associative.dividedPower_def,
-        pow_eq_zero_of_le (m := 2) (by omega) (pow_two_rep_rootGenerator_eq_zero r k), smul_zero,
-        LinearMap.zero_apply]
-      exact zero_mem _
+  exact Associative.dividedPower_apply_mem_of_pow_two_eq_zero _ _
+    (pow_two_rep_rootGenerator_eq_zero r k) (rep_rootGenerator_mem_lattice r k) n hv
 
 /-- **Every Cartan binomial operator preserves the standard lattice.** The coordinate vectors are
 weight vectors with integer weights, so the binomial coefficients act on them by integers. -/
@@ -376,22 +370,13 @@ theorem rep_ringChoose_cartanGenerator_mem_lattice (i : Fin r) (n : ℕ)
     rep r (Ring.choose (_root_.UniversalEnvelopingAlgebra.ι ℚ (cartanGenerator r i)) n) v ∈
       lattice r := by
   rw [lattice] at hv ⊢
-  induction hv using Submodule.span_induction with
-  | mem v hv =>
-      obtain ⟨x, rfl⟩ := hv
-      rw [Pi.basisFun_apply, Ring.map_choose]
-      have hweight := (TauCeti.UniversalEnvelopingAlgebra.isCartanWeightVector_iff
-        (cartanGenerator r) (rep r)).1 (isCartanWeightVector_single r x) i
-      rw [ringChoose_end_apply_of_apply_eq_smul hweight n, TauCeti.Ring.choose_intCast,
-        Int.cast_smul_eq_zsmul ℚ]
-      have hx : Pi.single x (1 : ℚ) ∈
-          Submodule.span ℤ (Set.range (Pi.basisFun ℚ (Fin (r + 1)))) := by
-        rw [← Pi.basisFun_apply]
-        exact Submodule.subset_span (Set.mem_range_self x)
-      exact Submodule.smul_mem _ _ hx
-  | zero => rw [map_zero]; exact zero_mem _
-  | add x y _ _ hx hy => rw [map_add]; exact add_mem hx hy
-  | smul z x _ hx => rw [map_zsmul]; exact Submodule.smul_mem _ z hx
+  rw [Ring.map_choose]
+  refine TauCeti.ringChoose_end_apply_mem_coordinateLattice_of_apply_eq_intCast_smul
+    (Fin (r + 1)) (weight := fun x => weight r x i) ?_ n hv
+  intro x
+  rw [Pi.basisFun_apply]
+  exact (TauCeti.UniversalEnvelopingAlgebra.isCartanWeightVector_iff
+    (cartanGenerator r) (rep r)).1 (isCartanWeightVector_single r x) i
 
 /-- **The standard lattice is an admissible lattice**: the Kostant `ℤ`-form presented by the
 numbered Chevalley generators preserves it. -/
