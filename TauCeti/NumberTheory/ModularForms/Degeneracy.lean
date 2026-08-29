@@ -9,6 +9,7 @@ import Mathlib.Data.Nat.Prime.Int
 import TauCeti.Data.ZMod.Divisibility
 public import Mathlib.NumberTheory.ModularForms.QExpansion
 public import Mathlib.RingTheory.PowerSeries.Expand
+public import TauCeti.Algebra.GroupWithZero.Divisibility
 public import TauCeti.NumberTheory.ModularForms.Basic
 public import TauCeti.NumberTheory.ModularForms.CongruenceSubgroups.Units
 public import TauCeti.NumberTheory.ModularForms.DiamondOperators
@@ -707,13 +708,13 @@ reduction of `u` acts on `f`. Both sides are slashes by a matrix of `Γ₀`, rel
 theorem CuspForm.diamondOpCusp_levelRaise {M d N : ℕ} [NeZero N]
     (hdvd : d * M ∣ N) (k : ℤ) (u : (ZMod N)ˣ)
     (f : CuspForm ((Gamma1 M).map (mapGL ℝ)) k) :
-    haveI : NeZero d := ⟨fun hd ↦ NeZero.ne N (by simpa [hd] using hdvd)⟩
-    haveI : NeZero M := ⟨fun hM ↦ NeZero.ne N (by simpa [hM] using hdvd)⟩
+    haveI : NeZero d := NeZero.of_dvd (dvd_of_mul_right_dvd hdvd)
+    haveI : NeZero M := NeZero.of_dvd (dvd_of_mul_left_dvd hdvd)
     diamondOpCusp k u (CuspForm.levelRaise d (Gamma1_map_le_conjAct_scaleGL_of_dvd hdvd) f) =
       CuspForm.levelRaise d (Gamma1_map_le_conjAct_scaleGL_of_dvd hdvd)
         (diamondOpCusp k (ZMod.unitsMap ((Dvd.intro_left d rfl).trans hdvd) u) f) := by
-  let _ : NeZero d := ⟨fun hd ↦ NeZero.ne N (by simpa [hd] using hdvd)⟩
-  let _ : NeZero M := ⟨fun hM ↦ NeZero.ne N (by simpa [hM] using hdvd)⟩
+  let _ : NeZero d := NeZero.of_dvd (dvd_of_mul_right_dvd hdvd)
+  let _ : NeZero M := NeZero.of_dvd (dvd_of_mul_left_dvd hdvd)
   obtain ⟨γ, hγ⟩ := Gamma0Map_toHomUnits_surjective u
   obtain ⟨c, hc, hm, heq⟩ := exists_conjScale_mem_Gamma0_of_dvd d M N hdvd γ
   refine DFunLike.coe_injective ?_
