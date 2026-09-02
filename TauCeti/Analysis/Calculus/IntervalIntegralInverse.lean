@@ -29,20 +29,18 @@ namespace TauCeti
 
 noncomputable section
 
-/-- The primitive of a continuous, everywhere positive real function has a
+/-- The primitive of a continuous positive real function on `[a, b]` has a
 `C¹` inverse on the interval between the primitive's endpoint values.
 
-The conclusion records the inverse's construction, the primitive's strict
-monotonicity and interval image, both inverse identities, the endpoint values,
-and the derivative of the inverse. -/
+The conclusion records both interval inverse identities, the endpoint values,
+monotonicity, and the derivative of the inverse. Values of the inverse outside
+the primitive's interval image are intentionally left unspecified. -/
 theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b : ℝ}
-    (hab : a < b) (hv_cont : Continuous v) (hv_pos : ∀ t, 0 < v t) :
+    (hab : a < b) (hv_cont : ContinuousOn v (Icc a b))
+    (hv_pos : ∀ t ∈ Icc a b, 0 < v t) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
       L = ∫ t in a..b, v t ∧
-      psi = Function.invFun (fun t ↦ ∫ s in a..t, v s) ∧
       0 < L ∧
-      StrictMono (fun t ↦ ∫ s in a..t, v s) ∧
-      (fun t ↦ ∫ s in a..t, v s) '' Icc a b = Icc 0 L ∧
       MapsTo psi (Icc 0 L) (Icc a b) ∧
       MonotoneOn psi (Icc 0 L) ∧
       psi 0 = a ∧
@@ -51,22 +49,41 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
       (∀ s ∈ Icc 0 L, ∫ t in a..psi s, v t = s) ∧
       ContDiffOn ℝ 1 psi (Icc 0 L) ∧
       (∀ s ∈ Icc 0 L, HasDerivAt psi (v (psi s))⁻¹ s) := by
-  -- First build the primitive and prove its derivative, additivity, and strict
-  -- monotonicity from positivity of the integrand.
-  let phi : ℝ → ℝ := fun t ↦ ∫ s in a..t, v s
-  have hphi_strict : ∀ t, HasStrictDerivAt phi (v t) t := by
+  -- Clamp the integrand to `[a, b]`; this is an internal device for applying
+  -- the global inverse-function theorem and is invisible in the public API.
+  let p : ℝ → Icc a b := projIcc a b hab.le
+  let w : ℝ → ℝ := (Icc a b).domRestrict v ∘ p
+  have hw_cont : Continuous w := hv_cont.domRestrict.comp continuous_projIcc
+  have hw_eq : ∀ t ∈ Icc a b, w t = v t := by
+    intro t ht
+    simp only [w, p, Function.comp_apply, Set.domRestrict_apply,
+      projIcc_of_mem hab.le ht]
+  have hw_pos : ∀ t, 0 < w t := by
     intro t
-    simpa only [phi] using hv_cont.integral_hasStrictDerivAt a t
-  have hphi_add : ∀ s t, phi t = phi s + ∫ r in s..t, v r := by
+    simpa only [w, Function.comp_apply, Set.domRestrict_apply] using
+      hv_pos (p t) (p t).property
+  have hintegral_eq : ∀ t ∈ Icc a b,
+      (∫ s in a..t, w s) = ∫ s in a..t, v s := by
+    intro t ht
+    refine intervalIntegral.integral_congr fun r hr ↦ hw_eq r ?_
+    rw [uIcc_of_le ht.1] at hr
+    exact ⟨hr.1, hr.2.trans ht.2⟩
+  -- Build the primitive of the clamped extension and prove its derivative,
+  -- additivity, and strict monotonicity from positivity.
+  let phi : ℝ → ℝ := fun t ↦ ∫ s in a..t, w s
+  have hphi_strict : ∀ t, HasStrictDerivAt phi (w t) t := by
+    intro t
+    simpa only [phi] using hw_cont.integral_hasStrictDerivAt a t
+  have hphi_add : ∀ s t, phi t = phi s + ∫ r in s..t, w r := by
     intro s t
     have hadd := intervalIntegral.integral_add_adjacent_intervals (μ := MeasureTheory.volume)
-      (hv_cont.intervalIntegrable a s) (hv_cont.intervalIntegrable s t)
+      (hw_cont.intervalIntegrable a s) (hw_cont.intervalIntegrable s t)
     simpa only [phi] using hadd.symm
   have hphi_mono : StrictMono phi := by
     intro s t hst
-    have hpos : 0 < ∫ r in s..t, v r :=
+    have hpos : 0 < ∫ r in s..t, w r :=
       intervalIntegral.intervalIntegral_pos_of_pos_on
-        (hv_cont.intervalIntegrable s t) (fun r _ ↦ hv_pos r) hst
+        (hw_cont.intervalIntegrable s t) (fun r _ ↦ hw_pos r) hst
     rw [hphi_add s t]
     linarith
   have hphi_cont : Continuous phi :=
@@ -80,11 +97,11 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     Function.leftInverse_invFun hphi_inj
   let W : Set ℝ := Set.range phi
   have hphi_open : IsOpenMap phi :=
-    isOpenMap_of_hasStrictDerivAt hphi_strict (fun t ↦ (hv_pos t).ne')
-  have hpsi_deriv_local : ∀ t, HasDerivAt psi (v t)⁻¹ (phi t) := by
+    isOpenMap_of_hasStrictDerivAt hphi_strict (fun t ↦ (hw_pos t).ne')
+  have hpsi_deriv_local : ∀ t, HasDerivAt psi (w t)⁻¹ (phi t) := by
     intro t
-    have hstrict : HasStrictDerivAt (Function.invFun phi) (v t)⁻¹ (phi t) :=
-      (hphi_strict t).to_local_left_inverse (hv_pos t).ne'
+    have hstrict : HasStrictDerivAt (Function.invFun phi) (w t)⁻¹ (phi t) :=
+      (hphi_strict t).to_local_left_inverse (hw_pos t).ne'
         (Filter.Eventually.of_forall (Function.leftInverse_invFun hphi_inj))
     simpa only [psi] using hstrict.hasDerivAt
   have hW_open : IsOpen W := by
@@ -92,7 +109,7 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
   have hright : ∀ s ∈ W, phi (psi s) = s := by
     rintro s ⟨t, rfl⟩
     rw [hleft t]
-  have hpsi_hasDeriv : ∀ s ∈ W, HasDerivAt psi (v (psi s))⁻¹ s := by
+  have hpsi_hasDeriv : ∀ s ∈ W, HasDerivAt psi (w (psi s))⁻¹ s := by
     rintro s ⟨t, rfl⟩
     rw [hleft t]
     exact hpsi_deriv_local t
@@ -100,15 +117,15 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     (hpsi_hasDeriv s hs).differentiableAt.differentiableWithinAt
   have hpsi_cont : ContinuousOn psi W := fun s hs ↦
     (hpsi_hasDeriv s hs).continuousAt.continuousWithinAt
-  have hpsi_deriv_eq : EqOn (deriv psi) (fun s ↦ (v (psi s))⁻¹) W :=
+  have hpsi_deriv_eq : EqOn (deriv psi) (fun s ↦ (w (psi s))⁻¹) W :=
     fun s hs ↦ (hpsi_hasDeriv s hs).deriv
   -- Upgrade the pointwise inverse derivative to `C¹` regularity on the open
   -- range before restricting to the compact endpoint interval.
   have hpsi_C1 : ContDiffOn ℝ 1 psi W := by
     rw [contDiffOn_one_iff_derivWithin hW_open.uniqueDiffOn]
     refine ⟨hpsi_diff, ?_⟩
-    have hc : ContinuousOn (fun s ↦ (v (psi s))⁻¹) W :=
-      (hv_cont.comp_continuousOn hpsi_cont).inv₀ fun s _ ↦ (hv_pos (psi s)).ne'
+    have hc : ContinuousOn (fun s ↦ (w (psi s))⁻¹) W :=
+      (hw_cont.comp_continuousOn hpsi_cont).inv₀ fun s _ ↦ (hw_pos (psi s)).ne'
     refine hc.congr fun s hs ↦ ?_
     rw [derivWithin_of_isOpen hW_open hs, hpsi_deriv_eq hs]
   -- Identify the endpoint image, then package the inverse, monotonicity,
@@ -117,7 +134,7 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
   have hphi_a : phi a = 0 := by
     simp only [phi, intervalIntegral.integral_same]
   have hphi_b : phi b = L := by
-    simp only [phi, L]
+    simpa only [phi, L] using hintegral_eq b (right_mem_Icc.mpr hab.le)
   have hL_pos : 0 < L := by
     have hlt := hphi_mono hab
     rwa [hphi_a, hphi_b] at hlt
@@ -147,18 +164,18 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
   have hpsi_L : psi L = b := by
     rw [← hphi_b, hleft b]
   have hleft_Icc : ∀ t ∈ Icc a b, psi (∫ s in a..t, v s) = t := by
-    intro t _
+    intro t ht
+    rw [← hintegral_eq t ht]
     simpa only [phi] using hleft t
   have hright_Icc : ∀ s ∈ Icc 0 L, ∫ t in a..psi s, v t = s := by
     intro s hs
+    rw [← hintegral_eq (psi s) (hmaps hs)]
     simpa only [phi] using hright s (hIccW hs)
-  refine ⟨L, psi, ?_, ?_, hL_pos, ?_, ?_, hmaps, hpsi_mono,
-    hpsi_zero, hpsi_L, hleft_Icc, hright_Icc, hpsi_C1.mono hIccW, ?_⟩
+  refine ⟨L, psi, ?_, hL_pos, hmaps, hpsi_mono, hpsi_zero, hpsi_L,
+    hleft_Icc, hright_Icc, hpsi_C1.mono hIccW, ?_⟩
   · simp only [L]
-  · simp only [psi, phi]
-  · simpa only [phi] using hphi_mono
-  · simpa only [phi] using himage
-  · exact fun s hs ↦ hpsi_hasDeriv s (hIccW hs)
+  · intro s hs
+    simpa only [hw_eq (psi s) (hmaps hs)] using hpsi_hasDeriv s (hIccW hs)
 
 end
 

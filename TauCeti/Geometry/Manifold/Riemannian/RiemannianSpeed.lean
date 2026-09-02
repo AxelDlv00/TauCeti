@@ -42,6 +42,7 @@ def riemannianSpeed (gamma : ℝ → M) (t : ℝ) : ℝ :=
   ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖
 
 /-- The definition equation for Riemannian speed. -/
+@[simp]
 theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
     riemannianSpeed I gamma t = ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
   by simp only [riemannianSpeed]
