@@ -48,10 +48,10 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
   by simp only [riemannianSpeed]
 
 /-- Riemannian speed is nonnegative. -/
-@[simp]
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
-    0 ≤ ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
-  norm_nonneg _
+    0 ≤ riemannianSpeed I gamma t := by
+  rw [riemannianSpeed_apply]
+  exact norm_nonneg _
 
 /-- Riemannian speed obeys the chain rule for a differentiable real
 reparametrization. -/
