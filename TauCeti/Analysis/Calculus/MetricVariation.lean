@@ -121,12 +121,15 @@ theorem eVariationOn_le_lintegral_enorm_derivWithin {f : ℝ → F} {a b : ℝ}
 
 variable [CompleteSpace F]
 
-/-- For a `C¹` curve in a complete real normed space, and an ordered interval
-`a ≤ b`, the integral of the norm of its derivative is bounded by its metric
-total variation. -/
+/-- For a `C¹` curve in a complete real normed space, the integral of the norm
+of its derivative is bounded by its metric total variation. -/
 theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
-    (hab : a ≤ b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
+    (hf : ContDiffOn ℝ 1 f (Icc a b)) :
     ∫⁻ t in Icc a b, ‖derivWithin f (Icc a b) t‖ₑ ≤ eVariationOn f (Icc a b) := by
+  by_cases hab : a ≤ b
+  swap
+  · rw [Icc_eq_empty hab]
+    simp
   rcases hab.eq_or_lt with rfl | hab
   · simp
   let p : ℝ → ℝ := fun t ↦ (Set.projIcc a b hab.le t).val
@@ -269,13 +272,12 @@ theorem lintegral_enorm_derivWithin_le_eVariationOn {f : ℝ → F} {a b : ℝ}
     _ = eVariationOn f (Icc a b) := hvariation
 
 /-- The metric total variation of a `C¹` curve in a complete real normed space
-on an ordered interval `a ≤ b` equals the integral of the norm of its
-derivative. -/
+equals the integral of the norm of its derivative. -/
 theorem eVariationOn_eq_lintegral_enorm_derivWithin {f : ℝ → F} {a b : ℝ}
-    (hab : a ≤ b) (hf : ContDiffOn ℝ 1 f (Icc a b)) :
+    (hf : ContDiffOn ℝ 1 f (Icc a b)) :
     eVariationOn f (Icc a b) = ∫⁻ t in Icc a b, ‖derivWithin f (Icc a b) t‖ₑ :=
   le_antisymm (eVariationOn_le_lintegral_enorm_derivWithin hf)
-    (lintegral_enorm_derivWithin_le_eVariationOn hab hf)
+    (lintegral_enorm_derivWithin_le_eVariationOn hf)
 
 end
 
