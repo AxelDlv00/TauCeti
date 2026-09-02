@@ -106,9 +106,8 @@ theorem chartLocalFrame_apply_of_mem_chart_source_eq_symm (α : M) {x : M}
     (i : Fin (Module.finrank ℝ E)) :
     chartLocalFrame (I := I) α i x =
       (trivializationAt E (TangentSpace I) α).symm x ((Module.finBasis ℝ E) i) := by
-  rw [chartLocalFrame_apply_of_mem_chart_source (I := I) α hx i,
-    Bundle.Trivialization.basisAt, Basis.map_apply,
-    Bundle.Trivialization.linearEquivAt_symm_apply]
+  rw [chartLocalFrame_apply_of_mem_chart_source (I := I) α hx i]
+  rfl
 
 /-- The inverse tangent trivialization expands in the canonical chart-local frame. The
 coefficients are the coordinates in `Module.finBasis ℝ E`; the chart-source hypothesis is needed
