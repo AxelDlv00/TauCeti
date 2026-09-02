@@ -51,6 +51,8 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
       (∀ s ∈ Icc 0 L, ∫ t in a..psi s, v t = s) ∧
       ContDiffOn ℝ 1 psi (Icc 0 L) ∧
       (∀ s ∈ Icc 0 L, HasDerivAt psi (v (psi s))⁻¹ s) := by
+  -- First build the primitive and prove its derivative, additivity, and strict
+  -- monotonicity from positivity of the integrand.
   let phi : ℝ → ℝ := fun t ↦ ∫ s in a..t, v s
   have hphi_strict : ∀ t, HasStrictDerivAt phi (v t) t := by
     intro t
@@ -71,6 +73,8 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     continuous_iff_continuousAt.mpr fun t ↦
       (hphi_strict t).hasDerivAt.continuousAt
   have hphi_inj : Function.Injective phi := hphi_mono.injective
+  -- Construct the global inverse and obtain its derivative on the primitive's
+  -- open range from the strict inverse-function theorem.
   let psi : ℝ → ℝ := Function.invFun phi
   have hleft : ∀ t, psi (phi t) = t :=
     Function.leftInverse_invFun hphi_inj
@@ -98,6 +102,8 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     (hpsi_hasDeriv s hs).continuousAt.continuousWithinAt
   have hpsi_deriv_eq : EqOn (deriv psi) (fun s ↦ (v (psi s))⁻¹) W :=
     fun s hs ↦ (hpsi_hasDeriv s hs).deriv
+  -- Upgrade the pointwise inverse derivative to `C¹` regularity on the open
+  -- range before restricting to the compact endpoint interval.
   have hpsi_C1 : ContDiffOn ℝ 1 psi W := by
     rw [contDiffOn_one_iff_derivWithin hW_open.uniqueDiffOn]
     refine ⟨hpsi_diff, ?_⟩
@@ -105,6 +111,8 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
       (hv_cont.comp_continuousOn hpsi_cont).inv₀ fun s _ ↦ (hv_pos (psi s)).ne'
     refine hc.congr fun s hs ↦ ?_
     rw [derivWithin_of_isOpen hW_open hs, hpsi_deriv_eq hs]
+  -- Identify the endpoint image, then package the inverse, monotonicity,
+  -- endpoint, regularity, and derivative conclusions on `Icc 0 L`.
   let L : ℝ := ∫ t in a..b, v t
   have hphi_a : phi a = 0 := by
     simp only [phi, intervalIntegral.integral_same]

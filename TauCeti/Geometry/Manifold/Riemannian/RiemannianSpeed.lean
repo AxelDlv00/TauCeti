@@ -42,12 +42,12 @@ def riemannianSpeed (gamma : ℝ → M) (t : ℝ) : ℝ :=
   ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖
 
 /-- The definition equation for Riemannian speed. -/
-@[simp]
 theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
     riemannianSpeed I gamma t = ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
-  riemannianSpeed.eq_1 I gamma t
+  by simp only [riemannianSpeed]
 
 /-- Riemannian speed is nonnegative. -/
+@[simp, grind]
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
     0 ≤ riemannianSpeed I gamma t :=
   norm_nonneg _
@@ -67,6 +67,10 @@ theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
     -- In the one-dimensional model, both tangent spaces reduce to `ℝ`.
     apply (NormedSpace.fromTangentSpace (f t)).injective
     rw [mfderiv_eq_fderiv]
+    -- `mfderiv_eq_fderiv` leaves the derivative viewed through the
+    -- definitional identification of real tangent spaces with `ℝ`. No public
+    -- rewriting lemma exposes that application, so normalize this scalar goal
+    -- before using the ordinary derivative API.
     change (fderiv ℝ f t) (1 : ℝ) = deriv f t * 1
     rw [fderiv_apply_one_eq_deriv, mul_one]
   rw [hmf, map_smul, norm_smul, Real.norm_eq_abs]
@@ -110,10 +114,8 @@ theorem continuousOn_riemannianSpeed {gamma : ℝ → M} {s : Set ℝ}
         (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)
         (mfderiv 𝓘(ℝ, ℝ) I gamma t 1)) s := by
     exact htangent.inner_bundle htangent
-  -- The Riemannian fiber norm is the square root of the self-inner-product.
-  change ContinuousOn (fun t ↦ √(inner ℝ
-    (mfderiv 𝓘(ℝ, ℝ) I gamma t 1) (mfderiv 𝓘(ℝ, ℝ) I gamma t 1))) s
-  exact hinner.sqrt
+  refine hinner.sqrt.congr fun t _ ↦ ?_
+  rw [riemannianSpeed_apply, norm_eq_sqrt_real_inner]
 
 /-- Riemannian speed is continuous at every point where the curve is `C^1`. -/
 theorem continuousAt_riemannianSpeed {gamma : ℝ → M} {t : ℝ}
