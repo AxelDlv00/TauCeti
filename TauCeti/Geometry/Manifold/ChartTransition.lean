@@ -9,18 +9,24 @@ public import Mathlib.Geometry.Manifold.MFDeriv.Atlas
 import Mathlib.Analysis.Calculus.FDeriv.Symmetric
 
 /-!
-# Chart transitions and their derivatives
+# Derivatives of extended coordinate changes
 
-This module packages the chart-transition family used by manifold calculus. For charts centred at
-`β` and `α`, `chartTransition β α` is the extended-coordinate map from `β` to `α`, restricted by
-`chartTransitionSource β α` to their common overlap. The module records the overlap identities,
-smoothness, first derivative, and the coordinate entries of the first and second derivatives.
+Mathlib represents the change from `β`-coordinates to `α`-coordinates by the
+partial equivalence `I.extendCoordChange (chartAt H β) (chartAt H α)`. This
+module develops the additional derivative formulas needed by manifold
+calculus: its derivative is the tangent-coordinate change, its second
+derivative is symmetric, and its first-derivative coordinate entries have the
+expected derivative.
+
+`extCoordChange` is a reducible abbreviation of Mathlib's partial equivalence,
+so its source, target, inverse, and invertibility API remain available without
+translation lemmas.
 
 The declarations port the transition section of
 `DoCarmoLib/Riemannian/Connection/ChartChristoffelChange.lean` at source revision
-`24f32e4d600878bfaac6bc2f2f9324175571c321` ([poincareConjectureDoCarmo]). The definitions only
-use the manifold structure, so this port has no dependency on a Riemannian metric or a vector
-bundle.
+`24f32e4d600878bfaac6bc2f2f9324175571c321` ([poincareConjectureDoCarmo]). They use
+only the manifold structure, so this port has no dependency on a Riemannian
+metric or a vector bundle.
 
 ## References
 
@@ -34,253 +40,174 @@ public section
 
 noncomputable section
 
-open Bundle Manifold Set Filter
-open scoped Manifold Topology ContDiff Matrix
+open Manifold Set Filter
+open scoped Manifold Topology ContDiff
 
 namespace TauCeti.Manifold
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
-  [FiniteDimensional ℝ E]
   {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
   {M : Type*} [TopologicalSpace M] [ChartedSpace H M]
 
-section Transition
+/-- Mathlib's extended coordinate change from `β`-coordinates to
+`α`-coordinates. This abbreviation preserves the underlying partial
+equivalence and all of its existing API. -/
+abbrev extCoordChange (β α : M) : PartialEquiv E E :=
+  I.extendCoordChange (chartAt H β) (chartAt H α)
+
+/-- Membership in the source of the extended coordinate change, expressed in
+terms of the two extended charts. -/
+@[simp]
+theorem mem_extCoordChange_source_iff {β α : M} {y : E} :
+    y ∈ (extCoordChange (I := I) β α).source ↔
+      y ∈ (extChartAt I β).target ∧
+        (extChartAt I β).symm y ∈ (chartAt H α).source := by
+  have hchange :
+      extCoordChange (I := I) β α =
+        (extChartAt I β).symm ≫ extChartAt I α := rfl
+  rw [hchange, PartialEquiv.trans_source, PartialEquiv.symm_source,
+    extChartAt_source]
+  simp only [mem_inter_iff, mem_preimage]
+
+section Boundaryless
 
 variable [I.Boundaryless]
 
-/-- The transition from `β`-coordinates to `α`-coordinates on the extended chart model
-([doCarmo1992]). -/
-def chartTransition (β α : M) : E → E :=
-  extChartAt I α ∘ (extChartAt I β).symm
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- Unfold the chart-transition map ([doCarmo1992]). -/
-@[simp]
-theorem chartTransition_def (β α : M) (y : E) :
-    chartTransition (I := I) β α y =
-      extChartAt I α ((extChartAt I β).symm y) := by
-  simp only [chartTransition, Function.comp_apply]
-
-/-- The overlap of the two extended charts, written in `β`-coordinates ([doCarmo1992]). -/
-def chartTransitionSource (β α : M) : Set E :=
-  ((extChartAt I β).symm.trans (extChartAt I α)).source
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The transition-source formula in terms of the extended chart target and source
-([doCarmo1992]). -/
-theorem chartTransitionSource_eq (β α : M) :
-    chartTransitionSource (I := I) (M := M) β α =
-      (extChartAt I β).target ∩
-        (extChartAt I β).symm ⁻¹' (chartAt H α).source := by
-  unfold chartTransitionSource
-  rw [PartialEquiv.trans_source, PartialEquiv.symm_source, extChartAt_source]
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- Membership in the common transition source is membership in the target of the `β` chart and
-membership of its inverse image in the `α` chart source. -/
-@[simp] theorem mem_chartTransitionSource_iff {β α : M} {y : E} :
-    y ∈ chartTransitionSource (I := I) (M := M) β α ↔
-      y ∈ (extChartAt I β).target ∧ (extChartAt I β).symm y ∈ (chartAt H α).source := by
-  rw [chartTransitionSource_eq]
-  simp only [mem_inter_iff, mem_preimage]
-
-omit [FiniteDimensional ℝ E] in
-/-- The common transition source is open ([doCarmo1992]). -/
-theorem isOpen_chartTransitionSource (β α : M) :
-    IsOpen (chartTransitionSource (I := I) (M := M) β α) := by
-  rw [chartTransitionSource_eq]
-  exact ContinuousOn.isOpen_inter_preimage (continuousOn_extChartAt_symm β)
-    (isOpen_extChartAt_target β) (chartAt H α).open_source
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The inverse `β`-chart coordinate of an overlap point comes from the `β` chart source. -/
-lemma extChartAt_symm_mem_chartAt_source_left {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    (extChartAt I β).symm y ∈ (chartAt H β).source := by
-  rw [chartTransitionSource_eq] at hy
-  have h := (extChartAt I β).map_target hy.1
-  rwa [extChartAt_source] at h
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The inverse `β`-chart coordinate of an overlap point also lies in the `α` chart source. -/
-lemma extChartAt_symm_mem_chartAt_source_right {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    (extChartAt I β).symm y ∈ (chartAt H α).source := by
-  rw [chartTransitionSource_eq] at hy
-  exact hy.2
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The transition image lies in the target of the `α` extended chart. -/
-lemma chartTransition_mem_target {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    chartTransition (I := I) β α y ∈ (extChartAt I α).target := by
-  refine (extChartAt I α).map_source ?_
-  rw [extChartAt_source]
-  exact extChartAt_symm_mem_chartAt_source_right (I := I) hy
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The inverse `α`-chart map recovers the inverse `β`-chart map on the overlap. -/
-lemma extChartAt_symm_chartTransition {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    (extChartAt I α).symm (chartTransition (I := I) β α y) =
-      (extChartAt I β).symm y := by
-  refine (extChartAt I α).left_inv ?_
-  rw [extChartAt_source]
-  exact extChartAt_symm_mem_chartAt_source_right (I := I) hy
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- A point in both chart sources yields a point in the transition source ([doCarmo1992]). -/
-theorem extChartAt_mem_chartTransitionSource {β α : M} {x : M}
-    (hxβ : x ∈ (chartAt H β).source) (hxα : x ∈ (chartAt H α).source) :
-    extChartAt I β x ∈ chartTransitionSource (I := I) (M := M) β α := by
-  have hxβ' : x ∈ (extChartAt I β).source := by
-    rw [extChartAt_source]
-    exact hxβ
-  rw [chartTransitionSource_eq]
-  refine ⟨(extChartAt I β).map_source hxβ', ?_⟩
-  rw [mem_preimage, (extChartAt I β).left_inv hxβ']
-  exact hxα
-
-omit [FiniteDimensional ℝ E] [I.Boundaryless] in
-/-- The transition map sends a `β`-chart coordinate back to the `α`-chart coordinate
-([doCarmo1992]). -/
-theorem chartTransition_extChartAt {β α : M} {x : M}
-    (hxβ : x ∈ (chartAt H β).source) :
-    chartTransition (I := I) β α (extChartAt I β x) = extChartAt I α x := by
-  have hxβ' : x ∈ (extChartAt I β).source := by
-    rw [extChartAt_source]
-    exact hxβ
-  rw [chartTransition_def, (extChartAt I β).left_inv hxβ']
-
-section SmoothTransition
-
-variable [IsManifold I ∞ M]
-
-omit [FiniteDimensional ℝ E] in
-/-- Smoothness of a chart transition at a point of its overlap ([doCarmo1992]). -/
-theorem contDiffAt_chartTransition {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    ContDiffAt ℝ ∞ (chartTransition (I := I) β α) y :=
-  (contDiffOn_ext_coord_change (I := I) α β).contDiffAt
-    ((isOpen_chartTransitionSource (I := I) β α).mem_nhds hy)
-
-end SmoothTransition
+/-- The extended coordinate change is `C^n` at every point of its source. -/
+theorem contDiffAt_extCoordChange {n : WithTop ℕ∞} [IsManifold I n M]
+    {β α : M} {y : E} (hy : y ∈ (extCoordChange (I := I) β α).source) :
+    ContDiffAt ℝ n (extCoordChange (I := I) β α) y := by
+  have hsource : (extCoordChange (I := I) β α).source ∈ 𝓝 y := by
+    have hsourceWithin :=
+      I.extendCoordChange_source_mem_nhdsWithin
+        (e := chartAt H β) (e' := chartAt H α) hy
+    simpa only [I.range_eq_univ, nhdsWithin_univ] using hsourceWithin
+  have hcont :=
+    (contDiffOn_ext_coord_change (I := I) (n := n) α β).contDiffAt hsource
+  simpa only [extCoordChange, ModelWithCorners.extendCoordChange, extChartAt,
+    PartialEquiv.coe_trans] using hcont
 
 section FirstDerivative
 
 variable [IsManifold I 1 M]
 
-omit [FiniteDimensional ℝ E] in
-/-- The derivative of a chart transition is the tangent-coordinate change ([doCarmo1992]). -/
-theorem hasFDerivAt_chartTransition {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    HasFDerivAt (chartTransition (I := I) β α)
+/-- The derivative of the extended coordinate change is the
+tangent-coordinate change ([doCarmo1992]). -/
+theorem hasFDerivAt_extCoordChange {β α : M} {y : E}
+    (hy : y ∈ (extCoordChange (I := I) β α).source) :
+    HasFDerivAt (extCoordChange (I := I) β α)
       (tangentCoordChange I β α ((extChartAt I β).symm y)) y := by
+  have hmem := (mem_extCoordChange_source_iff (I := I) (M := M)).mp hy
   have hβ : (extChartAt I β).symm y ∈ (extChartAt I β).source := by
-    have hyTarget : y ∈ (extChartAt I β).target :=
-      (mem_chartTransitionSource_iff (I := I) (M := M)).mp hy |>.1
-    simpa only [extChartAt_source] using (extChartAt I β).map_target hyTarget
+    simpa only [extChartAt_source] using (extChartAt I β).map_target hmem.1
   have hα : (extChartAt I β).symm y ∈ (extChartAt I α).source := by
-    rw [extChartAt_source]
-    exact (mem_chartTransitionSource_iff (I := I) (M := M)).mp hy |>.2
+    simpa only [extChartAt_source] using hmem.2
   have hw := hasFDerivWithinAt_tangentCoordChange (I := I) ⟨hβ, hα⟩
-  rw [I.range_eq_univ] at hw
-  have hyTarget : y ∈ (extChartAt I β).target :=
-    (mem_chartTransitionSource_iff (I := I) (M := M)).mp hy |>.1
-  rw [(extChartAt I β).right_inv hyTarget] at hw
-  exact hasFDerivWithinAt_univ.mp hw
+  rw [I.range_eq_univ, (extChartAt I β).right_inv hmem.1] at hw
+  simpa only [extCoordChange, ModelWithCorners.extendCoordChange, extChartAt,
+    PartialEquiv.coe_trans] using hasFDerivWithinAt_univ.mp hw
 
-omit [FiniteDimensional ℝ E] in
-/-- The Fréchet derivative of a chart transition, in the overlap source ([doCarmo1992]). -/
-theorem fderiv_chartTransition {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    fderiv ℝ (chartTransition (I := I) β α) y =
+/-- The Frechet derivative of the extended coordinate change at a point of its
+source. -/
+theorem fderiv_extCoordChange {β α : M} {y : E}
+    (hy : y ∈ (extCoordChange (I := I) β α).source) :
+    fderiv ℝ (extCoordChange (I := I) β α) y =
       tangentCoordChange I β α ((extChartAt I β).symm y) :=
-  (hasFDerivAt_chartTransition (I := I) hy).fderiv
+  (hasFDerivAt_extCoordChange (I := I) hy).fderiv
 
 end FirstDerivative
 
-/-- The coordinate entries of the first derivative of a chart transition. -/
-def transitionDeriv (β α : M) (a i : Fin (Module.finrank ℝ E)) (y : E) : ℝ :=
+end Boundaryless
+
+section CoordinateEntries
+
+variable [FiniteDimensional ℝ E]
+
+/-- The coordinate entries of the first derivative of an extended coordinate
+change. -/
+def extCoordChangeDeriv (β α : M) (a i : Fin (Module.finrank ℝ E))
+    (y : E) : ℝ :=
   (Module.finBasis ℝ E).coord a
-    (fderiv ℝ (chartTransition (I := I) β α) y ((Module.finBasis ℝ E) i))
+    (fderiv ℝ (extCoordChange (I := I) β α) y ((Module.finBasis ℝ E) i))
 
-omit [I.Boundaryless] in
-/-- **Math.** Unfolding the first transition derivative exposes its coordinate definition. -/
-@[simp] lemma transitionDeriv_def (β α : M) (a i : Fin (Module.finrank ℝ E)) (y : E) :
-    transitionDeriv (I := I) β α a i y
-      = (Module.finBasis ℝ E).coord a
-          (fderiv ℝ (chartTransition (I := I) β α) y ((Module.finBasis ℝ E) i)) := by
-  simp only [transitionDeriv]
+/-- Unfold the first extended-coordinate-change derivative entry. -/
+@[simp]
+theorem extCoordChangeDeriv_def (β α : M)
+    (a i : Fin (Module.finrank ℝ E)) (y : E) :
+    extCoordChangeDeriv (I := I) β α a i y =
+      (Module.finBasis ℝ E).coord a
+        (fderiv ℝ (extCoordChange (I := I) β α) y
+          ((Module.finBasis ℝ E) i)) := by
+  simp only [extCoordChangeDeriv]
 
-/-- **Math.** `B^a_{ki}(y)`: the second-derivative coefficient of the transition —
-classically `∂²x^a/∂y^k∂y^i`. -/
-def transitionSndDeriv (β α : M) (a k i : Fin (Module.finrank ℝ E)) (y : E) : ℝ :=
+/-- The second-derivative coefficient of an extended coordinate change:
+`∂²x^a/∂y^k∂y^i`. -/
+def extCoordChangeSndDeriv (β α : M)
+    (a k i : Fin (Module.finrank ℝ E)) (y : E) : ℝ :=
   (Module.finBasis ℝ E).coord a
-    (fderiv ℝ (fderiv ℝ (chartTransition (I := I) β α)) y ((Module.finBasis ℝ E) k)
-      ((Module.finBasis ℝ E) i))
+    (fderiv ℝ (fderiv ℝ (extCoordChange (I := I) β α)) y
+      ((Module.finBasis ℝ E) k) ((Module.finBasis ℝ E) i))
 
-omit [I.Boundaryless] in
-/-- **Math.** Unfolding the second transition derivative exposes its coordinate definition. -/
-@[simp] lemma transitionSndDeriv_def (β α : M)
+/-- Unfold the second extended-coordinate-change derivative entry. -/
+@[simp]
+theorem extCoordChangeSndDeriv_def (β α : M)
     (a k i : Fin (Module.finrank ℝ E)) (y : E) :
-    transitionSndDeriv (I := I) β α a k i y
-      = (Module.finBasis ℝ E).coord a
-          (fderiv ℝ (fderiv ℝ (chartTransition (I := I) β α)) y
-            ((Module.finBasis ℝ E) k) ((Module.finBasis ℝ E) i)) := by
-  simp only [transitionSndDeriv]
+    extCoordChangeSndDeriv (I := I) β α a k i y =
+      (Module.finBasis ℝ E).coord a
+        (fderiv ℝ (fderiv ℝ (extCoordChange (I := I) β α)) y
+          ((Module.finBasis ℝ E) k) ((Module.finBasis ℝ E) i)) := by
+  simp only [extCoordChangeSndDeriv]
 
 section SecondDerivative
 
-variable [IsManifold I 2 M]
+variable [I.Boundaryless] [IsManifold I 2 M]
 
-/-- **Math.** **Schwarz symmetry** of the transition second derivative in the two
-differentiation directions: `∂²x^a/∂y^k∂y^i = ∂²x^a/∂y^i∂y^k` on the overlap. -/
-lemma transitionSndDeriv_symm {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α)
+/-- Schwarz symmetry of the extended coordinate change's second derivative:
+`∂²x^a/∂y^k∂y^i = ∂²x^a/∂y^i∂y^k` on its source. -/
+theorem extCoordChangeSndDeriv_symm {β α : M} {y : E}
+    (hy : y ∈ (extCoordChange (I := I) β α).source)
     (a k i : Fin (Module.finrank ℝ E)) :
-    transitionSndDeriv (I := I) β α a k i y
-      = transitionSndDeriv (I := I) β α a i k y := by
-  have hcont : ContDiffAt ℝ 2 (chartTransition (I := I) β α) y :=
-    (contDiffOn_ext_coord_change (I := I) (n := 2) α β).contDiffAt
-      ((isOpen_chartTransitionSource (I := I) β α).mem_nhds hy)
-  have hsymm : IsSymmSndFDerivAt ℝ (chartTransition (I := I) β α) y := by
-    exact hcont.isSymmSndFDerivAt (by
+    extCoordChangeSndDeriv (I := I) β α a k i y =
+      extCoordChangeSndDeriv (I := I) β α a i k y := by
+  have hcont : ContDiffAt ℝ 2 (extCoordChange (I := I) β α) y :=
+    contDiffAt_extCoordChange (I := I) hy
+  have hsymm : IsSymmSndFDerivAt ℝ (extCoordChange (I := I) β α) y :=
+    hcont.isSymmSndFDerivAt (by
       rw [minSmoothness_of_isRCLikeNormedField])
-  rw [transitionSndDeriv_def, transitionSndDeriv_def, hsymm.eq]
+  rw [extCoordChangeSndDeriv_def, extCoordChangeSndDeriv_def, hsymm.eq]
 
 omit [FiniteDimensional ℝ E] in
-/-- **Math.** The moving transition derivative `y ↦ Dτ(y)` is differentiable on the
-overlap (as a map into continuous linear maps), with derivative the second
-derivative of the transition. -/
-lemma hasFDerivAt_fderiv_chartTransition {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α) :
-    HasFDerivAt (fderiv ℝ (chartTransition (I := I) β α))
-      (fderiv ℝ (fderiv ℝ (chartTransition (I := I) β α)) y) y := by
-  have hcont : ContDiffAt ℝ 2 (chartTransition (I := I) β α) y :=
-    (contDiffOn_ext_coord_change (I := I) (n := 2) α β).contDiffAt
-      ((isOpen_chartTransitionSource (I := I) β α).mem_nhds hy)
-  have h1 : ContDiffAt ℝ 1 (fderiv ℝ (chartTransition (I := I) β α)) y := by
-    exact hcont.fderiv_right (by norm_num)
+/-- The moving derivative of an extended coordinate change is differentiable
+on its source, with derivative its second derivative. -/
+theorem hasFDerivAt_fderiv_extCoordChange {β α : M} {y : E}
+    (hy : y ∈ (extCoordChange (I := I) β α).source) :
+    HasFDerivAt (fderiv ℝ (extCoordChange (I := I) β α))
+      (fderiv ℝ (fderiv ℝ (extCoordChange (I := I) β α)) y) y := by
+  have hcont : ContDiffAt ℝ 2 (extCoordChange (I := I) β α) y :=
+    contDiffAt_extCoordChange (I := I) hy
+  have h1 : ContDiffAt ℝ 1
+      (fderiv ℝ (extCoordChange (I := I) β α)) y :=
+    hcont.fderiv_right (by norm_num)
   exact (h1.differentiableAt one_ne_zero).hasFDerivAt
 
-/-- **Math.** The matrix-entry function `A^a_i` is differentiable on the overlap,
-with partial derivatives the second-derivative coefficients `B^a_{ki}`. -/
-lemma hasFDerivAt_transitionDeriv {β α : M} {y : E}
-    (hy : y ∈ chartTransitionSource (I := I) (M := M) β α)
+/-- The matrix-entry function of the first derivative has partial derivatives
+given by the second-derivative coefficients. -/
+theorem hasFDerivAt_extCoordChangeDeriv {β α : M} {y : E}
+    (hy : y ∈ (extCoordChange (I := I) β α).source)
     (a i : Fin (Module.finrank ℝ E)) :
-    HasFDerivAt (transitionDeriv (I := I) β α a i)
+    HasFDerivAt (extCoordChangeDeriv (I := I) β α a i)
       (((Module.finBasis ℝ E).coord a).toContinuousLinearMap.comp
         ((ContinuousLinearMap.apply ℝ E ((Module.finBasis ℝ E) i)).comp
-          (fderiv ℝ (fderiv ℝ (chartTransition (I := I) β α)) y))) y := by
-  have h2 := hasFDerivAt_fderiv_chartTransition (I := I) hy
-  have h3 := ((ContinuousLinearMap.apply ℝ E ((Module.finBasis ℝ E) i)).hasFDerivAt.comp
-    y h2)
+          (fderiv ℝ (fderiv ℝ (extCoordChange (I := I) β α)) y))) y := by
+  have h2 := hasFDerivAt_fderiv_extCoordChange (I := I) hy
+  have h3 :=
+    ((ContinuousLinearMap.apply ℝ E ((Module.finBasis ℝ E) i)).hasFDerivAt.comp
+      y h2)
   exact ((Module.finBasis ℝ E).coord a).toContinuousLinearMap.hasFDerivAt.comp y h3
 
 end SecondDerivative
 
-end Transition
+end CoordinateEntries
 
 end TauCeti.Manifold
 
