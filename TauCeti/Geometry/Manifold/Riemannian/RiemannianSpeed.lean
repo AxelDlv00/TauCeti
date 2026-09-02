@@ -50,7 +50,7 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
 /-- Riemannian speed is nonnegative. -/
 @[simp]
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
-    0 ≤ riemannianSpeed I gamma t :=
+    0 ≤ ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
   norm_nonneg _
 
 /-- Riemannian speed obeys the chain rule for a differentiable real
