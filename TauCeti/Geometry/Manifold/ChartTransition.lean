@@ -55,20 +55,6 @@ equivalence and all of its existing API. -/
 abbrev extCoordChange (β α : M) : PartialEquiv E E :=
   I.extendCoordChange (chartAt H β) (chartAt H α)
 
-/-- Membership in the source of the extended coordinate change, expressed in
-terms of the two extended charts. -/
-@[simp]
-theorem mem_extCoordChange_source_iff {β α : M} {y : E} :
-    y ∈ (extCoordChange (I := I) β α).source ↔
-      y ∈ (extChartAt I β).target ∧
-        (extChartAt I β).symm y ∈ (chartAt H α).source := by
-  have hchange :
-      extCoordChange (I := I) β α =
-        (extChartAt I β).symm ≫ extChartAt I α := rfl
-  rw [hchange, PartialEquiv.trans_source, PartialEquiv.symm_source,
-    extChartAt_source]
-  simp only [mem_inter_iff, mem_preimage]
-
 section Boundaryless
 
 variable [I.Boundaryless]
@@ -97,11 +83,16 @@ theorem hasFDerivAt_extCoordChange {β α : M} {y : E}
     (hy : y ∈ (extCoordChange (I := I) β α).source) :
     HasFDerivAt (extCoordChange (I := I) β α)
       (tangentCoordChange I β α ((extChartAt I β).symm y)) y := by
-  have hmem := (mem_extCoordChange_source_iff (I := I) (M := M)).mp hy
+  have hmem := hy
+  have hchange :
+      extCoordChange (I := I) β α =
+        (extChartAt I β).symm ≫ extChartAt I α := rfl
+  rw [hchange, PartialEquiv.trans_source, PartialEquiv.symm_source,
+    extChartAt_source] at hmem
   have hβ : (extChartAt I β).symm y ∈ (extChartAt I β).source := by
     simpa only [extChartAt_source] using (extChartAt I β).map_target hmem.1
   have hα : (extChartAt I β).symm y ∈ (extChartAt I α).source := by
-    simpa only [extChartAt_source] using hmem.2
+    simpa only [extChartAt_source, mem_preimage] using hmem.2
   have hw := hasFDerivWithinAt_tangentCoordChange (I := I) ⟨hβ, hα⟩
   rw [I.range_eq_univ, (extChartAt I β).right_inv hmem.1] at hw
   simpa only [extCoordChange, ModelWithCorners.extendCoordChange, extChartAt,
