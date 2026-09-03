@@ -88,8 +88,9 @@ theorem riemannianSpeed_comp (gamma : ℝ → M) (f : ℝ → ℝ) (t : ℝ)
 variable [IsManifold I 1 M]
   [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
 
-/-- The speed is continuous on a set where the curve is `C^1`, provided its
-within derivative agrees there with its actual derivative. -/
+/-- The speed is continuous on a set where the curve is `C^1`, provided the
+curve is differentiable at every point of that set and the set is uniquely
+mdifferentiable. -/
 theorem continuousOn_riemannianSpeed {gamma : ℝ → M} {s : Set ℝ}
     (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma s)
     (hmdiff : ∀ t ∈ s, MDiffAt gamma t) (hunique : UniqueMDiff[s]) :
