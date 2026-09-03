@@ -232,10 +232,8 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
   have hunit_mdiff : ∀ t ∈ Icc 0 L, MDiffAt (gamma ∘ psi) t := by
     intro t ht
     by_contra hnot
-    have hzero : riemannianSpeed I (gamma ∘ psi) t = 0 := by
-      rw [riemannianSpeed_apply, norm_eq_zero]
-      rw [mfderiv_zero_of_not_mdifferentiableAt hnot]
-      rfl
+    have hzero := riemannianSpeed_eq_zero_of_not_mdifferentiableAt
+      I (gamma ∘ psi) t hnot
     rw [hunit t ht] at hzero
     norm_num at hzero
   have hconstant : ∀ t ∈ Icc 0 1,

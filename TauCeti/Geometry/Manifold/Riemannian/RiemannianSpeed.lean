@@ -47,11 +47,20 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
     riemannianSpeed I gamma t = ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
   by simp only [riemannianSpeed]
 
-/-- Riemannian speed is nonnegative. -/
+/-- Riemannian speed is nonnegative. This theorem is intentionally not a simp rule:
+`riemannianSpeed_apply` is the canonical simplification direction, while the public definition
+is opaque to downstream projects. -/
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
     0 ≤ riemannianSpeed I gamma t := by
   rw [riemannianSpeed_apply]
   exact norm_nonneg _
+
+/-- A curve that is not differentiable at a point has zero Riemannian speed there. -/
+theorem riemannianSpeed_eq_zero_of_not_mdifferentiableAt
+    (gamma : ℝ → M) (t : ℝ) (h : ¬MDiffAt gamma t) :
+    riemannianSpeed I gamma t = 0 := by
+  rw [riemannianSpeed_apply, mfderiv_zero_of_not_mdifferentiableAt h]
+  simp
 
 /-- Riemannian speed obeys the chain rule for a differentiable real
 reparametrization. -/
