@@ -8,7 +8,6 @@ module
 
 public import Mathlib.Geometry.Manifold.ContMDiffMFDeriv
 public import Mathlib.Geometry.Manifold.Riemannian.Basic
-public import Mathlib.Geometry.Manifold.Riemannian.PathELength
 
 /-!
 # Riemannian speed and path length
@@ -47,9 +46,7 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
     riemannianSpeed I gamma t = ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ :=
   by simp only [riemannianSpeed]
 
-/-- Riemannian speed is nonnegative. This theorem is intentionally not a simp rule:
-`riemannianSpeed_apply` is the canonical simplification direction, while the public definition
-is opaque to downstream projects. -/
+/-- Riemannian speed is nonnegative. -/
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
     0 ≤ riemannianSpeed I gamma t := by
   rw [riemannianSpeed_apply]

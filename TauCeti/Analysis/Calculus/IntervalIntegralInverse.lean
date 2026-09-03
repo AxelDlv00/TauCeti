@@ -33,7 +33,7 @@ noncomputable section
 `C¹` inverse on the interval between the primitive's endpoint values.
 
 The conclusion records both interval inverse identities, the endpoint values,
-monotonicity, and the derivative of the inverse. Values of the inverse outside
+strict monotonicity, and the derivative of the inverse. Values of the inverse outside
 the primitive's interval image are intentionally left unspecified. -/
 theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b : ℝ}
     (hab : a < b) (hv_cont : ContinuousOn v (Icc a b))
@@ -42,7 +42,7 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
       L = ∫ t in a..b, v t ∧
       0 < L ∧
       MapsTo psi (Icc 0 L) (Icc a b) ∧
-      MonotoneOn psi (Icc 0 L) ∧
+      StrictMonoOn psi (Icc 0 L) ∧
       psi 0 = a ∧
       psi L = b ∧
       (∀ t ∈ Icc a b, psi (∫ s in a..t, v s) = t) ∧
@@ -151,14 +151,14 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     obtain ⟨t, ht, rfl⟩ := hs
     rw [hleft t]
     exact ht
-  have hpsi_mono : MonotoneOn psi (Icc 0 L) := by
+  have hpsi_strict : StrictMonoOn psi (Icc 0 L) := by
     intro x hx y hy hxy
     rw [← himage] at hx hy
-    obtain ⟨tx, htx, rfl⟩ := hx
-    obtain ⟨ty, hty, rfl⟩ := hy
+    obtain ⟨tx, _, rfl⟩ := hx
+    obtain ⟨ty, _, rfl⟩ := hy
     rw [hleft tx, hleft ty]
     by_contra hnot
-    exact (not_lt_of_ge hxy) (hphi_mono (lt_of_not_ge hnot))
+    exact (not_lt_of_ge (hphi_mono.monotone (le_of_not_gt hnot))) hxy
   have hpsi_zero : psi 0 = a := by
     rw [← hphi_a, hleft a]
   have hpsi_L : psi L = b := by
@@ -171,7 +171,7 @@ theorem exists_contDiffOn_intervalIntegral_inverse_of_pos {v : ℝ → ℝ} {a b
     intro s hs
     rw [← hintegral_eq (psi s) (hmaps hs)]
     simpa only [phi] using hright s (hIccW hs)
-  refine ⟨L, psi, ?_, hL_pos, hmaps, hpsi_mono, hpsi_zero, hpsi_L,
+  refine ⟨L, psi, ?_, hL_pos, hmaps, hpsi_strict, hpsi_zero, hpsi_L,
     hleft_Icc, hright_Icc, hpsi_C1.mono hIccW, ?_⟩
   · simp only [L]
   · intro s hs

@@ -16,7 +16,7 @@ This file constructs arclength and constant-speed reparametrizations of regular
 Riemannian curves. A curve that is `C¹` on a neighborhood of a nondegenerate
 compact interval and has nonzero derivative throughout that interval has an
 arclength inverse on its full length interval.
-The inverse is monotone, preserves both endpoints, gives unit speed, and
+The inverse is strictly monotone, preserves both endpoints, gives unit speed, and
 preserves Mathlib's canonical `Manifold.pathELength`.
 
 The consumer-facing corollary rescales the arclength interval to `[0, 1]`,
@@ -40,16 +40,11 @@ where the resulting curve has constant speed equal to its total length.
   `contDiffAt_curveSpeedSq`) in
   `formalized-sources/Petersen/PetersenLib/Ch05/ArclengthReparametrization.lean`
   in `frenzymath/Poincare-Conjecture`, revision
-  `e6bc8cb66a83e50afa2b4507db664c9370bd4ac4`. That source supplies the
-  arclength/inverse and unit-speed architecture; its smooth squared-speed and
-  private curve-length APIs are replaced here by the `C¹` and Mathlib APIs.
+  `e6bc8cb66a83e50afa2b4507db664c9370bd4ac4`.
 * The do Carmo formalization in `frenzymath/Poincare-Conjecture`,
   `DoCarmoLib/Riemannian/Manifold/DoCarmoCh3SegmentReparam.lean`, declarations
   `reparam`, `reparam_mem_Ioo`, and `hasDerivAt_reparam`, revision
-  `24f32e4d600878bfaac6bc2f2f9324175571c321`. This Apache-2.0 source supplies
-  the domain-side open-window and inverse/segment architecture only: it has no
-  regular arclength-reparametrization theorem, so that target is an explicit
-  source gap rather than a copied declaration.
+  `24f32e4d600878bfaac6bc2f2f9324175571c321`.
 * Both cited formal source files are from the Apache-2.0-licensed
   `frenzymath/Poincare-Conjecture` repository; this module is an adaptation
   under that license.
@@ -77,7 +72,7 @@ variable
 throughout the interval admits a `C¹` unit-speed reparametrization on its
 arclength interval `[0, L]`.
 
-The length `L`, both endpoint identities, monotonicity of the inverse, the two
+The length `L`, both endpoint identities, strict monotonicity of the inverse, the two
 inverse identities, and the canonical `pathELength` characterizations are all
 part of the public conclusion. -/
 theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
@@ -88,7 +83,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
       0 < L ∧
       MapsTo psi (Icc 0 L) (Icc a b) ∧
-      MonotoneOn psi (Icc 0 L) ∧
+      StrictMonoOn psi (Icc 0 L) ∧
       psi 0 = a ∧
       psi L = b ∧
       (∀ t ∈ Icc a b,
@@ -118,7 +113,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     exact lt_of_le_of_ne (riemannianSpeed_nonneg I gamma t) (hreg t ht).symm
   -- The generic positive-integral inverse lemma supplies all real-analysis
   -- facts about the arclength primitive and its inverse in one step.
-  obtain ⟨L, psi, hL_def, hL_pos, hmaps, hpsi_mono,
+  obtain ⟨L, psi, hL_def, hL_pos, hmaps, hpsi_strict,
     hpsi_zero, hpsi_L, hleft_Icc, hright_Icc, hpsi_C1_Icc, hpsi_hasDeriv⟩ :=
     exists_contDiffOn_intervalIntegral_inverse_of_pos hab hspeed_cont hspeed_pos
   -- Transfer the inverse's calculus facts through the curve, then identify
@@ -138,6 +133,11 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   have horiginalLength : pathELength I gamma a b = ENNReal.ofReal L := by
     rw [pathELength_eq_ofReal_integral_riemannianSpeed I hab.le
       hspeed_cont.integrableOn_Icc, ← hL_def]
+  have hpsi_mono : MonotoneOn psi (Icc 0 L) := by
+    intro s hs t ht hst
+    rcases eq_or_lt_of_le hst with rfl | hlt
+    · exact le_rfl
+    · exact (hpsi_strict hs ht hlt).le
   have hunitLength : ∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
       pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s) := by
     intro s hs t ht hst
@@ -168,7 +168,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     calc
       pathELength I (gamma ∘ psi) 0 L = ENNReal.ofReal L := by simpa using hlen
       _ = pathELength I gamma a b := horiginalLength.symm
-  refine ⟨L, psi, hL_def, hL_pos, hmaps, hpsi_mono, hpsi_zero, hpsi_L,
+  refine ⟨L, psi, hL_def, hL_pos, hmaps, hpsi_strict, hpsi_zero, hpsi_L,
     hleft_Icc, hright_Icc, hpsi_C1_Icc, hcomp_C1, hunitSpeed, ?_, ?_,
     horiginalLength, hunitLength, htotalLength⟩
   · simp only [Function.comp_apply, hpsi_zero]
@@ -185,7 +185,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
       0 < L ∧
       MapsTo theta (Icc 0 1) (Icc a b) ∧
-      MonotoneOn theta (Icc 0 1) ∧
+      StrictMonoOn theta (Icc 0 1) ∧
       theta 0 = a ∧
       theta 1 = b ∧
       ContDiffOn ℝ 1 theta (Icc 0 1) ∧
@@ -193,7 +193,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       (∀ t ∈ Icc 0 1, riemannianSpeed I (gamma ∘ theta) t = L) ∧
       pathELength I (gamma ∘ theta) 0 1 = ENNReal.ofReal L ∧
       pathELength I (gamma ∘ theta) 0 1 = pathELength I gamma a b := by
-  obtain ⟨L, psi, hL, hL_pos, hpsi_maps, hpsi_mono, hpsi_zero, hpsi_L,
+  obtain ⟨L, psi, hL, hL_pos, hpsi_maps, hpsi_strict, hpsi_zero, hpsi_L,
     _, _, hpsi_C1, hunit_C1, hunit, _, _, horiginalLength, _, htotalLength⟩ :=
     exists_unit_speed_reparametrization_of_regular hab hgamma hreg
   let scale : ℝ → ℝ := fun t ↦ L * t
@@ -204,13 +204,18 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       (mul_le_mul_of_nonneg_left ht.2 hL_pos.le).trans_eq (mul_one L)⟩
   have htheta_maps : MapsTo theta (Icc 0 1) (Icc a b) :=
     hpsi_maps.comp hscale_maps
-  have hscale_mono : MonotoneOn scale (Icc 0 1) := by
+  have hscale_strict : StrictMonoOn scale (Icc 0 1) := by
     intro s _ t _ hst
-    exact mul_le_mul_of_nonneg_left hst hL_pos.le
-  have htheta_mono : MonotoneOn theta (Icc 0 1) := by
+    exact (mul_lt_mul_left hL_pos).mpr hst
+  have hscale_mono : MonotoneOn scale (Icc 0 1) := by
     intro s hs t ht hst
-    exact hpsi_mono (hscale_maps hs) (hscale_maps ht)
-      (hscale_mono hs ht hst)
+    rcases eq_or_lt_of_le hst with rfl | hlt
+    · exact le_rfl
+    · exact (hscale_strict hs ht hlt).le
+  have htheta_strict : StrictMonoOn theta (Icc 0 1) := by
+    intro s hs t ht hst
+    exact hpsi_strict (hscale_maps hs) (hscale_maps ht)
+      (hscale_strict hs ht hst)
   have hscale_C1 : ContDiff ℝ 1 scale := by
     fun_prop
   have htheta_C1 : ContDiffOn ℝ 1 theta (Icc 0 1) := by
@@ -257,7 +262,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     hpsi_zero]
   have htheta_one : theta 1 = b := by simp only [theta, scale, Function.comp_apply, mul_one,
     hpsi_L]
-  refine ⟨L, theta, hL, hL_pos, htheta_maps, htheta_mono, htheta_zero,
+  refine ⟨L, theta, hL, hL_pos, htheta_maps, htheta_strict, htheta_zero,
     htheta_one, htheta_C1, hcomp_C1, hconstant, hconstantLength, ?_⟩
   exact hconstantLength.trans horiginalLength.symm
 
