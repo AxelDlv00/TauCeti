@@ -14,9 +14,8 @@ public import TauCeti.Geometry.Manifold.Riemannian.RiemannianSpeed
 
 This file proves the regular-reparametrization target in Layer 0 of the
 Hopf--Rinow roadmap. A curve that is `C¹` within a nondegenerate compact
-interval, is two-sided differentiable at both endpoints, and has nonzero
-derivative throughout that interval, has an arclength inverse on its full
-length interval.
+interval and has nonzero derivative throughout that interval has an arclength
+inverse on its full length interval.
 The inverse is monotone, preserves both endpoints, gives unit speed, and
 preserves Mathlib's canonical `Manifold.pathELength`.
 
@@ -74,9 +73,9 @@ variable
   [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
   [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
 
-/-- A curve that is `C¹` within `[a, b]`, is two-sided differentiable at the
-endpoints, and has nonzero derivative throughout the interval admits a `C¹`
-unit-speed reparametrization on its arclength interval `[0, L]`.
+/-- A curve that is `C¹` within `[a, b]` and has nonzero derivative throughout
+the interval admits a `C¹` unit-speed reparametrization on its arclength
+interval `[0, L]`.
 
 The length `L`, both endpoint identities, monotonicity of the inverse, the two
 inverse identities, and the canonical `pathELength` characterizations are all
@@ -84,7 +83,6 @@ part of the public conclusion. -/
 theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
     (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
-    (hmdiff_end : MDiffAt gamma a ∧ MDiffAt gamma b)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -108,14 +106,9 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
   have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
     intro t ht
-    by_cases hta : t = a
-    · simpa only [hta] using hmdiff_end.1
-    by_cases htb : t = b
-    · simpa only [htb] using hmdiff_end.2
-    have hat : a < t := lt_of_le_of_ne ht.1 (Ne.symm hta)
-    have htb' : t < b := lt_of_le_of_ne ht.2 htb
-    exact ((hgamma t ht).contMDiffAt (Icc_mem_nhds hat htb')).mdifferentiableAt
-      (by norm_num)
+    by_contra hnot
+    have hzero := riemannianSpeed_eq_zero_of_not_mdifferentiableAt I gamma t hnot
+    exact (hreg t ht) hzero
   have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
     continuousOn_riemannianSpeed I hgamma hmdiff
       (uniqueDiffOn_Icc hab).uniqueMDiffOn
@@ -180,13 +173,12 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   · simp only [Function.comp_apply, hpsi_zero]
   · simp only [Function.comp_apply, hpsi_L]
 
-/-- A curve that is `C¹` within `[a, b]`, is two-sided differentiable at the
-endpoints, and has nonzero derivative throughout the interval admits a
-constant-speed reparametrization on `[0, 1]`; its speed is its total length `L`. -/
+/-- A curve that is `C¹` within `[a, b]` and has nonzero derivative throughout
+the interval admits a constant-speed reparametrization on `[0, 1]`; its speed
+is its total length `L`. -/
 theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
     (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
-    (hmdiff_end : MDiffAt gamma a ∧ MDiffAt gamma b)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ theta : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -202,7 +194,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       pathELength I (gamma ∘ theta) 0 1 = pathELength I gamma a b := by
   obtain ⟨L, psi, hL, hL_pos, hpsi_maps, hpsi_mono, hpsi_zero, hpsi_L,
     _, _, hpsi_C1, hunit_C1, hunit, _, _, horiginalLength, _, htotalLength⟩ :=
-    exists_unit_speed_reparametrization_of_regular hab hgamma hmdiff_end hreg
+    exists_unit_speed_reparametrization_of_regular hab hgamma hreg
   let scale : ℝ → ℝ := fun t ↦ L * t
   let theta : ℝ → ℝ := psi ∘ scale
   have hscale_maps : MapsTo scale (Icc 0 1) (Icc 0 L) := by
