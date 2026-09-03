@@ -194,19 +194,52 @@ theorem chartGramMatrix_change (α β : M) {x : M}
             (tangentCoordChange I β α x ((Module.finBasis ℝ E) i)) a
         * (Module.finBasis ℝ E).repr
             (tangentCoordChange I β α x ((Module.finBasis ℝ E) j)) b := by
+  let e := trivializationAt E (TangentSpace I) α
+  let u := tangentCoordChange I β α x ((Module.finBasis ℝ E) i)
+  let v := tangentCoordChange I β α x ((Module.finBasis ℝ E) j)
+  have hxα' : x ∈ e.baseSet := by
+    simpa only [e, TangentBundle.trivializationAt_baseSet] using hxα
   rw [chartGramMatrix_apply (I := I) β x i j,
     chartLocalFrame_eq_symm_tangentCoordChange (I := I) α β hxα hxβ i,
     chartLocalFrame_eq_symm_tangentCoordChange (I := I) α β hxα hxβ j]
-  rw [trivializationAt_symm_eq_sum_chartLocalFrame (I := I) α x _ hxα,
-    trivializationAt_symm_eq_sum_chartLocalFrame (I := I) α x _ hxα]
-  simp only [sum_inner, inner_sum, inner_smul_left, inner_smul_right,
-    starRingEnd_apply, star_trivial]
-  simp_rw [chartGramMatrix_apply (I := I) α x]
-  rw [Finset.sum_comm]
-  refine Finset.sum_congr rfl fun a _ ↦ ?_
-  rw [Finset.mul_sum]
-  refine Finset.sum_congr rfl fun b _ ↦ ?_
-  ring
+  have hexpand :=
+    (LinearMap.sum_repr_mul_repr_mul (Module.finBasis ℝ E) (Module.finBasis ℝ E)
+      (B := (innerₗ (TangentSpace I x)).compl₁₂
+        (e.symmL ℝ x).toLinearMap (e.symmL ℝ x).toLinearMap) u v).symm
+  rw [Finsupp.sum_fintype] at hexpand
+  · have hinner (a : Fin (Module.finrank ℝ E)) :
+        ((Module.finBasis ℝ E).repr v).sum (fun b yb ↦
+            (Module.finBasis ℝ E).repr u a • yb •
+              (innerₗ (TangentSpace I x)).compl₁₂
+                (e.symmL ℝ x).toLinearMap (e.symmL ℝ x).toLinearMap
+                ((Module.finBasis ℝ E) a) ((Module.finBasis ℝ E) b)) =
+          ∑ b, (Module.finBasis ℝ E).repr u a •
+            (Module.finBasis ℝ E).repr v b •
+              (innerₗ (TangentSpace I x)).compl₁₂
+                (e.symmL ℝ x).toLinearMap (e.symmL ℝ x).toLinearMap
+                ((Module.finBasis ℝ E) a) ((Module.finBasis ℝ E) b) :=
+      Finsupp.sum_fintype _ _ (fun _ ↦ by simp)
+    simp_rw [hinner] at hexpand
+    simp only [e] at hexpand
+    have hsymmL (z : E) :
+        (trivializationAt E (TangentSpace I) α).symmL ℝ x z =
+          (trivializationAt E (TangentSpace I) α).symm x z :=
+      Bundle.Trivialization.symmL_apply (R := ℝ)
+        (trivializationAt E (TangentSpace I) α)
+        (by simpa only [e] using hxα') z
+    simp only [LinearMap.compl₁₂_apply, ContinuousLinearMap.coe_coe,
+      innerₗ_apply_apply] at hexpand
+    have hsymmL_fun :
+        ((trivializationAt E (TangentSpace I) α).symmL ℝ x :
+          E → TangentSpace I x) =
+            (trivializationAt E (TangentSpace I) α).symm x :=
+      funext hsymmL
+    rw [hsymmL_fun] at hexpand
+    simpa only [u, v, smul_eq_mul,
+      chartLocalFrame_apply_of_mem_chart_source_eq_symm (I := I) α hxα,
+      chartGramMatrix_apply (I := I) α x, mul_assoc, mul_comm, mul_left_comm] using hexpand
+  · intro
+    simp
 
 /-- The Gram matrix of the chart-local frame is positive-definite on the tangent-trivialization
 base set. -/
