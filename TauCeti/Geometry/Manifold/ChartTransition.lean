@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors, Axel Delaval
 module
 
 public import Mathlib.Geometry.Manifold.MFDeriv.Atlas
+public import TauCeti.Analysis.Calculus.SecondDerivative
 import Mathlib.Analysis.Calculus.FDeriv.Symmetric
 
 /-!
@@ -21,6 +22,10 @@ expected derivative.
 `extCoordChange` is a reducible abbreviation of Mathlib's partial equivalence,
 so its source, target, inverse, and invertibility API remain available without
 translation lemmas.
+
+This is the canonical transition-calculus prerequisite for the Hopf--Rinow Layer 1
+Levi-Civita/Christoffel regularity route: it adds the derivative facts absent from Mathlib while
+keeping the existing `extendCoordChange` object as the sole transition-map implementation.
 
 The declarations port the transition section of
 `DoCarmoLib/Riemannian/Connection/ChartChristoffelChange.lean` at source revision
@@ -174,12 +179,8 @@ theorem hasFDerivAt_fderiv_extCoordChange {β α : M} {y : E}
     (hy : y ∈ (extCoordChange (I := I) β α).source) :
     HasFDerivAt (fderiv ℝ (extCoordChange (I := I) β α))
       (fderiv ℝ (fderiv ℝ (extCoordChange (I := I) β α)) y) y := by
-  have hcont : ContDiffAt ℝ 2 (extCoordChange (I := I) β α) y :=
-    contDiffAt_extCoordChange (I := I) hy
-  have h1 : ContDiffAt ℝ 1
-      (fderiv ℝ (extCoordChange (I := I) β α)) y :=
-    hcont.fderiv_right (by norm_num)
-  exact (h1.differentiableAt one_ne_zero).hasFDerivAt
+  exact TauCeti.ContDiffAt.hasFDerivAt_fderiv
+    (contDiffAt_extCoordChange (I := I) hy) le_rfl
 
 /-- The matrix-entry function of the first derivative has partial derivatives
 given by the second-derivative coefficients. -/
