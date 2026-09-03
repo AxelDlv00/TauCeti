@@ -12,10 +12,10 @@ public import TauCeti.Geometry.Manifold.Riemannian.RiemannianSpeed
 /-!
 # Regular C¹ curves admit unit-speed reparametrizations
 
-This file proves the regular-reparametrization target in Layer 0 of the
-Hopf--Rinow roadmap. A curve that is `C¹` within a nondegenerate compact
-interval and has nonzero derivative throughout that interval has an arclength
-inverse on its full length interval.
+This file constructs arclength and constant-speed reparametrizations of regular
+Riemannian curves. A curve that is `C¹` within a nondegenerate compact interval
+and has nonzero derivative throughout that interval has an arclength inverse on
+its full length interval.
 The inverse is monotone, preserves both endpoints, gives unit speed, and
 preserves Mathlib's canonical `Manifold.pathELength`.
 

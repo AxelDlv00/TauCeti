@@ -17,8 +17,8 @@ The primitive of a continuous positive real function is strictly increasing, and
 continuously differentiable on the interval between the primitive's endpoint values. This is the
 parameter-side inverse result used by the regular Riemannian reparametrization theorem.
 
-The result supplies the interval-integral and inverse-function prerequisite for Layer 0 of the
-[Hopf--Rinow roadmap](https://github.com/TauCetiProject/TauCetiRoadmap/blob/main/TauCetiRoadmap/HopfRinow/README.md).
+The result supplies the interval-integral and inverse-function input for constructing arclength
+parametrizations of regular curves.
 -/
 
 public section
