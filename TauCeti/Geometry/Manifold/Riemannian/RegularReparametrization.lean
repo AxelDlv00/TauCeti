@@ -206,7 +206,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     hpsi_maps.comp hscale_maps
   have hscale_strict : StrictMonoOn scale (Icc 0 1) := by
     intro s _ t _ hst
-    exact (mul_lt_mul_left hL_pos).mpr hst
+    exact mul_lt_mul_of_pos_left hst hL_pos
   have hscale_mono : MonotoneOn scale (Icc 0 1) := by
     intro s hs t ht hst
     rcases eq_or_lt_of_le hst with rfl | hlt
