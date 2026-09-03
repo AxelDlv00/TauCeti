@@ -184,8 +184,7 @@ theorem chartGramMatrix_apply (α : M) (x : M) (i j : Fin (Module.finrank ℝ E)
 
 /-- The Gram matrix transforms as a `(0,2)` tensor under a change of chart. At a point in the
 overlap, each entry in the `β` frame is a finite double sum of entries in the `α` frame and the
-two tangent-coordinate change coefficients. This ports `chartGramMatrix_change` from the cited
-Poincare-Conjecture source. -/
+two tangent-coordinate change coefficients. -/
 theorem chartGramMatrix_change (α β : M) {x : M}
     (hxα : x ∈ (chartAt H α).source) (hxβ : x ∈ (chartAt H β).source)
     (i j : Fin (Module.finrank ℝ E)) :
