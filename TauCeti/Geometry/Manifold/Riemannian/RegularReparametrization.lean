@@ -13,9 +13,9 @@ public import TauCeti.Geometry.Manifold.Riemannian.RiemannianSpeed
 # Regular C¹ curves admit unit-speed reparametrizations
 
 This file constructs arclength and constant-speed reparametrizations of regular
-Riemannian curves. A curve that is `C¹` within a nondegenerate compact interval
-and has nonzero derivative throughout that interval has an arclength inverse on
-its full length interval.
+Riemannian curves. A curve that is `C¹` on a neighborhood of a nondegenerate
+compact interval and has nonzero derivative throughout that interval has an
+arclength inverse on its full length interval.
 The inverse is monotone, preserves both endpoints, gives unit speed, and
 preserves Mathlib's canonical `Manifold.pathELength`.
 
@@ -73,16 +73,16 @@ variable
   [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
   [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
 
-/-- A curve that is `C¹` within `[a, b]` and has nonzero derivative throughout
-the interval admits a `C¹` unit-speed reparametrization on its arclength
-interval `[0, L]`.
+/-- A curve that is `C¹` on a neighborhood of `[a, b]` and has nonzero derivative
+throughout the interval admits a `C¹` unit-speed reparametrization on its
+arclength interval `[0, L]`.
 
 The length `L`, both endpoint identities, monotonicity of the inverse, the two
 inverse identities, and the canonical `pathELength` characterizations are all
 part of the public conclusion. -/
 theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
-    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
+    (hgamma : ∀ t ∈ Icc a b, ContMDiffAt 𝓘(ℝ, ℝ) I 1 gamma t)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -104,13 +104,14 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
         pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s)) ∧
       pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
+  have hgamma_on : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b) := by
+    intro t ht
+    exact (hgamma t ht).contMDiffWithinAt
   have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
     intro t ht
-    by_contra hnot
-    have hzero := riemannianSpeed_eq_zero_of_not_mdifferentiableAt I gamma t hnot
-    exact (hreg t ht) hzero
+    exact (hgamma t ht).mdifferentiableAt (by norm_num)
   have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
-    continuousOn_riemannianSpeed I hgamma hmdiff
+    continuousOn_riemannianSpeed I hgamma_on hmdiff
       (uniqueDiffOn_Icc hab).uniqueMDiffOn
   have hspeed_pos : ∀ t ∈ Icc a b, 0 < riemannianSpeed I gamma t := by
     intro t ht
@@ -123,7 +124,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   -- Transfer the inverse's calculus facts through the curve, then identify
   -- the resulting interval integrals with Mathlib's canonical path length.
   have hcomp_C1 : ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) :=
-    hgamma.comp hpsi_C1_Icc.contMDiffOn hmaps
+    hgamma_on.comp hpsi_C1_Icc.contMDiffOn hmaps
   have hunitSpeed : ∀ s ∈ Icc 0 L,
       riemannianSpeed I (gamma ∘ psi) s = 1 := by
     intro s hs
@@ -147,7 +148,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (hpsi_mono.mono (Icc_subset_Icc hs.1 ht.2))
       ((hpsi_C1_Icc.differentiableOn (by norm_num)).mono
         (Icc_subset_Icc hs.1 ht.2))
-      ((hgamma.mdifferentiableOn (by norm_num)).mono htarget)
+      ((hgamma_on.mdifferentiableOn (by norm_num)).mono htarget)
     have hint : MeasureTheory.IntegrableOn (riemannianSpeed I gamma)
         (Icc (psi s) (psi t)) :=
       (hspeed_cont.mono htarget).integrableOn_Icc
@@ -173,12 +174,12 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   · simp only [Function.comp_apply, hpsi_zero]
   · simp only [Function.comp_apply, hpsi_L]
 
-/-- A curve that is `C¹` within `[a, b]` and has nonzero derivative throughout
-the interval admits a constant-speed reparametrization on `[0, 1]`; its speed
-is its total length `L`. -/
+/-- A curve that is `C¹` on a neighborhood of `[a, b]` and has nonzero derivative
+throughout the interval admits a constant-speed reparametrization on `[0, 1]`;
+its speed is its total length `L`. -/
 theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
-    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
+    (hgamma : ∀ t ∈ Icc a b, ContMDiffAt 𝓘(ℝ, ℝ) I 1 gamma t)
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ theta : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
