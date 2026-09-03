@@ -29,16 +29,17 @@ keeping the existing `extendCoordChange` object as the sole transition-map imple
 
 The declarations port the transition section of
 `DoCarmoLib/Riemannian/Connection/ChartChristoffelChange.lean` at source revision
-`24f32e4d600878bfaac6bc2f2f9324175571c321` ([poincareConjectureDoCarmo]). They use
-only the manifold structure, so this port has no dependency on a Riemannian
-metric or a vector bundle.
+[`24f32e4d600878bfaac6bc2f2f9324175571c321`](https://github.com/frenzymath/Poincare-Conjecture/tree/24f32e4d600878bfaac6bc2f2f9324175571c321).
+They use only the manifold structure, so this port has no dependency on a
+Riemannian metric or a vector bundle.
 
 ## References
 
 * M. P. do Carmo, *Riemannian Geometry*, Chapter 2, Section 2, Proposition 2.2
-  ([doCarmo1992]).
+  (Birkhauser, 1992; ISBN 978-0-8176-3490-2).
 * John M. Lee, *Introduction to Riemannian Manifolds*, Chapter 4, Proposition 4.7,
-  equation (4.10) ([lee2018]).
+  equation (4.10) (2nd ed., Springer, 2018;
+  [DOI 10.1007/978-3-319-91755-9](https://doi.org/10.1007/978-3-319-91755-9)).
 -/
 
 public section
