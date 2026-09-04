@@ -12,6 +12,7 @@ public import Mathlib.Geometry.Manifold.Algebra.Structures
 public import Mathlib.Geometry.Manifold.VectorBundle.LocalFrame
 public import Mathlib.Geometry.Manifold.VectorBundle.Riemannian
 public import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
+public import TauCeti.Geometry.Manifold.VectorBundle.Tangent
 
 /-!
 # Chart Gram matrices of a Riemannian metric
@@ -249,7 +250,8 @@ theorem chartGramMatrix_change_quadratic (α β : M) {x : M}
   classical
   simp_rw [chartGramMatrix_change (I := I) α β hxα hxβ]
   simp_rw [Finset.sum_mul, Finset.mul_sum]
-  rw [Finset.sum_comm]
+  simp_rw [Finset.sum_mul, Finset.mul_sum]
+  simp only [Finset.sum_comm]
 
 /-- The Gram matrix of the chart-local frame is positive-definite on the tangent-trivialization
 base set. -/
