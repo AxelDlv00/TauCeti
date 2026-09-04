@@ -108,7 +108,9 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (uniqueDiffOn_Icc hab).uniqueMDiffOn
   have hspeed_pos : ∀ t ∈ Icc a b, 0 < riemannianSpeed I gamma t := by
     intro t ht
-    exact lt_of_le_of_ne (riemannianSpeed_nonneg I gamma t) (hreg t ht).symm
+    have hnonneg : 0 ≤ riemannianSpeed I gamma t := by
+      simpa only [riemannianSpeed_apply] using riemannianSpeed_nonneg I gamma t
+    exact lt_of_le_of_ne hnonneg (hreg t ht).symm
   -- The generic positive-integral inverse lemma supplies all real-analysis
   -- facts about the arclength primitive and its inverse in one step.
   obtain ⟨L, psi, hL_def, hL_pos, hmaps, hpsi_strict,
@@ -125,8 +127,9 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     rw [riemannianSpeed_comp I gamma psi s (hmdiff _ (hmaps hs))
       hpsi_deriv.differentiableAt, hpsi_deriv.deriv]
     have hpos : 0 < riemannianSpeed I gamma (psi s) := by
-      exact lt_of_le_of_ne (riemannianSpeed_nonneg I gamma (psi s))
-        (hreg _ (hmaps hs)).symm
+      have hnonneg : 0 ≤ riemannianSpeed I gamma (psi s) := by
+        simpa only [riemannianSpeed_apply] using riemannianSpeed_nonneg I gamma (psi s)
+      exact lt_of_le_of_ne hnonneg (hreg _ (hmaps hs)).symm
     rw [abs_of_pos (inv_pos.mpr hpos), inv_mul_cancel₀ hpos.ne']
   have horiginalLength : pathELength I gamma a b = ENNReal.ofReal L := by
     rw [pathELength_eq_ofReal_integral_riemannianSpeed I hab.le
