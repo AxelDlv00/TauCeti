@@ -107,12 +107,12 @@ theorem chartLocalFrame_apply_of_mem_chart_source_eq_symm (α : M) {x : M}
     chartLocalFrame (I := I) α i x =
       (trivializationAt E (TangentSpace I) α).symm x ((Module.finBasis ℝ E) i) := by
   rw [chartLocalFrame_apply_of_mem_chart_source (I := I) α hx i]
-  rfl
+  simp only [Bundle.Trivialization.basisAt, Basis.map_apply,
+    Bundle.Trivialization.linearEquivAt_symm_apply]
 
 /-- The inverse tangent trivialization expands in the canonical chart-local frame. The
-coefficients are the coordinates in `Module.finBasis ℝ E`; the chart-source hypothesis is needed
-because local frames have a junk value outside the trivialization base set. This ports
-`trivializationAt_symm_eq_sum_chartBasisVecFiber` from the cited Poincare-Conjecture source. -/
+  coefficients are the coordinates in `Module.finBasis ℝ E`; the chart-source hypothesis is needed
+  because local frames have a junk value outside the trivialization base set. -/
 theorem trivializationAt_symm_eq_sum_chartLocalFrame (α : M) (x : M) (v : E)
     (hx : x ∈ (chartAt H α).source) :
     (trivializationAt E (TangentSpace I) α).symm x v =
@@ -142,18 +142,10 @@ theorem chartLocalFrame_eq_symm_tangentCoordChange (α β : M) {x : M}
   have hβ : x ∈ (extChartAt I β).source := by
     simpa only [extChartAt_source] using hxβ
   have hx : x ∈ (extChartAt I x).source := mem_extChartAt_source x
-  have hreadback (γ : M) (hxγ : x ∈ (chartAt H γ).source) (v : E) :
-      (trivializationAt E (TangentSpace I) γ).symm x v =
-        tangentCoordChange I γ x x v := by
-    have hxγ' : x ∈ (trivializationAt E (TangentSpace I) γ).baseSet := by
-      simpa only [TangentBundle.trivializationAt_baseSet] using hxγ
-    rw [← Bundle.Trivialization.symmL_apply (R := ℝ)
-      (trivializationAt E (TangentSpace I) γ) hxγ' v]
-    exact congrArg (fun f ↦ f v)
-      (TangentBundle.symmL_trivializationAt_eq_core (I := I) (b₀ := γ) (b := x) hxγ)
   rw [chartLocalFrame_apply_of_mem_chart_source_eq_symm (I := I) β hxβ i,
-    hreadback β hxβ ((Module.finBasis ℝ E) i),
-    hreadback α hxα (tangentCoordChange I β α x ((Module.finBasis ℝ E) i))]
+    trivializationAt_symm_eq_tangentCoordChange (I := I) hxβ ((Module.finBasis ℝ E) i),
+    trivializationAt_symm_eq_tangentCoordChange (I := I) hxα
+      (tangentCoordChange I β α x ((Module.finBasis ℝ E) i))]
   exact (tangentCoordChange_comp (I := I) ⟨⟨hβ, hα⟩, hx⟩).symm
 
 /-- Each member of `chartLocalFrame` is `C^n` on the tangent-trivialization base set. -/
