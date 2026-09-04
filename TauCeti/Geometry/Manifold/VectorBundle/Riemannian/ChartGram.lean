@@ -39,6 +39,8 @@ API replace them.
   tangent trivialization in the chart-local frame.
 * `Riemannian.Tensor.chartGramMatrix`: the metric Gram matrix in this frame.
 * `Riemannian.Tensor.chartGramMatrix_change`: its change-of-chart formula.
+* `Riemannian.Tensor.chartGramMatrix_change_quadratic`: the corresponding change-of-chart formula
+  for the metric quadratic form on a coordinate velocity.
 * `Riemannian.Tensor.posDef_chartGramMatrix`: positive-definiteness on the base set.
 * `Riemannian.Tensor.chartGramMatrix_det_pos`: strict positivity of its determinant there.
 * `Riemannian.Tensor.contMDiffOn_chartGramMatrix_entry`: smoothness of Gram-matrix entries.
@@ -129,8 +131,7 @@ theorem trivializationAt_symm_eq_sum_chartLocalFrame (α : M) (x : M) (v : E)
     ← chartLocalFrame_apply_of_mem_chart_source_eq_symm (I := I) α hx i]
 
 /-- At a common foot in two chart sources, the `β` chart-local frame vector is the `α`
-readback of the tangent coordinate change from `β` to `α`. This ports
-`chartBasisVecFiber_eq_symm_tangentCoordChange` from the cited Poincare-Conjecture source. -/
+readback of the tangent coordinate change from `β` to `α`. -/
 theorem chartLocalFrame_eq_symm_tangentCoordChange (α β : M) {x : M}
     (hxα : x ∈ (chartAt H α).source) (hxβ : x ∈ (chartAt H β).source)
     (i : Fin (Module.finrank ℝ E)) :
@@ -232,6 +233,23 @@ theorem chartGramMatrix_change (α β : M) {x : M}
       chartGramMatrix_apply (I := I) α x, mul_assoc, mul_comm, mul_left_comm] using hexpand
   · intro
     simp
+
+/-- The metric quadratic form of a coordinate velocity is invariant under the chart change: the
+  coefficients in the `β` frame are first converted to the `α` frame by the tangent-coordinate
+  change, and the `α` Gram matrix then evaluates the quadratic form. -/
+theorem chartGramMatrix_change_quadratic (α β : M) {x : M}
+    (hxα : x ∈ (chartAt H α).source) (hxβ : x ∈ (chartAt H β).source)
+    (c : Fin (Module.finrank ℝ E) → ℝ) :
+    (∑ i, ∑ j, chartGramMatrix (I := I) β x i j * c i * c j) =
+      ∑ a, ∑ b, chartGramMatrix (I := I) α x a b *
+        (∑ i, (Module.finBasis ℝ E).repr
+          (tangentCoordChange I β α x ((Module.finBasis ℝ E) i)) a * c i) *
+        (∑ j, (Module.finBasis ℝ E).repr
+          (tangentCoordChange I β α x ((Module.finBasis ℝ E) j)) b * c j) := by
+  classical
+  simp_rw [chartGramMatrix_change (I := I) α β hxα hxβ]
+  simp_rw [Finset.sum_mul, Finset.mul_sum]
+  rw [Finset.sum_comm]
 
 /-- The Gram matrix of the chart-local frame is positive-definite on the tangent-trivialization
 base set. -/
