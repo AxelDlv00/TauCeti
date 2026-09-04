@@ -170,7 +170,7 @@ theorem fderiv_extendCoordChangeDeriv_apply {β α : M} {y : E}
       extendCoordChangeSndDeriv (I := I) β α a k i y := by
   rw [(hasFDerivAt_extendCoordChangeDeriv (I := I) hy a i).fderiv]
   simp only [ContinuousLinearMap.comp_apply, ContinuousLinearMap.apply_apply,
-    extendCoordChangeSndDeriv]
+    LinearMap.coe_toContinuousLinearMap', extendCoordChangeSndDeriv]
 
 end SecondDerivative
 
