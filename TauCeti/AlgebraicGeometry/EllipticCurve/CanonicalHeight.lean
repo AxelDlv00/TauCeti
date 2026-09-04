@@ -15,8 +15,8 @@ constant `C` with `|h(P + Q) + h(P - Q) - 2(h P + h Q)| ≤ C`. Tate's observati
 that error away along the doubling map removes it. This file carries
 out that construction and records the facts that pin the definition down: the limit exists, it
 stays within a bounded distance of half of `h`, and it takes the expected values at `0` and under
-negation. That the result is *honestly* quadratic — the exact parallelogram law — is a separate
-theorem and is not established in this file.
+negation, and it is *honestly* quadratic — it satisfies the parallelogram law exactly, which is
+what the whole averaging was for.
 
 `canonicalHeight P = (1/2) · lim_{n → ∞} h(2ⁿ P) / 4ⁿ`
 
@@ -40,6 +40,12 @@ with — is half of it. Getting this wrong would scale every later invariant.
 * `WeierstrassCurve.Affine.Point.canonicalHeight_zero` and
   `WeierstrassCurve.Affine.Point.canonicalHeight_neg`: its values at the two points every consumer
   meets first, as `@[simp]` normal forms.
+* `WeierstrassCurve.Affine.Point.canonicalHeight_parallelogram_law`: the canonical height
+  satisfies the parallelogram law **exactly**, where the naïve height satisfies it only up to a
+  bounded error. This is the point of the construction: it is the quadratic function the naïve
+  height was approximating.
+* `WeierstrassCurve.Affine.Point.canonicalHeight_two_nsmul`: the doubling normal form
+  `canonicalHeight (2 • P) = 4 * canonicalHeight P`, the parallelogram law at `Q = P`.
 * `WeierstrassCurve.Affine.Point.abs_canonicalHeight_sub_naiveHeight_le`: the canonical height stays
   within a bounded distance of *half* the naïve one, by a
   constant depending only on the curve. This is what makes the two interchangeable in
@@ -47,8 +53,10 @@ with — is half of it. Getting this wrong would scale every later invariant.
 
 ## Implementation notes
 
-The doubling bound `|h(2P) - 4 h(P)| ≤ C` is the parallelogram law at `Q = P`, where `P - Q = 0`
-and `h(0) = 0`. Only that specialisation is used here, so it is kept private.
+The doubling bound `|h(2P) - 4 h(P)| ≤ C` is the approximate parallelogram law at `Q = P`, where
+`P - Q = 0` and `h(0) = 0`. **Convergence** needs only that specialisation, which is why it is
+private; `canonicalHeight_parallelogram_law` needs the full two-point law, and takes it directly
+from `approx_parallelogram_law`.
 
 Convergence is `cauchySeq_of_le_geometric` at ratio `1/4`: consecutive terms of
 `h(2ⁿ P) / (2 · 4ⁿ)` differ by
@@ -163,5 +171,59 @@ theorem Point.abs_canonicalHeight_sub_naiveHeight_le [W.toAffine.IsElliptic] :
     (dist_naiveHeight_div_succ_le hC P) (P.tendsto_naiveHeight_two_pow_nsmul_div_four_pow)
   -- the zeroth term of the sequence is `h P / 2`
   simpa [Real.dist_eq, abs_sub_comm] using hd
+
+/-- **The canonical height satisfies the parallelogram law exactly.**
+
+The naïve height satisfies it only up to a bounded error (`approx_parallelogram_law`); dividing
+that error by `2 · 4ⁿ` and letting `n → ∞` removes it. This is what the construction is for: the
+canonical height is the quadratic function that `h` was approximating. The normalisation factor
+`1/2` is common to both sides, so it does not affect the identity. -/
+theorem Point.canonicalHeight_parallelogram_law [W.toAffine.IsElliptic] (P Q : W.Point) :
+    (P + Q).canonicalHeight + (P - Q).canonicalHeight
+      = 2 * (P.canonicalHeight + Q.canonicalHeight) := by
+  obtain ⟨C, hC⟩ := approx_parallelogram_law W
+  set f : W.Point → ℕ → ℝ := fun X n ↦ ((2 ^ n) • X).naiveHeight / (2 * 4 ^ n) with hf
+  have hlim : ∀ X : W.Point, Tendsto (f X) atTop (𝓝 X.canonicalHeight) :=
+    fun X ↦ X.tendsto_naiveHeight_two_pow_nsmul_div_four_pow
+  -- the same combination, read two ways: as a limit of the four sequences, and as something
+  -- squeezed to `0` by the error bound divided by `2 · 4ⁿ`.
+  have hg : Tendsto (fun n ↦ f (P + Q) n + f (P - Q) n - 2 * (f P n + f Q n)) atTop
+      (𝓝 ((P + Q).canonicalHeight + (P - Q).canonicalHeight
+            - 2 * (P.canonicalHeight + Q.canonicalHeight))) :=
+    ((hlim _).add (hlim _)).sub (((hlim _).add (hlim _)).const_mul 2)
+  have hbound : ∀ n, ‖f (P + Q) n + f (P - Q) n - 2 * (f P n + f Q n)‖ ≤ C / 4 ^ n := by
+    intro n
+    have h := hC ((2 ^ n) • P) ((2 ^ n) • Q)
+    rw [← smul_add, ← smul_sub] at h
+    simp only [hf, Real.norm_eq_abs]
+    -- The four terms are separate quotients by `2 · 4ⁿ`; `abs_div` below needs them as a single
+    -- quotient, and no rewrite reaches that shape, since collecting them is division arithmetic
+    -- rather than a rewrite. `field_simp` proves the collected form, so it is named here and
+    -- rewritten in one step; the denominator is nonzero by `positivity` at each later use.
+    rw [show f (P + Q) n + f (P - Q) n - 2 * (f P n + f Q n)
+        = (((2 ^ n) • (P + Q)).naiveHeight + ((2 ^ n) • (P - Q)).naiveHeight
+            - 2 * (((2 ^ n) • P).naiveHeight + ((2 ^ n) • Q).naiveHeight)) / (2 * 4 ^ n) from by
+      simp only [hf]; field_simp]
+    rw [abs_div, abs_of_pos (by positivity : (0 : ℝ) < 2 * 4 ^ n),
+      div_le_div_iff₀ (by positivity) (by positivity)]
+    nlinarith [h, abs_nonneg (((2 ^ n) • (P + Q)).naiveHeight + ((2 ^ n) • (P - Q)).naiveHeight
+      - 2 * (((2 ^ n) • P).naiveHeight + ((2 ^ n) • Q).naiveHeight)),
+      pow_pos (by norm_num : (0 : ℝ) < 4) n]
+  have hzero : Tendsto (fun n ↦ f (P + Q) n + f (P - Q) n - 2 * (f P n + f Q n)) atTop (𝓝 0) := by
+    refine squeeze_zero_norm hbound ?_
+    simpa using (tendsto_const_nhds (x := C)).div_atTop
+      (tendsto_pow_atTop_atTop_of_one_lt (by norm_num : (1 : ℝ) < 4))
+  linarith [tendsto_nhds_unique hg hzero]
+
+/-- **Doubling scales the canonical height by four.** The parallelogram law at `Q = P`, where
+`P - Q = 0` contributes nothing. This is the normal form a consumer meets first; the general
+`n`-fold statement is a separate step. -/
+@[simp]
+theorem Point.canonicalHeight_two_nsmul [W.toAffine.IsElliptic] (P : W.Point) :
+    (2 • P).canonicalHeight = 4 * P.canonicalHeight := by
+  have h := canonicalHeight_parallelogram_law P P
+  rw [sub_self, canonicalHeight_zero, add_zero] at h
+  rw [two_nsmul]
+  linarith
 
 end WeierstrassCurve.Affine
