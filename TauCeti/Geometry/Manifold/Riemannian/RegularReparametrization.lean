@@ -68,7 +68,7 @@ variable
   [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
   [IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x)]
 
-/-- A curve that is `C¹` on a neighborhood of `[a, b]` and has nonzero derivative
+/-- A curve that is `C¹` on `[a, b]` and has nonzero derivative
 throughout the interval admits a `C¹` unit-speed reparametrization on its
 arclength interval `[0, L]`.
 
@@ -77,7 +77,7 @@ inverse identities, and the canonical `pathELength` characterizations are all
 part of the public conclusion. -/
 theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
-    (hgamma : ∀ t ∈ Icc a b, ContMDiffAt 𝓘(ℝ, ℝ) I 1 gamma t)
+    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ psi : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -99,14 +99,12 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
         pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s)) ∧
       pathELength I (gamma ∘ psi) 0 L = pathELength I gamma a b := by
-  have hgamma_on : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b) := by
-    intro t ht
-    exact (hgamma t ht).contMDiffWithinAt
   have hmdiff : ∀ t ∈ Icc a b, MDiffAt gamma t := by
     intro t ht
-    exact (hgamma t ht).mdifferentiableAt (by norm_num)
+    by_contra hnot
+    exact hreg t ht (riemannianSpeed_eq_zero_of_not_mdifferentiableAt I gamma t hnot)
   have hspeed_cont : ContinuousOn (riemannianSpeed I gamma) (Icc a b) :=
-    continuousOn_riemannianSpeed I hgamma_on hmdiff
+    continuousOn_riemannianSpeed I hgamma hmdiff
       (uniqueDiffOn_Icc hab).uniqueMDiffOn
   have hspeed_pos : ∀ t ∈ Icc a b, 0 < riemannianSpeed I gamma t := by
     intro t ht
@@ -119,7 +117,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   -- Transfer the inverse's calculus facts through the curve, then identify
   -- the resulting interval integrals with Mathlib's canonical path length.
   have hcomp_C1 : ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ psi) (Icc 0 L) :=
-    hgamma_on.comp hpsi_C1_Icc.contMDiffOn hmaps
+    hgamma.comp hpsi_C1_Icc.contMDiffOn hmaps
   have hunitSpeed : ∀ s ∈ Icc 0 L,
       riemannianSpeed I (gamma ∘ psi) s = 1 := by
     intro s hs
@@ -133,11 +131,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   have horiginalLength : pathELength I gamma a b = ENNReal.ofReal L := by
     rw [pathELength_eq_ofReal_integral_riemannianSpeed I hab.le
       hspeed_cont.integrableOn_Icc, ← hL_def]
-  have hpsi_mono : MonotoneOn psi (Icc 0 L) := by
-    intro s hs t ht hst
-    rcases eq_or_lt_of_le hst with rfl | hlt
-    · exact le_rfl
-    · exact (hpsi_strict hs ht hlt).le
+  have hpsi_mono : MonotoneOn psi (Icc 0 L) := hpsi_strict.monotoneOn
   have hunitLength : ∀ s ∈ Icc 0 L, ∀ t ∈ Icc 0 L, s ≤ t →
       pathELength I (gamma ∘ psi) s t = ENNReal.ofReal (t - s) := by
     intro s hs t ht hst
@@ -148,7 +142,7 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
       (hpsi_mono.mono (Icc_subset_Icc hs.1 ht.2))
       ((hpsi_C1_Icc.differentiableOn (by norm_num)).mono
         (Icc_subset_Icc hs.1 ht.2))
-      ((hgamma_on.mdifferentiableOn (by norm_num)).mono htarget)
+      ((hgamma.mdifferentiableOn (by norm_num)).mono htarget)
     have hint : MeasureTheory.IntegrableOn (riemannianSpeed I gamma)
         (Icc (psi s) (psi t)) :=
       (hspeed_cont.mono htarget).integrableOn_Icc
@@ -174,12 +168,13 @@ theorem exists_unit_speed_reparametrization_of_regular {gamma : ℝ → M}
   · simp only [Function.comp_apply, hpsi_zero]
   · simp only [Function.comp_apply, hpsi_L]
 
-/-- A curve that is `C¹` on a neighborhood of `[a, b]` and has nonzero derivative
+/-- A curve that is `C¹` on `[a, b]` and has nonzero derivative
 throughout the interval admits a constant-speed reparametrization on `[0, 1]`;
-its speed is its total length `L`. -/
+its speed is its total length `L`, and every subinterval `[s, t]` has length
+`L (t - s)`. -/
 theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
     {a b : ℝ} (hab : a < b)
-    (hgamma : ∀ t ∈ Icc a b, ContMDiffAt 𝓘(ℝ, ℝ) I 1 gamma t)
+    (hgamma : ContMDiffOn 𝓘(ℝ, ℝ) I 1 gamma (Icc a b))
     (hreg : ∀ t ∈ Icc a b, riemannianSpeed I gamma t ≠ 0) :
     ∃ L : ℝ, ∃ theta : ℝ → ℝ,
       L = ∫ t in a..b, riemannianSpeed I gamma t ∧
@@ -191,10 +186,12 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       ContDiffOn ℝ 1 theta (Icc 0 1) ∧
       ContMDiffOn 𝓘(ℝ, ℝ) I 1 (gamma ∘ theta) (Icc 0 1) ∧
       (∀ t ∈ Icc 0 1, riemannianSpeed I (gamma ∘ theta) t = L) ∧
+      (∀ s ∈ Icc 0 1, ∀ t ∈ Icc 0 1, s ≤ t →
+        pathELength I (gamma ∘ theta) s t = ENNReal.ofReal (L * (t - s))) ∧
       pathELength I (gamma ∘ theta) 0 1 = ENNReal.ofReal L ∧
       pathELength I (gamma ∘ theta) 0 1 = pathELength I gamma a b := by
   obtain ⟨L, psi, hL, hL_pos, hpsi_maps, hpsi_strict, hpsi_zero, hpsi_L,
-    _, _, hpsi_C1, hunit_C1, hunit, _, _, horiginalLength, _, htotalLength⟩ :=
+    _, _, hpsi_C1, hunit_C1, hunit, _, _, horiginalLength, hunitLength, _⟩ :=
     exists_unit_speed_reparametrization_of_regular hab hgamma hreg
   let scale : ℝ → ℝ := fun t ↦ L * t
   let theta : ℝ → ℝ := psi ∘ scale
@@ -207,11 +204,7 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
   have hscale_strict : StrictMonoOn scale (Icc 0 1) := by
     intro s _ t _ hst
     exact mul_lt_mul_of_pos_left hst hL_pos
-  have hscale_mono : MonotoneOn scale (Icc 0 1) := by
-    intro s hs t ht hst
-    rcases eq_or_lt_of_le hst with rfl | hlt
-    · exact le_rfl
-    · exact (hscale_strict hs ht hlt).le
+  have hscale_mono : MonotoneOn scale (Icc 0 1) := hscale_strict.monotoneOn
   have htheta_strict : StrictMonoOn theta (Icc 0 1) := by
     intro s hs t ht hst
     exact hpsi_strict (hscale_maps hs) (hscale_maps ht)
@@ -241,29 +234,37 @@ theorem exists_constant_speed_reparametrization_of_regular {gamma : ℝ → M}
       (hunit_mdiff _ (hscale_maps ht)) (hscale_hasDeriv t).differentiableAt
     rw [(hscale_hasDeriv t).deriv, abs_of_pos hL_pos, hunit _ (hscale_maps ht)] at hchain
     simpa only [theta, Function.comp_assoc, mul_one] using hchain
+  have hsubintervalLength : ∀ s ∈ Icc 0 1, ∀ t ∈ Icc 0 1, s ≤ t →
+      pathELength I (gamma ∘ theta) s t = ENNReal.ofReal (L * (t - s)) := by
+    intro s hs t ht hst
+    have hscale_st : scale s ≤ scale t := hscale_mono hs ht hst
+    have hinterval : Icc (scale s) (scale t) ⊆ Icc 0 L :=
+      Icc_subset_Icc (hscale_maps hs).1 (hscale_maps ht).2
+    have hcomp := pathELength_comp_of_monotoneOn (I := I) hst
+      (hscale_mono.mono (Icc_subset_Icc hs.1 ht.2))
+      ((hscale_C1.contDiffOn.differentiableOn (by norm_num)).mono
+        (Icc_subset_Icc hs.1 ht.2))
+      ((hunit_C1.mdifferentiableOn (by norm_num)).mono hinterval)
+    calc
+      pathELength I (gamma ∘ theta) s t =
+          pathELength I ((gamma ∘ psi) ∘ scale) s t := by
+        simp only [theta, Function.comp_assoc]
+      _ = pathELength I (gamma ∘ psi) (scale s) (scale t) := hcomp
+      _ = ENNReal.ofReal (scale t - scale s) :=
+        hunitLength _ (hscale_maps hs) _ (hscale_maps ht) hscale_st
+      _ = ENNReal.ofReal (L * (t - s)) := by
+        congr 1
+        simp only [scale]
+        ring
   have hconstantLength :
       pathELength I (gamma ∘ theta) 0 1 = ENNReal.ofReal L := by
-    have hunit_md : MDiff[Icc (scale 0) (scale 1)] (gamma ∘ psi) := by
-      simpa only [scale, mul_zero, mul_one] using
-        hunit_C1.mdifferentiableOn (by norm_num)
-    have hcomp := pathELength_comp_of_monotoneOn (I := I) zero_le_one
-      hscale_mono (hscale_C1.contDiffOn.differentiableOn (by norm_num))
-      hunit_md
-    calc
-      pathELength I (gamma ∘ theta) 0 1 =
-          pathELength I ((gamma ∘ psi) ∘ scale) 0 1 := by
-        simp only [theta, Function.comp_assoc]
-      _ = pathELength I (gamma ∘ psi) (scale 0) (scale 1) := hcomp
-      _ = pathELength I (gamma ∘ psi) 0 L := by
-        simp only [scale, mul_zero, mul_one]
-      _ = pathELength I gamma a b := htotalLength
-      _ = ENNReal.ofReal L := horiginalLength
+    simpa using hsubintervalLength 0 (by norm_num) 1 (by norm_num) zero_le_one
   have htheta_zero : theta 0 = a := by simp only [theta, scale, Function.comp_apply, mul_zero,
     hpsi_zero]
   have htheta_one : theta 1 = b := by simp only [theta, scale, Function.comp_apply, mul_one,
     hpsi_L]
   refine ⟨L, theta, hL, hL_pos, htheta_maps, htheta_strict, htheta_zero,
-    htheta_one, htheta_C1, hcomp_C1, hconstant, hconstantLength, ?_⟩
+    htheta_one, htheta_C1, hcomp_C1, hconstant, hsubintervalLength, hconstantLength, ?_⟩
   exact hconstantLength.trans horiginalLength.symm
 
 end Manifold

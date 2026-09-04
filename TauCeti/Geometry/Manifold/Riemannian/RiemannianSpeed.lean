@@ -47,6 +47,7 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
   by simp only [riemannianSpeed]
 
 /-- Riemannian speed is nonnegative. -/
+@[simp]
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
     0 ≤ riemannianSpeed I gamma t := by
   rw [riemannianSpeed_apply]
