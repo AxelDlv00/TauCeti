@@ -19,19 +19,13 @@ calculus: its derivative is the tangent-coordinate change, its second
 derivative is symmetric, and its first-derivative coordinate entries have the
 expected derivative.
 
-`extCoordChange` is a reducible abbreviation of Mathlib's partial equivalence,
+`extendCoordChange` is Mathlib's partial equivalence,
 so its source, target, inverse, and invertibility API remain available without
 translation lemmas.
 
-This is the canonical transition-calculus prerequisite for the Hopf--Rinow Layer 1
-Levi-Civita/Christoffel regularity route: it adds the derivative facts absent from Mathlib while
-keeping the existing `extendCoordChange` object as the sole transition-map implementation.
-
-The declarations port the transition section of
-`DoCarmoLib/Riemannian/Connection/ChartChristoffelChange.lean` at source revision
-[`24f32e4d600878bfaac6bc2f2f9324175571c321`](https://github.com/frenzymath/Poincare-Conjecture/tree/24f32e4d600878bfaac6bc2f2f9324175571c321).
-They use only the manifold structure, so this port has no dependency on a
-Riemannian metric or a vector bundle.
+The derivative entries below package the first and second coordinate derivatives used by
+second-order coordinate equations. They use only the manifold structure, so no Riemannian metric
+or vector bundle is required.
 
 ## References
 
@@ -60,7 +54,7 @@ section Boundaryless
 variable [I.Boundaryless]
 
 /-- The extended coordinate change is `C^n` at every point of its source. -/
-theorem contDiffAt_extCoordChange {n : WithTop ℕ∞} [IsManifold I n M]
+theorem contDiffAt_extendCoordChange {n : WithTop ℕ∞} [IsManifold I n M]
     {β α : M} {y : E}
     (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source) :
     ContDiffAt ℝ n (I.extendCoordChange (chartAt H β) (chartAt H α)) y := by
@@ -80,7 +74,7 @@ variable [IsManifold I 1 M]
 
 /-- The derivative of the extended coordinate change is the
 tangent-coordinate change ([doCarmo1992]). -/
-theorem hasFDerivAt_extCoordChange {β α : M} {y : E}
+theorem hasFDerivAt_extendCoordChange {β α : M} {y : E}
     (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source) :
     HasFDerivAt (I.extendCoordChange (chartAt H β) (chartAt H α))
       (tangentCoordChange I β α ((extChartAt I β).symm y)) y := by
@@ -101,11 +95,11 @@ theorem hasFDerivAt_extCoordChange {β α : M} {y : E}
 
 /-- The Frechet derivative of the extended coordinate change at a point of its
 source. -/
-theorem fderiv_extCoordChange {β α : M} {y : E}
+theorem fderiv_extendCoordChange {β α : M} {y : E}
     (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source) :
     fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α)) y =
       tangentCoordChange I β α ((extChartAt I β).symm y) :=
-  (hasFDerivAt_extCoordChange (I := I) hy).fderiv
+  (hasFDerivAt_extendCoordChange (I := I) hy).fderiv
 
 end FirstDerivative
 
@@ -117,39 +111,19 @@ variable [FiniteDimensional ℝ E]
 
 /-- The coordinate entries of the first derivative of an extended coordinate
 change. -/
-def extCoordChangeDeriv (β α : M) (a i : Fin (Module.finrank ℝ E))
+def extendCoordChangeDeriv (β α : M) (a i : Fin (Module.finrank ℝ E))
     (y : E) : ℝ :=
   (Module.finBasis ℝ E).coord a
     (fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α)) y
       ((Module.finBasis ℝ E) i))
 
-/-- Unfold the first extended-coordinate-change derivative entry. -/
-@[simp]
-theorem extCoordChangeDeriv_def (β α : M)
-    (a i : Fin (Module.finrank ℝ E)) (y : E) :
-    extCoordChangeDeriv (I := I) β α a i y =
-      (Module.finBasis ℝ E).coord a
-        (fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α)) y
-          ((Module.finBasis ℝ E) i)) := by
-  simp only [extCoordChangeDeriv]
-
 /-- The second-derivative coefficient of an extended coordinate change:
 `∂²x^a/∂y^k∂y^i`. -/
-def extCoordChangeSndDeriv (β α : M)
+def extendCoordChangeSndDeriv (β α : M)
     (a k i : Fin (Module.finrank ℝ E)) (y : E) : ℝ :=
   (Module.finBasis ℝ E).coord a
     (fderiv ℝ (fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α))) y
       ((Module.finBasis ℝ E) k) ((Module.finBasis ℝ E) i))
-
-/-- Unfold the second extended-coordinate-change derivative entry. -/
-@[simp]
-theorem extCoordChangeSndDeriv_def (β α : M)
-    (a k i : Fin (Module.finrank ℝ E)) (y : E) :
-    extCoordChangeSndDeriv (I := I) β α a k i y =
-      (Module.finBasis ℝ E).coord a
-        (fderiv ℝ (fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α))) y
-          ((Module.finBasis ℝ E) k) ((Module.finBasis ℝ E) i)) := by
-  simp only [extCoordChangeSndDeriv]
 
 section SecondDerivative
 
@@ -157,33 +131,46 @@ variable [I.Boundaryless] [IsManifold I 2 M]
 
 /-- Schwarz symmetry of the extended coordinate change's second derivative:
 `∂²x^a/∂y^k∂y^i = ∂²x^a/∂y^i∂y^k` on its source. -/
-theorem extCoordChangeSndDeriv_symm {β α : M} {y : E}
+theorem extendCoordChangeSndDeriv_symm {β α : M} {y : E}
     (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source)
     (a k i : Fin (Module.finrank ℝ E)) :
-    extCoordChangeSndDeriv (I := I) β α a k i y =
-      extCoordChangeSndDeriv (I := I) β α a i k y := by
+    extendCoordChangeSndDeriv (I := I) β α a k i y =
+      extendCoordChangeSndDeriv (I := I) β α a i k y := by
   have hcont : ContDiffAt ℝ 2 (I.extendCoordChange (chartAt H β) (chartAt H α)) y :=
-    contDiffAt_extCoordChange (I := I) hy
+    contDiffAt_extendCoordChange (I := I) hy
   have hsymm : IsSymmSndFDerivAt ℝ (I.extendCoordChange (chartAt H β) (chartAt H α)) y :=
     hcont.isSymmSndFDerivAt (by
       rw [minSmoothness_of_isRCLikeNormedField])
-  rw [extCoordChangeSndDeriv_def, extCoordChangeSndDeriv_def, hsymm.eq]
+  rw [extendCoordChangeSndDeriv, extendCoordChangeSndDeriv, hsymm.eq]
 
 /-- The matrix-entry function of the first derivative has partial derivatives
 given by the second-derivative coefficients. -/
-theorem hasFDerivAt_extCoordChangeDeriv {β α : M} {y : E}
+theorem hasFDerivAt_extendCoordChangeDeriv {β α : M} {y : E}
     (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source)
     (a i : Fin (Module.finrank ℝ E)) :
-    HasFDerivAt (extCoordChangeDeriv (I := I) β α a i)
+    HasFDerivAt (extendCoordChangeDeriv (I := I) β α a i)
       (((Module.finBasis ℝ E).coord a).toContinuousLinearMap.comp
         ((ContinuousLinearMap.apply ℝ E ((Module.finBasis ℝ E) i)).comp
           (fderiv ℝ (fderiv ℝ (I.extendCoordChange (chartAt H β) (chartAt H α))) y))) y := by
   have h2 := TauCeti.ContDiffAt.hasFDerivAt_fderiv
-    (contDiffAt_extCoordChange (I := I) hy) le_rfl
+    (contDiffAt_extendCoordChange (I := I) hy) le_rfl
   have h3 :=
     ((ContinuousLinearMap.apply ℝ E ((Module.finBasis ℝ E) i)).hasFDerivAt.comp
       y h2)
   exact ((Module.finBasis ℝ E).coord a).toContinuousLinearMap.hasFDerivAt.comp y h3
+
+/-- The derivative of a first-coordinate entry, evaluated on a basis vector, is the corresponding
+second-coordinate entry. -/
+@[simp]
+theorem fderiv_extendCoordChangeDeriv_apply {β α : M} {y : E}
+    (hy : y ∈ (I.extendCoordChange (chartAt H β) (chartAt H α)).source)
+    (a i k : Fin (Module.finrank ℝ E)) :
+    (fderiv ℝ (extendCoordChangeDeriv (I := I) β α a i) y)
+        ((Module.finBasis ℝ E) k) =
+      extendCoordChangeSndDeriv (I := I) β α a k i y := by
+  rw [(hasFDerivAt_extendCoordChangeDeriv (I := I) hy a i).fderiv]
+  simp only [ContinuousLinearMap.comp_apply, ContinuousLinearMap.coe_coe,
+    extendCoordChangeSndDeriv]
 
 end SecondDerivative
 
