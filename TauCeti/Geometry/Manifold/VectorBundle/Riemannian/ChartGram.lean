@@ -12,6 +12,7 @@ public import Mathlib.Geometry.Manifold.Algebra.Structures
 public import Mathlib.Geometry.Manifold.VectorBundle.LocalFrame
 public import Mathlib.Geometry.Manifold.VectorBundle.Riemannian
 public import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
+public import Mathlib.LinearAlgebra.Basis.Defs
 public import TauCeti.Geometry.Manifold.VectorBundle.Tangent
 
 /-!
@@ -110,8 +111,7 @@ theorem chartLocalFrame_apply_of_mem_chart_source_eq_symm (α : M) {x : M}
     chartLocalFrame (I := I) α i x =
       (trivializationAt E (TangentSpace I) α).symm x ((Module.finBasis ℝ E) i) := by
   rw [chartLocalFrame_apply_of_mem_chart_source (I := I) α hx i]
-  simp only [Bundle.Trivialization.basisAt, Basis.map_apply,
-    Bundle.Trivialization.linearEquivAt_symm_apply]
+  rfl
 
 /-- The inverse tangent trivialization expands in the canonical chart-local frame. The
   coefficients are the coordinates in `Module.finBasis ℝ E`; the chart-source hypothesis is needed
@@ -145,8 +145,9 @@ theorem chartLocalFrame_eq_symm_tangentCoordChange (α β : M) {x : M}
     simpa only [extChartAt_source] using hxβ
   have hx : x ∈ (extChartAt I x).source := mem_extChartAt_source x
   rw [chartLocalFrame_apply_of_mem_chart_source_eq_symm (I := I) β hxβ i,
-    trivializationAt_symm_eq_tangentCoordChange (I := I) hxβ ((Module.finBasis ℝ E) i),
-    trivializationAt_symm_eq_tangentCoordChange (I := I) hxα
+    TauCeti.Manifold.trivializationAt_symm_eq_tangentCoordChange
+      (I := I) hxβ ((Module.finBasis ℝ E) i),
+    TauCeti.Manifold.trivializationAt_symm_eq_tangentCoordChange (I := I) hxα
       (tangentCoordChange I β α x ((Module.finBasis ℝ E) i))]
   exact (tangentCoordChange_comp (I := I) ⟨⟨hβ, hα⟩, hx⟩).symm
 
@@ -250,6 +251,8 @@ theorem chartGramMatrix_change_quadratic (α β : M) {x : M}
   classical
   simp_rw [chartGramMatrix_change (I := I) α β hxα hxβ]
   simp_rw [Finset.sum_mul, Finset.mul_sum]
+  simp only [mul_assoc]
+  simp_rw [Fintype.sum_mul_sum]
   simp_rw [Finset.sum_mul, Finset.mul_sum]
   simp only [Finset.sum_comm]
 
