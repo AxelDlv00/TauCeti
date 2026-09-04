@@ -49,9 +49,7 @@ theorem riemannianSpeed_apply (gamma : ℝ → M) (t : ℝ) :
 /-- Riemannian speed is nonnegative. -/
 @[simp]
 theorem riemannianSpeed_nonneg (gamma : ℝ → M) (t : ℝ) :
-    0 ≤ riemannianSpeed I gamma t := by
-  rw [riemannianSpeed_apply]
-  exact norm_nonneg _
+    0 ≤ ‖mfderiv 𝓘(ℝ, ℝ) I gamma t 1‖ := norm_nonneg _
 
 /-- A curve that is not differentiable at a point has zero Riemannian speed there. -/
 theorem riemannianSpeed_eq_zero_of_not_mdifferentiableAt
