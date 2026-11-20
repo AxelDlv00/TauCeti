@@ -46,9 +46,12 @@ theorem Scheme.exists_isLimit_finitePresentation_of_isAffine (X : Scheme.{u}) [I
   let c := Scheme.Spec.mapCone (TauCeti.CommRingCat.adjoinFinsetCocone ℤ A).op
   have hc : IsLimit c := isLimitOfPreserves Scheme.Spec
     (TauCeti.CommRingCat.isColimitAdjoinFinsetCocone ℤ A).op
+  let e : c.pt ≅ X :=
+    eqToIso (congrArg (fun R : CommRingCat ↦ Scheme.Spec.obj (Opposite.op R))
+      (TauCeti.CommRingCat.adjoinFinsetCocone_pt ℤ A)) ≪≫ X.isoSpec.symm
   refine ⟨(Finset A)ᵒᵖ, inferInstance, inferInstance,
-    (TauCeti.CommRingCat.adjoinFinsetDiagram ℤ A).op ⋙ Scheme.Spec, (c.extend X.isoSpec.hom).π,
-    ⟨hc.ofIsoLimit (c.extendIso X.isoSpec.symm)⟩, fun _ _ _ ↦ ?_, fun _ ↦ ⟨?_, ?_⟩⟩
+    (TauCeti.CommRingCat.adjoinFinsetDiagram ℤ A).op ⋙ Scheme.Spec, (c.extend e.inv).π,
+    ⟨hc.ofIsoLimit (c.extendIso e)⟩, fun _ _ _ ↦ ?_, fun _ ↦ ⟨?_, ?_⟩⟩
   · dsimp; infer_instance
   · dsimp; infer_instance
   · dsimp
